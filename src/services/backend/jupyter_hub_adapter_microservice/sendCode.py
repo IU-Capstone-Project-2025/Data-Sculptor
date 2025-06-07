@@ -7,7 +7,7 @@ import os
 
 
 @magics_class
-class tellBackendMagic:
+class tellBackendMagic(Magics):
 
     @cell_magic
     def LLM_Validation(self, line, cell):
