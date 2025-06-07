@@ -17,7 +17,7 @@ class tellBackendMagic(Magics):
         backend_URL = ...
         try:
             response = requests.post(backend_URL, json={"code": cell})
-            with open(f"{working_dir}/response.md") as f:
+            with open(f"{working_dir}/response.md", "w") as f:
                 # md_response = response.json().get("content")
                 md_response = "MD response from Aziz!!!"
                 f.write(md_response)
