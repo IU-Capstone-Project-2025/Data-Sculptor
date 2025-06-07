@@ -3,3 +3,4 @@ uvicorn[standard]
 langchain-qwq
 pydantic
 pydantic-settings
+python-multipart
