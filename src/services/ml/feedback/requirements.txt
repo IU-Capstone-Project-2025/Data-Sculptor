@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+langchain-qwq
+pydantic
+pydantic-settings
