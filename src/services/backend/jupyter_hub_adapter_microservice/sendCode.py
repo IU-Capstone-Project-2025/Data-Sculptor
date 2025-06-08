@@ -18,7 +18,7 @@ class tellBackendMagic(Magics):
         self.path_is_valid(working_dir)
         backend_URL = os.getenv("LLM_VALIDATOR_URL")
         try:
-            response = requests.post(backend_URL, json={"code": cell})
+            response = requests.post(f"{backend_URL}/mdAnswer", json={"code": cell})
             with open(f"{working_dir}/response.md", "w") as f:
                 md_response = response.json().get("content")
                 f.write(md_response)
