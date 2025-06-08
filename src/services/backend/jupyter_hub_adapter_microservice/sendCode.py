@@ -5,8 +5,8 @@ from IPython.core.magic import Magics, magics_class, cell_magic
 import requests
 import os
 
-from dotenv import load_dotenv()
-
+from dotenv import load_dotenv
+load_dotenv()
 
 @magics_class
 class tellBackendMagic(Magics):
@@ -26,7 +26,7 @@ class tellBackendMagic(Magics):
             print(f"[ERROR] {e}")
 
     def path_is_valid(self, working_dir):
-        if os.path.isdir(working_dir):
+        if not os.path.isdir(working_dir):
             raise Exception("Please, provide path to working directory")
 
 
