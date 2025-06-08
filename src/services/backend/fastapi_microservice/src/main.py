@@ -22,8 +22,9 @@ async def mdAnswer(code: Code):
 	with open(file_path, "w") as f:
 		f.write(content)
 
-	return FileResponse(
-		path=file_path,
-		media_type="text/markdown",
-		filename="generated_file.md"
-	)
+	# return FileResponse(
+	# 	path=file_path,
+	# 	media_type="text/markdown",
+	# 	filename="generated_file.md"
+	# )
+	return {"content": content}
