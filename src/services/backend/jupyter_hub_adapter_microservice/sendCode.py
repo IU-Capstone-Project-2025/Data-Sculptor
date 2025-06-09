@@ -13,21 +13,23 @@ class tellBackendMagic(Magics):
 
     @cell_magic
     def LLM_Validation(self, line, cell):
-
-        working_dir = line.strip()
-        self.path_is_valid(working_dir)
+        file_path = line.strip()
+        self.path_is_valid(file_path)
         backend_URL = os.getenv("LLM_VALIDATOR_URL")
         try:
-            response = requests.post(f"{backend_URL}/mdAnswer", json={"code": cell})
-            with open(f"{working_dir}/response.md", "w") as f:
-                md_response = response.json().get("content")
-                f.write(md_response)
+            with open(file_path, 'rb') as f:
+                files = {'file': f}
+                response = requests.post(f"{backend_URL}/mdAnswer", files=files)
+            
+            with open(f"{os.path.dirname(file_path)}/response.md", "wb") as f:
+                f.write(response.content)
+                
         except requests.exceptions.RequestException as e:
             print(f"[ERROR] {e}")
 
-    def path_is_valid(self, working_dir):
-        if not os.path.isdir(working_dir):
-            raise Exception("Please, provide path to working directory")
+    def path_is_valid(self, file_path):
+        if not os.path.isfile(file_path):
+            raise Exception("Please, provide path to a valid file")
 
 
 def load_ipython_extension(ipython):
