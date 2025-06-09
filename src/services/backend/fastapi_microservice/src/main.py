@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -14,17 +14,17 @@ async def root():
 
 
 @app.post("/mdAnswer")
-async def mdAnswer(code: Code):
+async def mdAnswer(file: UploadFile = File(...)):
+	content = await file.read()
+	content_str = content.decode()
+	
 	file_path = "generated_file.md"
-	content = f"""Hello World! Your code: {code.code}
-	"""
-
 	with open(file_path, "w") as f:
-		f.write(content)
+		f.write("Hello World! Here is your code:")
+		f.write(content_str)
 
-	# return FileResponse(
-	# 	path=file_path,
-	# 	media_type="text/markdown",
-	# 	filename="generated_file.md"
-	# )
-	return {"content": content}
+	return FileResponse(
+		path=file_path,
+		media_type="text/markdown",
+		filename="generated_file.md"
+	)
