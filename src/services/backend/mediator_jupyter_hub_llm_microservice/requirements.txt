@@ -1,6 +1,7 @@
 annotated-types==0.7.0
 anyio==4.9.0
 certifi==2025.4.26
+charset-normalizer==3.4.2
 click==8.2.1
 dnspython==2.7.0
 email_validator==2.2.0
@@ -17,10 +18,12 @@ MarkupSafe==3.0.2
 mdurl==0.1.2
 pydantic==2.11.5
 pydantic_core==2.33.2
+pydantic-settings
 Pygments==2.19.1
 python-dotenv==1.1.0
 python-multipart==0.0.20
 PyYAML==6.0.2
+requests==2.32.4
 rich==14.0.0
 rich-toolkit==0.14.7
 shellingham==1.5.4
@@ -29,6 +32,7 @@ starlette==0.46.2
 typer==0.16.0
 typing-inspection==0.4.1
 typing_extensions==4.14.0
+urllib3==2.4.0
 uvicorn==0.34.3
 uvloop==0.21.0
 watchfiles==1.0.5
