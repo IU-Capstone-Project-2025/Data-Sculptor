@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  jupyterhub:
+    build:
+      context: ../../src/services/backend/jupyter_hub
+      dockerfile: Dockerfile
+    container_name: dev-jupyterhub
+    ports:
+      - "9000:8000"
+    volumes:
+      - ../../resources/config/jupyterhub:/srv/jupyterhub:rw
+      - ../../src/services/backend/jupyter_hub_adapter_microservice/sendCode.py:/home/developer/sendCode.py:rw #MUST BE ro
+      - ../../resources/data/jupyterhub:/home/developer:rw
+    environment:
+      #  - LLM_VALIDATOR_URL=http://mediator:8001
