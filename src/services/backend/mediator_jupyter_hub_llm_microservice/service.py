@@ -1,47 +1,30 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
-import httpx
-import os
 
-from src.services.backend.mediator_jupyter_hub_llm_microservice.settings import settings
+class Code(BaseModel):
+	code: str
 
 app = FastAPI()
 
-@app.post("/getMdFeedback")
-async def get_md_feedback(
-	file: UploadFile = File(...),
-) -> FileResponse:
-	"""
-	Sends .ipynb for processing and returns .md result
-	"""
-	try:
-		content: bytes = await file.read()
+@app.get("/")
+async def root():
+	return {"Hello": "World!"}
 
-		files = {"file": (file.filename, content, "application/x-ipynb+json")}
 
-		async with httpx.AsyncClient() as client:
-			response = await client.post(
-				url=f"{settings.feedback_service_url}/api/v1/feedback",
-				files=files,
-			)
-  
-		response.raise_for_status()
-  
-		response_json = response.json()
+@app.post("/mdAnswer")
+async def mdAnswer(file: UploadFile = File(...)):
+	content = await file.read()
+	content_str = content.decode()
 	
-		file_path = "generated_file.md"
-		with open(file_path, "w") as f:
-			f.write(response_json.get("feedback",""))
+	file_path = "generated_file.md"
+	with open(file_path, "w") as f:
+		f.write("Hello World! Here is your code:")
+		f.write(content_str)
 
-		return FileResponse(
-			path=file_path,
-			media_type="text/markdown",
-			filename="generated_file.md",
-		)
-	except Exception as e:
-		raise HTTPException(
-			status_code=500,
-			detail=f"Failed to get .md feedback (mediator service error): {e}",
-		) from e
-
+	return FileResponse(
+		path=file_path,
+		media_type="text/markdown",
+		filename="generated_file.md"
+	)
