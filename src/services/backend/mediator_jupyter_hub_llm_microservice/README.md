@@ -1,5 +1,3 @@
-# Features
-
 Basic FastAPI service:
 
 > POST /getMdAnswer - takes .ipynb file, returns .md file  
@@ -12,5 +10,15 @@ Basic FastAPI service:
 	pip install -m requirements.txt
 
 # Run server locally
+```bash
+uvicorn service::app
+```
 
-	uvicorn service::app
+# `.env` Example
+
+Create a `.env` file in the service's root directory with the following variables.
+
+```bash
+# Required: Feedback Service Configuration
+feedback_service_url="<your_feedback_service_url>"
+```
