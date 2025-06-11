@@ -1,11 +1,10 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
 
-***REMOVED***quests
+import httpx
 import os
 
-from dotenv import load_dotenv
-load_dotenv()
+from src.services.backend.mediator_jupyter_hub_llm_microservice.settings import settings
 
 app = FastAPI()
 
@@ -17,22 +16,23 @@ async def get_md_feedback(
 	Sends .ipynb for processing and returns .md result
 	"""
 	try:
-		content = await file.read()
-		content_str = content.decode()
+		content: bytes = await file.read()
 
-		files = {"file": (file.filename, content_str, "application/x-ipynb+json")}
+		files = {"file": (file.filename, content, "application/x-ipynb+json")}
 
-		FEEDBACK_URL = os.getenv("LLM_BASE_URL")
-
-		response = requests.post(
-			url=f"{FEEDBACK_URL}/api/v1/feedback",
-			files=files,
-			data=data,
-		)
+		async with httpx.AsyncClient() as client:
+			response = await client.post(
+				url=f"{settings.feedback_service_url}/api/v1/feedback",
+				files=files,
+			)
+  
+		response.raise_for_status()
+  
+		response_json = response.json()
 	
 		file_path = "generated_file.md"
 		with open(file_path, "w") as f:
-			f.write(response.feedback)
+			f.write(response_json.get("feedback",""))
 
 		return FileResponse(
 			path=file_path,
