@@ -1,7 +1,8 @@
 # Features
 
 Basic FastAPI service:
-> /mdAnswer - post query, get string - return hardcoded md file
+
+> POST /getMdAnswer - takes .ipynb file, returns .md file  
 
 # Set-up (Debian-based Linux)
 
@@ -12,4 +13,4 @@ Basic FastAPI service:
 
 # Run server locally
 
-	uvicorn src.main::app
+	uvicorn service::app
