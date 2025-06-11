@@ -19,7 +19,7 @@ class tellBackendMagic(Magics):
         try:
             with open(file_path, 'rb') as f:
                 files = {'file': f}
-                response = requests.post(f"{backend_URL}/mdAnswer", files=files)
+                response = requests.post(f"{backend_URL}/getMdFeedback", files=files)
             
             with open(f"{os.path.dirname(file_path)}/response.md", "wb") as f:
                 f.write(response.content)
