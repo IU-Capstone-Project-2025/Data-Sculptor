@@ -1,15 +1,8 @@
-# Features
+## `.env` Example
 
-Basic FastAPI service:
-> /mdAnswer - post query, get string - return hardcoded md file
+Create a `.env` file in the service's root directory with the following variables.
 
-# Set-up (Debian-based Linux)
-
-	cd backend
-	python3 -m venv .venv
-	source .venv/bin/activate
-	pip install -m requirements.txt
-
-# Run server locally
-
-	uvicorn src.main::app
+```bash
+# Required: Feedback Service Configuration
+feedback_service_url="<your_feedback_service_url>"
+```
