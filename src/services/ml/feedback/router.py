@@ -16,10 +16,10 @@ from fastapi import (
     UploadFile,
 )
 
-from src.services.ml.feedback.qwen import get_qwen_client
-from src.services.ml.feedback.notebook import JupyterNotebook
-from src.services.ml.feedback.prompt import FEEDBACK_PROMPT
-from src.services.ml.feedback.schemas import (
+from qwen import get_qwen_client
+from notebook import JupyterNotebook
+from prompt import FEEDBACK_PROMPT
+from schemas import (
     FeedbackResponse,
     HealthCheckResponse,
 )
