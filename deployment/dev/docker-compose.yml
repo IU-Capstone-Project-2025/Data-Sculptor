@@ -42,6 +42,3 @@ services:
       - PYTHONUNBUFFERED=1
     volumes:
       - ../../src/services/ml/feedback:/app:ro
-        # networks:
-      #default:
-        #       driver: bridge
