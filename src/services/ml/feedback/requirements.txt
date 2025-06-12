@@ -4,3 +4,4 @@ langchain-qwq
 pydantic
 pydantic-settings
 python-multipart
+python-dotenv

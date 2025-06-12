@@ -13,7 +13,7 @@ from langchain_core.runnables import Runnable
 from langchain_qwq import ChatQwQ
 
 
-from src.services.ml.feedback.settings import settings
+from settings import settings
 
 
 def get_qwen_client(
