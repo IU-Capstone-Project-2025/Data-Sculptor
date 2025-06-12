@@ -14,8 +14,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 
-from src.services.ml.feedback.router import router as feedback_router
-from src.services.ml.feedback.settings import settings
+from router import router as feedback_router
+from settings import settings
 
 
 def create_app() -> FastAPI:
