@@ -21,6 +21,7 @@ from fastapi import (
     UploadFile,
     status,
 )
+import logging
 from openai import BadRequestError
 
 from notebook import JupyterNotebook
@@ -31,6 +32,7 @@ from settings import settings
 from schemas import FeedbackResponse, HealthCheckResponse
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 OPENAPI_SPEC_FEEDBACK = yaml.safe_load(
     Path(settings.open_api_folder).joinpath("feedback.yaml").read_text()
@@ -92,8 +94,11 @@ async def get_feedback(
             localized_feedback=localized_feedback,
         )
     except IndexError:
+        logger.error("Invalid target cell index", exc_info=True)
         raise HTTPException(status_code=400, detail="Invalid target cell index")
+    
     except BadRequestError as openai_error:
+        logger.error("LLM request error", exc_info=True)
         error_body = json.loads(openai_error.response.text)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -101,4 +106,5 @@ async def get_feedback(
         ) from openai_error
 
     except Exception as e:
+        logger.error("Unexpected error", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to get feedback: {e}")
