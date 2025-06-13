@@ -16,6 +16,10 @@ from langchain_core.runnables import Runnable
 
 from llm_schemas import WarningList
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 async def generate_warnings(
     code: str,
     global_line_offset: int = 0,
@@ -45,6 +49,7 @@ async def generate_warnings(
         warnings_obj: WarningList = await chain.ainvoke({"code": numbered_code})
         warnings_list = warnings_obj.warnings
     except Exception:
+        logger.warning("Error happened while generating warnings", exc_info=True)
         warnings_list = []
 
     lines = code.splitlines()
