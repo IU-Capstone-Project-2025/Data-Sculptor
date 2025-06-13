@@ -16,4 +16,5 @@ llm_model="<your_qwen_llm_model_name>"
 feedback_service_host="127.0.0.1"
 feedback_service_port=8000
 feedback_service_n_workers=1
+open_api_folder="./docs/openapi"
 ```
