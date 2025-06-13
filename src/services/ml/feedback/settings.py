@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     feedback_service_host: str = "127.0.0.1"
     feedback_service_port: int = 8000
     feedback_service_n_workers: int = 1
+    
+    open_api_folder: str = "./docs/openapi/"
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"

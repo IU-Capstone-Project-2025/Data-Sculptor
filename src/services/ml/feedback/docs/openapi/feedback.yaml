@@ -1,0 +1,48 @@
+summary: Submit a Jupyter Notebook for automated code feedback
+description: |
+  Accepts a `.ipynb` file via **multipart/form-data** and returns AI-generated
+  feedback on the notebook's code cells. Set `use_deep_analysis` to `true` to
+  enable the model's chain-of-thought reasoning (slower, higher quality).
+requestBody:
+  required: true
+  content:
+    multipart/form-data:
+      schema:
+        type: object
+        required:
+          - file
+        properties:
+          file:
+            type: string
+            format: binary
+            description: Jupyter Notebook file (`.ipynb`).
+          use_deep_analysis:
+            type: boolean
+            default: false
+            description: Enable deeper chain-of-thought analysis.
+responses:
+  "200":
+    description: Feedback successfully generated.
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/FeedbackResponse"
+  "400":
+    description: Invalid request (e.g. wrong file type, prompt too long).
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            detail:
+              type: string
+              example: Invalid file type. Please upload a .ipynb file.
+  "500":
+    description: Unexpected server error when generating feedback.
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            detail:
+              type: string 
