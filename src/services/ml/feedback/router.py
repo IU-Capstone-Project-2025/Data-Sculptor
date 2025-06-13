@@ -7,26 +7,33 @@ Public API:
     - router: The FastAPI APIRouter instance.
 """
 
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import yaml
 from fastapi import (
     APIRouter,
     File,
     Form,
     HTTPException,
-    status,
     UploadFile,
+    status,
 )
+from openai import BadRequestError
 
-from qwen import get_qwen_client
 from notebook import JupyterNotebook
 from prompt import FEEDBACK_PROMPT
-from schemas import (
-    FeedbackResponse,
-    HealthCheckResponse,
-)
-
+from qwen import get_qwen_client
+from schemas import FeedbackResponse, HealthCheckResponse
+from settings import settings
 
 router = APIRouter()
 
+OPENAPI_SPEC_FEEDBACK = yaml.safe_load(
+    Path(settings.open_api_folder).joinpath("feedback.yaml").read_text()
+)
 
 @router.get(
     "/health",
@@ -42,8 +49,9 @@ async def health_check() -> HealthCheckResponse:
 @router.post(
     "/feedback",
     response_model=FeedbackResponse,
-    summary="Get feedback on a Jupyter Notebook",
+    summary="Submit a Jupyter Notebook for automated code feedback",
     tags=["Feedback"],
+    openapi_extra=OPENAPI_SPEC_FEEDBACK,
 )
 async def get_feedback(
     file: UploadFile = File(...),
@@ -69,14 +77,22 @@ async def get_feedback(
                 detail="The notebook does not contain any code cells.",
             )
 
-        formatted_code = "\\n---\\n".join(code_cells)
+        formatted_code = "\n---\n".join(code_cells)
 
         chain = FEEDBACK_PROMPT | llm_client
         response = await chain.ainvoke({"code_cells": formatted_code})
         return FeedbackResponse(feedback=response.content)
 
+    except BadRequestError as openai_error:
+        error_body = json.loads(openai_error.response.text)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"LLM request error: {error_body['message']}",
+        ) from openai_error
+
     except Exception as e:
+        # Fallback for all other unexpected errors.
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get feedback from LLM: {e}",
+            detail=f"Failed to get feedback: {e}",
         ) from e
