@@ -20,6 +20,10 @@ requestBody:
             type: boolean
             default: false
             description: Enable deeper chain-of-thought analysis.
+          target_cell_id:
+            type: integer
+            default: -1
+            description: '-1 for full notebook, otherwise zero-based code cell index to analyse.'
 responses:
   "200":
     description: Feedback successfully generated.
@@ -27,6 +31,19 @@ responses:
       application/json:
         schema:
           $ref: "#/components/schemas/FeedbackResponse"
+        examples:
+          success:
+            summary: Typical successful response
+            value:
+              non_localized_feedback: Overall the code is well-structured…
+              localized_feedback:
+                - range:
+                    start: { line: 5, character: 0 }
+                    end: { line: 5, character: 23 }
+                  severity: 2
+                  code: custom-warning
+                  source: Data Sculptor
+                  message: Magic number detected.
   "400":
     description: Invalid request (e.g. wrong file type, prompt too long).
     content:

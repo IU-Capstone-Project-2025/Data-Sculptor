@@ -107,3 +107,55 @@ class JupyterNotebook:
             for cell in self.cells
             if cell.get("cell_type") == "markdown"
         ]
+
+    def _compute_cell_start_lines(self) -> list[int]:
+        """Compute the global starting line index of every cell's *first* code line.
+
+        The index is zero-based relative to a virtual concatenation of all code cells
+        separated by a single newline (so the mapping matches the string returned by
+        ``get_code_cells``).
+        """
+
+        start_lines: list[int] = []
+        line_cursor = 0
+        for cell in self.cells:
+            if cell.get("cell_type") != "code":
+                continue
+
+            start_lines.append(line_cursor)
+
+            # Count lines in this code cell
+            src = "".join(cell["source"])
+            # Cells are concatenated with a single newline between them.
+            line_cursor += len(src.splitlines())
+        return start_lines
+
+    @property
+    def _cell_start_lines(self) -> list[int]:
+        # Lazy cached property
+        if not hasattr(self, "__cell_offsets_cache"):
+            self.__cell_offsets_cache = self._compute_cell_start_lines()
+        return self.__cell_offsets_cache
+
+    def get_code_cell_with_offset(self, target_id: int) -> tuple[str, int]:
+        """Return the source of a *code* cell and its global starting line index.
+
+        Args:
+            target_id: Zero-based order index among *code* cells.
+
+        Returns:
+            (cell_source, global_line_offset)
+
+        Raises:
+            IndexError: If ``target_id`` is out of range or refers to a non-code cell.
+        """
+
+        code_cells_indices = [i for i, c in enumerate(self.cells) if c.get("cell_type") == "code"]
+        if target_id < 0 or target_id >= len(code_cells_indices):
+            raise IndexError("target_cell_id out of range.")
+
+        physical_idx = code_cells_indices[target_id]
+        cell = self.cells[physical_idx]
+        src = "".join(cell["source"])
+        offset = self._cell_start_lines[target_id]
+        return src, offset
