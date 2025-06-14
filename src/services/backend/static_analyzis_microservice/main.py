@@ -36,6 +36,7 @@ class DiagnosticsResponse(BaseModel):
 async def analyze_notebook(nb_file: UploadFile = File(...)):
     # 1. Read raw notebook JSON
     raw = (await nb_file.read()).decode("utf-8")
+
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as e:
