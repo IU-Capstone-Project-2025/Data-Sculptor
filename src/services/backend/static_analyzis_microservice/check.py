@@ -1,6 +1,6 @@
 import requests
 
-url = "http://127.0.0.1:8000/analyze"
+url = "http://127.0.0.1:8005/analyze"
 with open("test.ipynb", "rb") as f:
     files = {"nb_file": ("test.ipynb", f, "application/octet-stream")}
     resp = requests.post(url, files=files)

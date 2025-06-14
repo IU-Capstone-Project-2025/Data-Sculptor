@@ -3,6 +3,9 @@
 import asyncio
 import json
 import re
+import traceback
+from typing import Tuple
+
 from pydantic import BaseModel, Field
 
 # --- LSP Diagnostic Models ---
@@ -22,13 +25,27 @@ class LspDiagnostic(BaseModel):
     message: str
 
 async def _run_cmd(cmd: list[str]) -> tuple[int, str, str]:
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
-    )
+    """
+    Execute an external command and capture stdout/stderr.
+    On failure to even start the process, logs the exception and
+    returns (–1, "", "<ExceptionType>: <message>").
+    """
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    except Exception as e:
+        # Логируем короткое сообщение и полную трассировку
+        print("Ошибка запуска команды %r: %s"%( cmd, e))
+        print("Полная трассировка:\n%s"% traceback.format_exc())
+        # Возвращаем информацию об ошибке в stderr
+        return -1, "", f"{type(e).__name__}: {e}"
+
+    # Если процесс успешно запущен — подождём вывода
     out, err = await proc.communicate()
-    return proc.returncode, out.decode(), err.decode()
+    return proc.returncode, out.decode(errors="ignore"), err.decode(errors="ignore")
 
 # --- Parsing Functions ---
 def _parse_pylint(json_output: str) -> list[LspDiagnostic]:
