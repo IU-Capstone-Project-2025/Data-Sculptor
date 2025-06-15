@@ -13,7 +13,7 @@ services:
       - ../../src/services/backend/jupyter_hub_adapter_microservice/sendCode.py:/home/developer/sendCode.py:rw #MUST BE ro
       - ../../resources/data/jupyterhub:/home/developer:rw
     environment:
-      - LLM_VALIDATOR_URL=http://mediator:8001
+      - LLM_VALIDATOR_URL=http://10.100.30.239:8001
 
   mediator:
     build:
@@ -22,10 +22,10 @@ services:
     container_name: dev-mediator
     ports:
       - "8001:8001"
-    env_file:
-      - ../../src/services/backend/mediator_jupyter_hub_llm_microservice/.env
     environment:
       - PYTHONUNBUFFERED=1
+      - FEEDBACK_SERVICE_URL=http://10.100.30.239:9352
+
     volumes:
       - ../../src/services/backend/mediator_jupyter_hub_llm_microservice:/app:rw
 
