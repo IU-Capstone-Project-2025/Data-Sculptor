@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+nbformat
+nbconvert
+pylint
+mypy
+dodgy
+pydocstyle
+vulture
