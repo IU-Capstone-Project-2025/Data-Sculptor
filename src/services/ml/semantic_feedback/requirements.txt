@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+langchain-qwq
+pydantic
+pydantic-settings
+python-multipart
+python-dotenv
+PyYAML
