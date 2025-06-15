@@ -1,18 +1,17 @@
 from pygls.server import LanguageServer
 import os
-import json
 from lsprotocol import types
-from pygls.workspace import text_document
 import logging
 import urllib.parse
 import requests
-from pathlib import Path
 from lsprotocol.types import Diagnostic, Range, Position, DiagnosticSeverity
+
 server = LanguageServer("example-server", "v0.1")
 
 target = "example_lsp.log"
 logging.basicConfig(
-    filename=target, level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s"
+    filename=target, level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s %(message)s"
 )
 
 URL_STATIC_ANALYZER = "http://0.0.0.0:8085/analyze"
@@ -21,16 +20,8 @@ URL_STATIC_ANALYZER = "http://0.0.0.0:8085/analyze"
 @server.feature(types.TEXT_DOCUMENT_DID_SAVE)
 def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
     URI = params.text_document.uri
-    vdoc_filepath = urllib.parse.urlparse(URI).path
-    filename = os.path.basename(vdoc_filepath)
-
-    vdoc_dirpath = os.path.dirname(vdoc_filepath)
-
-    dirpath = os.path.dirname(vdoc_dirpath)
-    filepath = os.path.join(dirpath,filename)
-    if not filepath.lower().endswith(".ipynb"):
-        logging.info(f"NOT IPYNB FILE")
-        return [] 
+    filepath = urllib.parse.urlparse(URI).path
+    filename = os.path.basename(filepath)
 
     logging.info(f"HERES YOUR FILEPATH {filepath}")
     with open(f"{filepath}", "rb") as f:
@@ -44,7 +35,6 @@ def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
     logging.info(f"Status:\n {raw_diagnostics.status_code}")
     logging.info(f"Response body:\n{raw_diagnostics.text}")
     raw_diagnostics = raw_diagnostics.json()["diagnostics"]
-    ORIG_URI = Path(filepath).as_uri()
     lsp_diags = []
     for d in raw_diagnostics:
         start = d["range"]["start"]
@@ -55,8 +45,9 @@ def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
 
         lsp_diags.append(Diagnostic(
             range=Range(
-                start=Position(line=start["line"], character=start_char),
-                end=Position(line=end["line"], character=end_char)
+                start=Position(line=max(0, start["line"]),
+                               character=start_char),
+                end=Position(line=max(0, end["line"]), character=end_char)
             ),
             severity=DiagnosticSeverity(d["severity"]),
             code=d.get("code"),
@@ -84,5 +75,4 @@ def main():
 
 
 if __name__ == "__main__":
-
     main()
