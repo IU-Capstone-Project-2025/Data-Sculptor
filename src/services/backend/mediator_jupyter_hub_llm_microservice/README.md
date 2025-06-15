@@ -22,3 +22,4 @@ Create a `.env` file in the service's root directory with the following variable
 # Required: Feedback Service Configuration
 feedback_service_url="<your_feedback_service_url>"
 ```
+In case where service deployed via docker, specify feedback_service_url inside docker-compose.yml (.env file not used)
