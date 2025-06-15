@@ -14,14 +14,13 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s"
 )
 
-URL_STATIC_ANALYZER = "http://10.100.30.239:8085"
+URL_STATIC_ANALYZER = "http://10.100.:8085/analyze"
 
 
 @server.feature(types.TEXT_DOCUMENT_DID_SAVE)
 def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
     URI = params.text_document.uri
-    filepath_URI = urllib.parse.urlparse(URI).path
-    filepath = urllib.parse.unquote(filepath_URI)
+    filepath = urllib.parse.urlparse(URI).path
     filename = os.path.basename(filepath)
 
     logging.info(f"HERES YOUR FILEPATH {filepath}")
@@ -29,7 +28,7 @@ def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
         logging.info("PREPARE FILE TRANSMISION")
         files = {"nb_file": (filename, f, "application/octet-stream")}
         logging.info("SEND FILE TO THE SERVER")
-        raw_diagnostics = requests.post(f"{URL_STATIC_ANALYZER}/analyze", files=files)
+        raw_diagnostics = requests.post(URL_STATIC_ANALYZER, files=files)
         logging.info("RECIEVED DIAGNOSTICS... SEND BACK TO JUPYTERLAB")
 
     logging.info(raw_diagnostics.json().get("diagnostics"))
