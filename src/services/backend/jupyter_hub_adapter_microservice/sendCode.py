@@ -15,8 +15,7 @@ class tellBackendMagic(Magics):
     def LLM_Validation(self, line, cell):
         file_path = line.strip()
         self.path_is_valid(file_path)
-        #backend_URL = os.getenv("LLM_VALIDATOR_URL")
-        backend_URL = "http://10.100.30.239:8001"
+        backend_URL = os.getenv("LLM_VALIDATOR_URL")
         try:
             with open(file_path, 'rb') as f:
                 files = {'file': f}
