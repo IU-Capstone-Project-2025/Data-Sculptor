@@ -7,3 +7,4 @@ mypy
 dodgy
 pydocstyle
 vulture
+python-multipart
