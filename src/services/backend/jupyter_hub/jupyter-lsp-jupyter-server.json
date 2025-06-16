@@ -3,16 +3,6 @@
     "jpserver_extensions": {
       "jupyter_lsp": true
     }
-  },
-  "LanguageServerManager": {
-    "language_servers": {
-      "aziz": {
-        "argv": ["python3", "/home/developer/lsp.py"],
-        "languages": ["python"],
-"mime_types": ["text/x-python", "application/x-ipynb+json"],
-        "version": 2
-      }
-    }
   }
 }
 
