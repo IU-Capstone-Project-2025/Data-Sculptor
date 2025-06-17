@@ -1,3 +1,4 @@
+from httpx ***REMOVED***quest
 from pygls.server import LanguageServer
 import os
 from lsprotocol import types
@@ -5,7 +6,7 @@ import logging
 import urllib.parse
 ***REMOVED***quests
 from lsprotocol.types import Diagnostic, Range, Position, DiagnosticSeverity
-
+import lsp_server
 server = LanguageServer("example-server", "v0.1")
 
 target = "example_lsp.log"
@@ -14,13 +15,14 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s"
 )
 
-URL_STATIC_ANALYZER = "http://0.0.0.0:8085/analyze"
-
+URL_STATIC_ANALYZER = "http://0.0.0.0:8085"
+URL_LSP_SERVER = "http://0.0.0.0:8095"
 
 @server.feature(types.TEXT_DOCUMENT_DID_SAVE)
 def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
     URI = params.text_document.uri
-    filepath = urllib.parse.urlparse(URI).path
+    filepath_URI = urllib.parse.urlparse(URI).path
+    filepath = urllib.parse.unquote(filepath_URI)
     filename = os.path.basename(filepath)
 
     logging.info(f"HERES YOUR FILEPATH {filepath}")
@@ -28,13 +30,18 @@ def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
         logging.info("PREPARE FILE TRANSMISION")
         files = {"nb_file": (filename, f, "application/octet-stream")}
         logging.info("SEND FILE TO THE SERVER")
-        raw_diagnostics = requests.post(URL_STATIC_ANALYZER, files=files)
+        raw_diagnostics = requests.post(f"{URL_STATIC_ANALYZER}/analyze", files=files)
         logging.info("RECIEVED DIAGNOSTICS... SEND BACK TO JUPYTERLAB")
 
     logging.info(raw_diagnostics.json().get("diagnostics"))
     logging.info(f"Status:\n {raw_diagnostics.status_code}")
     logging.info(f"Response body:\n{raw_diagnostics.text}")
     raw_diagnostics = raw_diagnostics.json()["diagnostics"]
+    diagnostics = _convert_to_lsp_diagnostics(raw_diagnostics)
+    ls.publish_diagnostics(URI, diagnostics)
+
+
+def _convert_to_lsp_diagnostics(raw_diagnostics):
     lsp_diags = []
     for d in raw_diagnostics:
         start = d["range"]["start"]
@@ -54,20 +61,21 @@ def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
             source=d.get("source"),
             message=d.get("message", "")
         ))
-    ls.publish_diagnostics(URI, lsp_diags)
+    return lsp_diags
 
+@server.feature(types.TEXT_DOCUMENT_DID_OPEN)
+@server.feature(types.TEXT_DOCUMENT_DID_CHANGE)
+@server.feature(types.TEXT_DOCUMENT_DID_CLOSE)
+def real_time_analysis(ls: LanguageServer, params):
+    logging.info("Starting real_time_analysis")
+    
+    uri = params.text_document.uri
+    logging.info(f"Requesting analysis for {uri}")
+    response = requests.post(f"{URL_LSP_SERVER}/analyze", json={"uri": uri})
+    diagnostics = _convert_to_lsp_diagnostics(response.json()["diagnostics"])
+    logging.info(f"Received diagnostics: {diagnostics}")
+    ls.publish_diagnostics(uri, diagnostics)
 
-@server.feature(types.TEXT_DOCUMENT_COMPLETION)
-def completions(ls: LanguageServer, params: types.CompletionParams):
-    items = []
-    doc = ls.workspace.get_document(params.text_document.uri)
-    line = doc.lines[params.position.line].strip()
-    if line.endswith("hello."):
-        items = [
-            types.CompletionItem(label="world"),
-            types.CompletionItem(label="friend"),
-        ]
-    return types.CompletionList(is_incomplete=False, items=items)
 
 
 def main():
