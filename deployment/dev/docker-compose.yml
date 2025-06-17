@@ -27,30 +27,30 @@ services:
       - "8085:8085"
 
 
-  # mediator:
-  #   build:
-  #     context: ../../src/services/backend/mediator_jupyter_hub_llm_microservice
-  #     dockerfile: Dockerfile
-  #   container_name: dev-mediator
-  #   ports:
-  #     - "8001:8001"
-  #   environment:
-  #     - PYTHONUNBUFFERED=1
-  #     - FEEDBACK_SERVICE_URL=http://10.100.30.239:9352
-  #
-  #   volumes:
-  #     - ../../src/services/backend/mediator_jupyter_hub_llm_microservice:/app:rw
-  #
-  # feedback-service:
-  #   build:
-  #     context: ../../src/services/ml/semantic_feedback
-  #     dockerfile: Dockerfile
-  #   container_name: dev-feedback
-  #   ports:
-  #     - "9352:9352"
-  #   env_file:
-  #     - ../../src/services/ml/semantic_feedback/.env
-  #   environment:
-  #     - PYTHONUNBUFFERED=1
-  #   volumes:
-  #     - ../../src/services/ml/semantic_feedback:/app:ro
+  mediator:
+    build:
+      context: ../../src/services/backend/mediator_jupyter_hub_llm_microservice
+      dockerfile: Dockerfile
+    container_name: dev-mediator
+    ports:
+      - "8001:8001"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - FEEDBACK_SERVICE_URL=http://10.100.30.239:9352
+
+    volumes:
+      - ../../src/services/backend/mediator_jupyter_hub_llm_microservice:/app:rw
+
+  feedback-service:
+    build:
+      context: ../../src/services/ml/semantic_feedback
+      dockerfile: Dockerfile
+    container_name: dev-feedback
+    ports:
+      - "9352:9352"
+    env_file:
+      - ../../src/services/ml/semantic_feedback/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ../../src/services/ml/semantic_feedback:/app:ro

@@ -15,7 +15,7 @@ logging.basicConfig(
 )
 
 URL_STATIC_ANALYZER = "http://10.100.30.239:8085"
-
+URL_LSP_SERVER = "http://10.100.30.239:8095"
 
 @server.feature(types.TEXT_DOCUMENT_DID_SAVE)
 def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
@@ -36,6 +36,11 @@ def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
     logging.info(f"Status:\n {raw_diagnostics.status_code}")
     logging.info(f"Response body:\n{raw_diagnostics.text}")
     raw_diagnostics = raw_diagnostics.json()["diagnostics"]
+    diagnostics = _convert_to_lsp_diagnostics(raw_diagnostics)
+    ls.publish_diagnostics(URI, diagnostics)
+
+
+def _convert_to_lsp_diagnostics(raw_diagnostics):
     lsp_diags = []
     for d in raw_diagnostics:
         start = d["range"]["start"]
@@ -55,20 +60,21 @@ def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
             source=d.get("source"),
             message=d.get("message", "")
         ))
-    ls.publish_diagnostics(URI, lsp_diags)
+    return lsp_diags
 
+# @server.feature(types.TEXT_DOCUMENT_DID_OPEN)
+# @server.feature(types.TEXT_DOCUMENT_DID_CHANGE)
+# @server.feature(types.TEXT_DOCUMENT_DID_CLOSE)
+# def real_time_analysis(ls: LanguageServer, params):
+#     logging.info("Starting real_time_analysis")
+#
+#     uri = params.text_document.uri
+#     logging.info(f"Requesting analysis for {uri}")
+#     response = requests.post(f"{URL_LSP_SERVER}/analyze", json={"uri": uri})
+#     diagnostics = _convert_to_lsp_diagnostics(response.json()["diagnostics"])
+#     logging.info(f"Received diagnostics: {diagnostics}")
+#     ls.publish_diagnostics(uri, diagnostics)
 
-@server.feature(types.TEXT_DOCUMENT_COMPLETION)
-def completions(ls: LanguageServer, params: types.CompletionParams):
-    items = []
-    doc = ls.workspace.get_document(params.text_document.uri)
-    line = doc.lines[params.position.line].strip()
-    if line.endswith("hello."):
-        items = [
-            types.CompletionItem(label="world"),
-            types.CompletionItem(label="friend"),
-        ]
-    return types.CompletionList(is_incomplete=False, items=items)
 
 
 def main():
@@ -77,3 +83,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
