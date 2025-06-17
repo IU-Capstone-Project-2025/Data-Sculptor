@@ -1,4 +1,3 @@
-from httpx ***REMOVED***quest
 from pygls.server import LanguageServer
 import os
 from lsprotocol import types
@@ -6,7 +5,7 @@ import logging
 import urllib.parse
 ***REMOVED***quests
 from lsprotocol.types import Diagnostic, Range, Position, DiagnosticSeverity
-import lsp_server
+
 server = LanguageServer("example-server", "v0.1")
 
 target = "example_lsp.log"
@@ -15,8 +14,8 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s"
 )
 
-URL_STATIC_ANALYZER = "http://0.0.0.0:8085"
-URL_LSP_SERVER = "http://0.0.0.0:8095"
+URL_STATIC_ANALYZER = "http://10.100.30.239:8085"
+URL_LSP_SERVER = "http://10.100.30.239:8095"
 
 @server.feature(types.TEXT_DOCUMENT_DID_SAVE)
 def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):

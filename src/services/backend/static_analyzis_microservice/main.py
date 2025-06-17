@@ -19,10 +19,12 @@ diagnostics_result = {}
 diagnostics_event = threading.Event()
 message_id = 1
 
+
 def start_pylsp():
     global pylsp_proc
     pylsp_proc = subprocess.Popen(
-        ["pylsp"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        ["pylsp"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
     )
     threading.Thread(target=read_loop, daemon=True).start()
     # Отправляем initialize
@@ -31,14 +33,17 @@ def start_pylsp():
         "jsonrpc": "2.0",
         "id": next_msg_id(),
         "method": "initialize",
-        "params": {"processId": os.getpid(), "rootUri": root_uri, "capabilities": {}}
+        "params": {"processId": os.getpid(), "rootUri": root_uri,
+                   "capabilities": {}}
     })
     send_request({"jsonrpc": "2.0", "method": "initialized", "params": {}})
+
 
 def next_msg_id():
     global message_id
     message_id += 1
     return message_id
+
 
 def send_request(message: dict):
     global pylsp_proc
@@ -47,6 +52,7 @@ def send_request(message: dict):
     pylsp_proc.stdin.write(header.encode('utf-8'))
     pylsp_proc.stdin.write(body.encode('utf-8'))
     pylsp_proc.stdin.flush()
+
 
 def read_loop():
     global pylsp_proc, diagnostics_result, diagnostics_event
@@ -73,16 +79,19 @@ def read_loop():
             diagnostics_result[uri] = msg["params"]["diagnostics"]
             diagnostics_event.set()
 
+
 @app.on_event("startup")
 def on_startup():
     start_pylsp()
+
 
 @app.post("/analyze")
 async def analyze(request: Request):
     data = await request.json()
     file_uri = data.get("uri")
     if not file_uri:
-***REMOVED*** JSONResponse(content={"error": "No URI provided"}, status_code=400)
+***REMOVED*** JSONResponse(content={"error": "No URI provided"},
+                            status_code=400)
     filepath = urllib.parse.urlparse(file_uri).path
     filepath = urllib.parse.unquote(filepath)
     with open(filepath, 'r', encoding='utf-8') as f:
@@ -112,5 +121,6 @@ async def analyze(request: Request):
         diags = diagnostics_result.get(file_uri, [])
     return {"diagnostics": diags}
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8095)
+
+# if __name__ == "__main__":
+#     uvicorn.run(app, host="0.0.0.0", port=8095)
