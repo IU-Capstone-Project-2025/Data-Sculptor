@@ -40,8 +40,9 @@ docker compose up --build
 ```
 3. Open the service in browser (default port: 9000)
 
-4. Login and check the functionality by running all cells of the .ipynb notebook([authorization data](https://strategic-control.kaiten.ru/documents/d/c3e7daa4-1678-4e99-839b-6caee4383234))
+4. Real-time static analysis runs automatically.
 
+5. Ctrl+S triggers heavy syntatic analysis linters.
 
 ❗️ **The connection with LLM endpoint and service's server can work only with Innopolis internal network**
 
