@@ -12,9 +12,14 @@ services:
       - ../../resources/config/jupyterhub:/srv/jupyterhub:rw
       - ../../src/services/backend/jupyter_hub_adapter_microservice/sendCode.py:/home/developer/sendCode.py:rw #MUST BE ro
       - ../../resources/data/jupyterhub:/home/developer:rw
+      - ../../src/services/backend/syntactic_analyzis_microservice/lsp.py:/home/developer/lsp.py:rw
+      - ../../src/services/backend/jupyter_hub/jupyter-lsp-jupyter-server.json:/etc/jupyter/jupyter_server_config.d/jupyter-lsp-jupyter-server.json:rw
     environment:
       - LLM_VALIDATOR_URL=http://10.100.30.239:10001
-
+      - URL_STATIC_ANALYZER=http://10.100.30.239:10085
+      - URL_LSP_SERVER=http://10.100.30.239:10095
+    env_file:
+      - ../../resources/config/jupyterhub/.env
   mediator:
     build:
       context: ../../src/services/backend/mediator_jupyter_hub_llm_microservice
@@ -31,14 +36,29 @@ services:
 
   feedback-service:
     build:
-      context: ../../src/services/ml/feedback
+      context: ../../src/services/ml/semantic_feedback/
       dockerfile: Dockerfile
     container_name: uat-feedback
     ports:
       - "11352:9352"
     env_file:
-      - ../../src/services/ml/feedback/.env
+      - ../../src/services/ml/semantic_feedback/env_template
     environment:
       - PYTHONUNBUFFERED=1
     volumes:
       - ../../src/services/ml/feedback:/app:ro
+
+  deep-syntatic-service:
+    build:
+      context: ../../src/services/backend/syntactic_analyzis_microservice
+      dockerfile: Dockerfile
+    container_name: uat-deep-static-analyzer-service
+    ports:
+      - "10085:8085"
+  real-time-analysis-service:
+    build:
+      context: ../../src/services/backend/real_time_analysis_microservice
+      dockerfile: Dockerfile
+    container_name: uat-real-time-static-analysis
+    ports:
+      - "10095:8095"
