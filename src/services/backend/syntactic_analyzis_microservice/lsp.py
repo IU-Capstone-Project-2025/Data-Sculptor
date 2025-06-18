@@ -62,19 +62,27 @@ def _convert_to_lsp_diagnostics(raw_diagnostics):
         ))
     return lsp_diags
 
-# @server.feature(types.TEXT_DOCUMENT_DID_OPEN)
-# @server.feature(types.TEXT_DOCUMENT_DID_CHANGE)
-# @server.feature(types.TEXT_DOCUMENT_DID_CLOSE)
-# def real_time_analysis(ls: LanguageServer, params):
-#     logging.info("Starting real_time_analysis")
-#
-#     uri = params.text_document.uri
-#     logging.info(f"Requesting analysis for {uri}")
-#     response = requests.post(f"{URL_LSP_SERVER}/analyze", json={"uri": uri})
-#     diagnostics = _convert_to_lsp_diagnostics(response.json()["diagnostics"])
-#     logging.info(f"Received diagnostics: {diagnostics}")
-#     ls.publish_diagnostics(uri, diagnostics)
-
+@server.feature(types.TEXT_DOCUMENT_DID_OPEN)
+@server.feature(types.TEXT_DOCUMENT_DID_CHANGE)
+def real_time_analysis(ls: LanguageServer, params):
+    logging.info("Starting real_time_analysis")
+    
+    uri = params.text_document.uri
+    filepath_URI = urllib.parse.urlparse(uri).path
+    filepath = urllib.parse.unquote(filepath_URI)
+    filename = os.path.basename(filepath)
+    
+    logging.info(f"Requesting analysis for {uri}")
+    
+    # Read the file content
+    with open(filepath, 'rb') as f:
+        files = {"file": (filename, f, "application/octet-stream")}
+        logging.info(f"Sending file to the server:")
+        response = requests.post(f"{URL_LSP_SERVER}/analyze", files=files)
+    logging.info(f"Received response: {response.json()}")
+    diagnostics = _convert_to_lsp_diagnostics(response.json()["diagnostics"])
+    logging.info(f"Received diagnostics: {diagnostics}")
+    ls.publish_diagnostics(uri, diagnostics)
 
 
 def main():
@@ -83,4 +91,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
