@@ -5,7 +5,7 @@ import logging
 import urllib.parse
 ***REMOVED***quests
 from lsprotocol.types import Diagnostic, Range, Position, DiagnosticSeverity
-
+from dotenv import load_dotenv
 server = LanguageServer("example-server", "v0.1")
 
 target = "example_lsp.log"
@@ -14,8 +14,9 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s"
 )
 
-URL_STATIC_ANALYZER = "http://10.100.30.239:8085"
-URL_LSP_SERVER = "http://10.100.30.239:8095"
+load_dotenv()
+URL_STATIC_ANALYZER = os.getenv("URL_STATIC_ANALYZER")
+URL_LSP_SERVER = os.getenv("URL_LSP_SERVER")
 
 @server.feature(types.TEXT_DOCUMENT_DID_SAVE)
 def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
