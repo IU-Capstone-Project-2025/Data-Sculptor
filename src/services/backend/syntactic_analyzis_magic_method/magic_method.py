@@ -1,7 +1,6 @@
 from IPython.core.magic import Magics, magics_class, cell_magic
 from IPython.display import Javascript, display
 
-
 @magics_class
 class AnalyzeMagic(Magics):
     @cell_magic

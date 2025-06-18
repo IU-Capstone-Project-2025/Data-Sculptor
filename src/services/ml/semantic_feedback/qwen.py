@@ -10,7 +10,7 @@ Public API:
 """
 
 from langchain_core.runnables import Runnable
-from langchain_qwq import ChatQwQ
+from langchain_openai import ChatOpenAI
 
 
 from settings import settings
@@ -32,7 +32,7 @@ def get_qwen_client(
     Returns:
         Runnable: A configured LangChain runnable instance of the Qwen LLM client.
     """
-    llm = ChatQwQ(
+    llm = ChatOpenAI(
         model=settings.llm_model,
         api_key=settings.llm_api_key,
         base_url=settings.llm_base_url,
