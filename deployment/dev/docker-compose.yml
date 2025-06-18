@@ -25,7 +25,13 @@ services:
     container_name: dev-deep-static-analyzer-service
     ports:
       - "8085:8085"
-
+  real-time-analysis-service:
+    build:
+      context: ../../src/services/backend/real_time_analysis_microservice
+      dockerfile: Dockerfile
+    container_name: dev-real-time-static-analysis
+    ports:
+      - "8095:8095"
 
   mediator:
     build:
