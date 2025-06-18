@@ -12,7 +12,7 @@ services:
       - ../../resources/config/jupyterhub:/srv/jupyterhub:rw
       - ../../src/services/backend/jupyter_hub_adapter_microservice/sendCode.py:/home/developer/sendCode.py:rw #MUST BE ro
       - ../../src/services/backend/syntactic_analyzis_microservice/lsp.py:/home/developer/lsp.py:rw
-      # - ../../src/services/backend/jupyter_hub/jupyter-lsp-jupyter-server.json:/etc/jupyter/jupyter_server_config.d/jupyter-lsp-jupyter-server.json:rw
+      - ../../src/services/backend/jupyter_hub/jupyter-lsp-jupyter-server.json:/etc/jupyter/jupyter_server_config.d/jupyter-lsp-jupyter-server.json:rw
       - ../../resources/data/jupyterhub:/home/developer:rw
     environment:
       - LLM_VALIDATOR_URL=http://10.100.30.239:8001
@@ -25,7 +25,13 @@ services:
     container_name: dev-deep-static-analyzer-service
     ports:
       - "8085:8085"
-
+  real-time-analysis-service:
+    build:
+      context: ../../src/services/backend/real_time_analysis_microservice
+      dockerfile: Dockerfile
+    container_name: dev-real-time-static-analysis
+    ports:
+      - "8095:8095"
 
   mediator:
     build:
