@@ -36,13 +36,13 @@ services:
 
   feedback-service:
     build:
-      context: ../../src/services/ml/feedback
+      context: ../../src/services/ml/semantic_feedback/
       dockerfile: Dockerfile
     container_name: beta-feedback
     ports:
       - "10352:9352"
     env_file:
-      - ../../src/services/ml/feedback/.env
+      - ../../src/services/ml/semantic_feedback/.env
     environment:
       - PYTHONUNBUFFERED=1
     volumes:
@@ -52,13 +52,13 @@ services:
     build:
       context: ../../src/services/backend/syntactic_analyzis_microservice
       dockerfile: Dockerfile
-    container_name: dev-deep-static-analyzer-service
+    container_name: beta-deep-static-analyzer-service
     ports:
       - "9085:8085"
   real-time-analysis-service:
     build:
       context: ../../src/services/backend/real_time_analysis_microservice
       dockerfile: Dockerfile
-    container_name: dev-real-time-static-analysis
+    container_name: beta-real-time-static-analysis
     ports:
       - "9095:8095"
