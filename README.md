@@ -32,19 +32,27 @@ git clone https://github.com/IU-Capstone-Project-2025/Data-Sculptor.git
 cd Data-Sculptor
 ```
 
-2. Use docker-compose to build the service
+2. Start the JupyterHub
 
 ```bash
 cd deployment/uat 
 docker compose up --build
 ```
-3. Open the service in browser (default port: 9000)
 
-4. Real-time static analysis runs automatically.
+3. Enter the container
+```bash
+docker exec -it <container_name_or_id> bash
+```
 
-5. Ctrl+S triggers heavy syntatic analysis linters.
+Then:
+```
+mkdir -p /home/developer/.local/share/jupyter/runtime && \
+chown -R developer:developer /home/developer
+```
 
-❗️ **The connection with LLM endpoint and service's server can work only with Innopolis internal network**
+4. Login at:
+   http://localhost (default port :11000)
+
 
 
 
