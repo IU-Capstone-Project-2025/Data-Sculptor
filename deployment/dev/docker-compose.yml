@@ -17,6 +17,7 @@ services:
     environment:
       - LLM_VALIDATOR_URL=http://10.100.30.239:8001
       - URL_STATIC_ANALYZER=http://10.100.30.239:8085
+      - URL_LSP_SERVER=http://10.100.30.239:8095
   
   deep-syntatic-service:
     build:
