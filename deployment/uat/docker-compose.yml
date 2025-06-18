@@ -40,7 +40,7 @@ services:
     ports:
       - "11352:9352"
     env_file:
-      - ../../src/services/ml/semantic_feedback/.env
+      - ../../src/services/ml/semantic_feedback/env_template
     environment:
       - PYTHONUNBUFFERED=1
     volumes:
