@@ -6,6 +6,7 @@ c = get_config()
 c.JupyterHub.authenticator_class = "shared-password"
 
 # add passwords into .env file
+load_dotenv()
 c.SharedPasswordAuthenticator.user_password = os.getenv("SHARED_PASSWORD")
 c.SharedPasswordAuthenticator.admin_password = os.getenv("ADMIN_PASSWORD")
 
