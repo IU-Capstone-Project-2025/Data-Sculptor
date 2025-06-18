@@ -50,6 +50,8 @@ mkdir -p /home/developer/.local/share/jupyter/runtime && \
 chown -R developer:developer /home/developer
 ```
 
+❗️Exit the container before authorization in browser
+
 4. Login at:
    http://localhost (default port :11000)
 
