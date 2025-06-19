@@ -15,21 +15,18 @@ from pathlib import Path
 import yaml
 from fastapi import (
     APIRouter,
-    File,
-    Form,
     HTTPException,
-    UploadFile,
     status,
+    Body,
 )
 import logging
 from openai import BadRequestError
 
-from notebook import JupyterNotebook
 from feedback_generator import generate_feedback
 from warnings_generator import generate_warnings
 from qwen import get_qwen_client
 from settings import settings
-from schemas import FeedbackResponse, HealthCheckResponse
+from schemas import FeedbackResponse, HealthCheckResponse, FeedbackRequest
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -43,7 +40,6 @@ OPENAPI_SPEC_FEEDBACK = yaml.safe_load(
     response_model=HealthCheckResponse,
     summary="Health check endpoint",
     tags=["Health"],
-    openapi_extra=OPENAPI_SPEC_FEEDBACK,
 )
 async def health_check() -> HealthCheckResponse:
     """Performs a health check of the service."""
@@ -53,39 +49,31 @@ async def health_check() -> HealthCheckResponse:
 @router.post(
     "/feedback",
     response_model=FeedbackResponse,
-    summary="Submit a Jupyter Notebook for automated code feedback",
+    summary="Submit code for automated feedback",
     tags=["Feedback"],
     openapi_extra=OPENAPI_SPEC_FEEDBACK,
 )
 async def get_feedback(
-    file: UploadFile = File(...),
-    target_cell_id: int = Form(-1),
-    use_deep_analysis: bool = Form(False),
+    body: FeedbackRequest = Body(...),
 ) -> FeedbackResponse:
-    """Receives a Jupyter notebook, extracts code, and returns general LLM feedback."""
+    """Generate feedback for a code snippet supplied by the client.
+
+    The request body must contain:
+        - current_code: The code snippet to analyse.
+        - cell_code_offset: Global line offset applied to generated warnings.
+    """
+
     try:
-        if not file.filename or not file.filename.endswith(".ipynb"):
-            raise HTTPException(status_code=400, detail="Invalid file type. Please upload a .ipynb file.")
-        
-        llm_client = get_qwen_client(enable_thinking=use_deep_analysis)
+        if not body.current_code.strip():
+            raise HTTPException(status_code=400, detail="current_code must not be empty.")
 
-        notebook = JupyterNotebook(await file.read())
-        code_cells = notebook.get_code_cells()
-        if not code_cells:
-            raise HTTPException(status_code=400, detail="The notebook does not contain any code cells.")
+        llm_client = get_qwen_client()
 
-        formatted_code = "\n".join(code_cells)
-        
-        non_localized_feedback = await generate_feedback(formatted_code, llm_client=llm_client)
-        
-        if target_cell_id == -1:
-            warn_code, global_offset = formatted_code, 0
-        else:
-            warn_code, global_offset = notebook.get_code_cell_with_offset(target_cell_id)
+        non_localized_feedback = await generate_feedback(body.current_code, llm_client=llm_client)
 
         localized_feedback = await generate_warnings(
-            warn_code,
-            global_line_offset=global_offset,
+            body.current_code,
+            global_line_offset=body.cell_code_offset,
             llm_client=llm_client,
         )
 
@@ -93,9 +81,6 @@ async def get_feedback(
             non_localized_feedback=non_localized_feedback,
             localized_feedback=localized_feedback,
         )
-    except IndexError:
-        logger.error("Invalid target cell index", exc_info=True)
-        raise HTTPException(status_code=400, detail="Invalid target cell index")
     
     except BadRequestError as openai_error:
         logger.error("LLM request error", exc_info=True)
