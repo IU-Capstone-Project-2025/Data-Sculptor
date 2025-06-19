@@ -19,6 +19,10 @@ requestBody:
             type: integer
             default: 0
             description: Global zero-based line offset for the snippet inside the full notebook.
+          use_deep_analysis:
+            type: boolean
+            default: false
+            description: Whether to use deep analysis.
 responses:
   "200":
     description: Feedback successfully generated.
