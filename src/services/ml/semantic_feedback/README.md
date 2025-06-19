@@ -2,6 +2,17 @@
 
 This directory contains a FastAPI microservice designed to provide AI-powered feedback on Jupyter Notebooks.
 
+## Usage
+To use outside docker container:
+1. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+2. Install local packages:
+```bash
+pip install -e src/services/ml
+```
+
 ## `.env` Example
 
 Create a `.env` file in the service's root directory with the following variables.

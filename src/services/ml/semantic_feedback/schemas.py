@@ -60,4 +60,9 @@ class FeedbackResponse(BaseModel):
 
 class FeedbackRequest(BaseModel):
     current_code: str = Field(..., description="Code snippet to analyse.")
-    cell_code_offset: int = Field(0, ge=0, description="Global line offset of the snippet in the full notebook.")
+    cell_code_offset: int = Field(
+        0, ge=0, description="Global line offset of the snippet in the full notebook."
+    )
+    use_deep_analysis: bool = Field(
+        default=False, description="Whether to use deep analysis."
+    )

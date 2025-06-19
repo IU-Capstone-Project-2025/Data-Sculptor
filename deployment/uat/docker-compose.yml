@@ -36,8 +36,8 @@ services:
 
   feedback-service:
     build:
-      context: ../../src/services/ml/semantic_feedback/
-      dockerfile: Dockerfile
+      context: ../../src/services/ml
+      dockerfile: semantic_feedback/Dockerfile
     container_name: uat-feedback
     ports:
       - "11352:9352"
@@ -46,7 +46,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
     volumes:
-      - ../../src/services/ml/feedback:/app:ro
+      - ../../src/services/ml/semantic_feedback:/app/semantic_feedback:ro
 
   deep-syntatic-service:
     build:
