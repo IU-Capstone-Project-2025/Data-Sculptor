@@ -18,21 +18,22 @@ from fastapi import (
     HTTPException,
     status,
     Body,
+    Depends,
 )
 import logging
 from openai import BadRequestError
 
 from feedback_generator import generate_feedback
 from warnings_generator import generate_warnings
-from shared_ml.qwen import get_qwen_client
-from settings import settings
 from schemas import FeedbackResponse, HealthCheckResponse, FeedbackRequest
+from dependencies import get_llm_client
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+# load ./docs/openapi/feedback.yaml relative to this file regardless of cwd
 OPENAPI_SPEC_FEEDBACK = yaml.safe_load(
-    Path(settings.open_api_folder).joinpath("feedback.yaml").read_text()
+    (Path(__file__).parent / "docs" / "openapi" / "feedback.yaml").read_text()
 )
 
 
@@ -56,6 +57,7 @@ async def health_check() -> HealthCheckResponse:
 )
 async def get_feedback(
     body: FeedbackRequest = Body(...),
+    llm_client=Depends(get_llm_client),
 ) -> FeedbackResponse:
     """Generate feedback for a code snippet supplied by the client.
 
@@ -69,13 +71,6 @@ async def get_feedback(
             raise HTTPException(
                 status_code=400, detail="current_code must not be empty."
             )
-
-        llm_client = get_qwen_client(
-            llm_base_url=settings.llm_base_url,
-            llm_api_key=settings.llm_api_key,
-            llm_model=settings.llm_model,
-            enable_thinking=body.use_deep_analysis,
-        )
 
         non_localized_feedback = await generate_feedback(
             llm_client=llm_client,

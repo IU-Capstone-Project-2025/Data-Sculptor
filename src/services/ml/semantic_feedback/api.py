@@ -50,7 +50,6 @@ async def startup():
         port=settings.feedback_service_port,
         workers=settings.feedback_service_n_workers,
     )
-    print(f"LLM_MODEL: {settings.llm_model}")
     server = uvicorn.Server(config)
     await server.serve()
 
