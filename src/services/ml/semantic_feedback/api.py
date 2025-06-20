@@ -22,8 +22,8 @@ def create_app() -> FastAPI:
     """Creates and configures the FastAPI application instance."""
 
     app = FastAPI(
-        title="Jupyter Notebook Feedback Service",
-        description="An API to get LLM-powered feedback on Jupyter notebooks.",
+        title="Semantic Feedback Service",
+        description="An API to get LLM-powered feedback on code.",
         version="0.1.0",
     )
 
