@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  jupyterhub:
+    build:
+      context: ../src/services/backend/jupyter_hub
+      dockerfile: Dockerfile
+    container_name: "${COMPOSE_PROJECT_NAME}-jupyterhub"
+    ports:
+      - "${JUPYTER_PORT_EXTERNAL}:8000"
+    volumes:
+      - ../resources/config/jupyterhub:/srv/jupyterhub:rw
+      - ../src/services/backend/jupyter_hub_adapter_microservice/sendCode.py:/home/developer/sendCode.py:rw
+      - ../src/services/backend/syntactic_analyzis_microservice/lsp.py:/home/developer/lsp.py:rw
+      - ../src/services/backend/jupyter_hub/jupyter-lsp-jupyter-server.json:/etc/jupyter/jupyter_server_config.d/jupyter-lsp-jupyter-server.json:rw
+      - ../resources/data/jupyterhub:/home/developer:rw
+    env_file:
+      - ../resources/config/jupyterhub/.env
+    environment:
+      - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
+      - URL_STATIC_ANALYZER=http://${HOST_IP}:${ANALYZER_PORT_EXTERNAL}
+      - URL_LSP_SERVER=http://${HOST_IP}:${LSP_PORT_EXTERNAL}
+
+  deep-syntatic-service:
+    build:
+      context: ../src/services/backend/syntactic_analyzis_microservice
+      dockerfile: Dockerfile
+    container_name: "${COMPOSE_PROJECT_NAME}-deep-static-analyzer-service"
+    ports:
+      - "${ANALYZER_PORT_EXTERNAL}:8085"
+
+  real-time-analysis-service:
+    build:
+      context: ../src/services/backend/real_time_analysis_microservice
+      dockerfile: Dockerfile
+    container_name: "${COMPOSE_PROJECT_NAME}-real-time-static-analysis"
+    ports:
+      - "${LSP_PORT_EXTERNAL}:8095"
+
+  mediator:
+    build:
+      context: ../src/services/backend/mediator_jupyter_hub_llm_microservice
+      dockerfile: Dockerfile
+    container_name: "${COMPOSE_PROJECT_NAME}-mediator"
+    ports:
+      - "${MEDIATOR_PORT_EXTERNAL}:8001"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - FEEDBACK_SERVICE_URL=http://${HOST_IP}:${FEEDBACK_PORT_EXTERNAL}
+    volumes:
+      - ../src/services/backend/mediator_jupyter_hub_llm_microservice:/app:rw
+
+  feedback-service:
+    build:
+      context: ../src/services/ml/semantic_feedback
+      dockerfile: Dockerfile
+    container_name: "${COMPOSE_PROJECT_NAME}-feedback"
+    ports:
+      - "${FEEDBACK_PORT_EXTERNAL}:9352"
+    env_file:
+      - ../src/services/ml/semantic_feedback/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ../src/services/ml/semantic_feedback:/app:rw
