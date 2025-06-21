@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+langchain-core
+langchain-openai
+pydantic
+pydantic-settings
+python-dotenv
+PyYAML
+tokenizers
+redis
+asyncpg
+tenacity
+python-multipart
