@@ -3,14 +3,15 @@
 This directory contains a FastAPI microservice designed to provide AI-powered feedback on Jupyter Notebooks.
 
 ## Usage
-To use outside docker container:
+To run the service outside Docker:
 1. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
-2. Install local packages:
+2. Install local packages (for `shared_ml` imports):
 ```bash
-pip install -e src/services/ml
+cd ../
+pip install -e ./shared_ml
 ```
 
 ## `.env` Example
