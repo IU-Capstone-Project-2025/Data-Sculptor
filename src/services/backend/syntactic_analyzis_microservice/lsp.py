@@ -1,84 +1,63 @@
-from pygls.server import LanguageServer
-import os
-from lsprotocol import types
+# lsp.py
+# Минимальный LSP-клиент, публикующий диагностику
+# ---------------------------------------------------------------------
+
 import logging
+import os
 import urllib.parse
+
 import requests
-from lsprotocol.types import Diagnostic, Range, Position, DiagnosticSeverity
+from lsprotocol import types
+from lsprotocol.types import Diagnostic, DiagnosticSeverity, Position, Range
+from pygls.server import LanguageServer
 
-server = LanguageServer("example-server", "v0.1")
+SERVER_URL = "http://localhost:8085"
+LOG_FILE = "example_lsp.log"
 
-target = "example_lsp.log"
-logging.basicConfig(
-    filename=target, level=logging.DEBUG,
-    format="%(asctime)s %(levelname)s %(message)s"
-)
+logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
 
-URL_STATIC_ANALYZER = "http://10.100.30.239:8085"
-URL_LSP_SERVER = "http://10.100.30.239:8095"
+ls_server = LanguageServer("deep-static-analysis-client", "1.0")
 
-@server.feature(types.TEXT_DOCUMENT_DID_SAVE)
+
+def _convert(diags):
+    """RAW-dict → LSP Diagnostic objects."""
+    res = []
+    for d in diags:
+        rng = d["range"]
+        res.append(
+            Diagnostic(
+                range=Range(
+                    start=Position(**rng["start"]),
+                    end=Position(**rng["end"]),
+                ),
+                severity=DiagnosticSeverity(d["severity"]),
+                code=d.get("code"),
+                source=d.get("source"),
+                message=d.get("message"),
+            )
+        )
+    return res
+
+
+@ls_server.feature(types.TEXT_DOCUMENT_DID_SAVE)
 def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
-    URI = params.text_document.uri
-    filepath_URI = urllib.parse.urlparse(URI).path
-    filepath = urllib.parse.unquote(filepath_URI)
-    filename = os.path.basename(filepath)
-
-    logging.info(f"HERES YOUR FILEPATH {filepath}")
-    with open(f"{filepath}", "rb") as f:
-        logging.info("PREPARE FILE TRANSMISION")
-        files = {"nb_file": (filename, f, "application/octet-stream")}
-        logging.info("SEND FILE TO THE SERVER")
-        raw_diagnostics = requests.post(f"{URL_STATIC_ANALYZER}/analyze", files=files)
-        logging.info("RECIEVED DIAGNOSTICS... SEND BACK TO JUPYTERLAB")
-
-    logging.info(raw_diagnostics.json().get("diagnostics"))
-    logging.info(f"Status:\n {raw_diagnostics.status_code}")
-    logging.info(f"Response body:\n{raw_diagnostics.text}")
-    raw_diagnostics = raw_diagnostics.json()["diagnostics"]
-    diagnostics = _convert_to_lsp_diagnostics(raw_diagnostics)
-    ls.publish_diagnostics(URI, diagnostics)
-
-
-def _convert_to_lsp_diagnostics(raw_diagnostics):
-    lsp_diags = []
-    for d in raw_diagnostics:
-        start = d["range"]["start"]
-        end = d["range"]["end"]
-
-        start_char = max(0, start["character"])
-        end_char = max(0, end["character"])
-
-        lsp_diags.append(Diagnostic(
-            range=Range(
-                start=Position(line=max(0, start["line"]),
-                               character=start_char),
-                end=Position(line=max(0, end["line"]), character=end_char)
-            ),
-            severity=DiagnosticSeverity(d["severity"]),
-            code=d.get("code"),
-            source=d.get("source"),
-            message=d.get("message", "")
-        ))
-    return lsp_diags
-
-@server.feature(types.TEXT_DOCUMENT_DID_OPEN)
-@server.feature(types.TEXT_DOCUMENT_DID_CHANGE)
-@server.feature(types.TEXT_DOCUMENT_DID_CLOSE)
-def real_time_analysis(ls: LanguageServer, params):
-    logging.info("Starting real_time_analysis")
-    
     uri = params.text_document.uri
-    logging.info(f"Requesting analysis for {uri}")
-    response = requests.post(f"{URL_LSP_SERVER}/analyze", json={"uri": uri})
-    diagnostics = _convert_to_lsp_diagnostics(response.json()["diagnostics"])
-    logging.info(f"Received diagnostics: {diagnostics}")
-    ls.publish_diagnostics(uri, diagnostics)
+    path = urllib.parse.unquote(urllib.parse.urlparse(uri).path)
+    logging.info("Saved file: %s", path)
 
+    with open(path, "rb") as fh:
+        files = {"nb_file": (os.path.basename(path), fh, "application/octet-stream")}
+        resp = requests.post(f"{SERVER_URL}/analyze", files=files, timeout=60)
+
+    if resp.ok:
+        diags = _convert(resp.json()["diagnostics"])
+        ls.publish_diagnostics(uri, diags)
+    else:
+        logging.error("Analyzer returned %s: %s", resp.status_code, resp.text)
 
 
 def main():
-    server.start_io()
+    ls_server.start_io()
 
 
 if __name__ == "__main__":

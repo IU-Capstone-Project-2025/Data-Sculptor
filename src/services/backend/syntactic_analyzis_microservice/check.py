@@ -1,14 +1,18 @@
+import sys, json
 import requests
+from pathlib import Path
 
-url = "http://127.0.0.1:8005/analyze"
-with open("test.ipynb", "rb") as f:
-    files = {"nb_file": ("test.ipynb", f, "application/octet-stream")}
-    resp = requests.post(url, files=files)
+if len(sys.argv) != 2:
+    print("Usage: python check.py <notebook.ipynb>")
+    sys.exit(1)
 
-print("Status:", resp.status_code)
-print("Response body:")
-print(resp.text)   # <— this will show you exactly what the server sent
-try:
-    print("Parsed JSON:", resp.json())
-except ValueError:
-    print("No valid JSON could be decoded.")
+nb = Path(sys.argv[1])
+url = "http://localhost:8085/analyze"
+
+with nb.open("rb") as f:
+    resp = requests.post(url, files={"nb_file": (nb.name, f)}, timeout=60)
+
+if resp.ok:
+    print(json.dumps(resp.json(), indent=2))
+else:
+    print("Error:", resp.status_code, resp.text)

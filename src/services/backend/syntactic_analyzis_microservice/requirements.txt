@@ -1,11 +1,12 @@
 fastapi
 uvicorn
+pydantic
+python-multipart
+requests
 nbformat
 nbconvert
+
+
 pylint
-mypy
-dodgy
-pydocstyle
-vulture
-python-multipart
-pygls
+dslinter
+-e git+https://github.com/KarthikShivasankar/ml_smells_detector.git@main#egg=ml_code_smell_detector
