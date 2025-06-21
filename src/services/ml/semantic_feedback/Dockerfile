@@ -18,7 +18,5 @@ ENV PYTHONPATH="/app:${PYTHONPATH}"
 # set working dir to service package
 WORKDIR /app/semantic_feedback
 
-EXPOSE 9352
-
 CMD ["python", "api.py"]
 
