@@ -14,7 +14,7 @@ def pylsp_lint(document):
             'source': 'vulture',
             'range': {
                 'start': {'line': item.first_lineno -1 , 'character': 0},
-                'end': {'line': item.last_lineno-1 , 'character': 25}
+                'end': {'line': item.first_lineno -1  , 'character': 20}
             },
             'message': f"Unused {item.typ}: '{item.name}' (confidence: {item.confidence}%)",
             'severity': 2
