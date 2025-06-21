@@ -35,8 +35,8 @@ cd Data-Sculptor
 2. Start the JupyterHub
 
 ```bash
-cd deployment
-docker compose -p uat --env-file uat.env up --build
+cd deployment/uat 
+docker compose up --build
 ```
 
 3. Enter the container
