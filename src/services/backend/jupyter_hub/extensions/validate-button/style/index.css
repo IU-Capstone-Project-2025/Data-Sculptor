@@ -1,0 +1,23 @@
+.validate-btn-wrapper {
+  display: inline-flex;         /* flex для вертикального центрирования */
+  align-items: center;          /* по центру по высоте */
+  justify-content: center;      /* на всякий случай по горизонтали */
+  margin-left: 4px;             /* отступ от prompt */
+  height: 1em;                  /* высота строки, чтобы совпало с текстом */
+  cursor: pointer;
+  color: var(--jp-ui-font-color1);
+  vertical-align: middle;       /* fallback для inline-элементов */
+}
+.validate-btn-wrapper:hover {
+  color: green;
+}
+
+/* Вращение SVG (duration задаётся в JS) */
+.validate-btn-wrapper.spinning svg {
+  animation: rotate linear infinite;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
