@@ -4,11 +4,15 @@ and Postgres storage.
 
 import json
 import uuid
+import logging
 
 ***REMOVED***dis.asyncio as aioredis
 import asyncpg
+from redis.exceptions import RedisError, ResponseError
 from settings import settings
 from pydantic import UUID4
+
+logger = logging.getLogger(__name__)
 
 
 class MemoryManager:
@@ -18,6 +22,7 @@ class MemoryManager:
         redis: Redis client used as the primary cache.
         pg: Asyncpg connection pool for durable storage.
     """
+
     def __init__(self, redis: aioredis.Redis, pg: asyncpg.Pool):
         self._redis = redis
         self._pg = pg
@@ -43,7 +48,12 @@ class MemoryManager:
         Returns:
             list | None: Serialized history loaded from cache or *None* when absent.
         """
-        raw = await self._redis.get(await self._cache_key(conversation_id))
+        try:
+            raw = await self._redis.get(await self._cache_key(conversation_id))
+        except (RedisError, ResponseError) as exc:
+            logger.error("Redis error while fetching history for %s", conversation_id)
+    ***REMOVED*** None
+
 ***REMOVED*** json.loads(raw) if raw else None
 
     async def _history_from_pg(self, conversation_id: UUID4, max_tokens: int) -> list:
@@ -132,6 +142,7 @@ class MemoryManager:
         await self._redis.set(
             await self._cache_key(conversation_id),
             json.dumps(trimmed, separators=(",", ":")),
+            ex=3600,  # 1 hour
         )
 
     async def save_messages(
