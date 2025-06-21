@@ -63,3 +63,56 @@ services:
       - PYTHONUNBUFFERED=1
     volumes:
       - ../../src/services/ml/semantic_feedback:/app/semantic_feedback:ro
+
+  adviser-service:
+    build:
+      context: ../../src/services/ml
+      dockerfile: adviser/Dockerfile
+    container_name: dev-adviser-chat-service
+    ports:
+      - "9353:9353"
+    env_file:
+      - ../../src/services/ml/adviser/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ../../src/services/ml/adviser:/app/adviser:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:15
+    container_name: dev-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: chatdb
+    volumes:
+      - dev_postgres_data:/var/lib/postgresql/data
+      - ./init_scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "app", "-d", "chatdb"]
+      interval: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: dev-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - dev_redis_data:/data
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+
+volumes:
+  dev_postgres_data:
+  dev_redis_data:
