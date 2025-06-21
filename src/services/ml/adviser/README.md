@@ -11,7 +11,8 @@ pip install -r requirements.txt
 ```
 2. Install local packages (for `shared_ml` imports):
 ```bash
-pip install -e src/services/ml
+cd ../
+pip install -e ./shared_ml
 ```
 
 ## `.env` Example
