@@ -1,6 +1,7 @@
 fastapi
 uvicorn[standard]
-langchain-qwq
+langchain_openai
+langchain-core
 pydantic
 pydantic-settings
 python-multipart
