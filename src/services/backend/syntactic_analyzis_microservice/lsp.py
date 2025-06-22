@@ -11,7 +11,11 @@ from lsprotocol import types
 from lsprotocol.types import Diagnostic, DiagnosticSeverity, Position, Range
 from pygls.server import LanguageServer
 
-SERVER_URL = "http://localhost:8085"
+SERVER_URL = (
+    os.getenv("ANALYZER_URL")
+    or os.getenv("URL_STATIC_ANALYZER")
+    or "http://deep-static-analyzer:8085"
+)
 LOG_FILE = "example_lsp.log"
 
 logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
