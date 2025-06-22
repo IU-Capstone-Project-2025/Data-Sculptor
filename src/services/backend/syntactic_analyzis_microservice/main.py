@@ -6,15 +6,22 @@ import logging
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-
+from logging.handlers import RotatingFileHandler
 import nbformat
 from nbconvert import PythonExporter
 
 from analysis_runner import run_all_linters, LspDiagnostic
 
 # --- Logging setup ---
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+target = "syntatic_analyzing.log"
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s %(message)s",
+    handlers=[
+        RotatingFileHandler(target, maxBytes=10*1024*1024, backupCount=1),
+        logging.StreamHandler()
+    ]
+)
 
 # --- FastAPI app and exception handler ---
 app = FastAPI(title="Notebook Static Analysis", debug=True)

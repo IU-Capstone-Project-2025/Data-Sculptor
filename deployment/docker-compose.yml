@@ -11,7 +11,7 @@ services:
     volumes:
       - ../resources/config/jupyterhub:/srv/jupyterhub:rw
       - ../src/services/backend/jupyter_hub_adapter_microservice/sendCode.py:/home/developer/sendCode.py:rw
-      - ../src/services/backend/syntactic_analyzis_microservice/lsp.py:/home/developer/lsp.py:rw
+      - ../src/services/backend/lsp_server/lsp.py:/home/developer/lsp.py:rw
       - ../src/services/backend/jupyter_hub/jupyter-lsp-jupyter-server.json:/etc/jupyter/jupyter_server_config.d/jupyter-lsp-jupyter-server.json:rw
       - ../resources/data/jupyterhub:/home/developer:rw
     env_file:
