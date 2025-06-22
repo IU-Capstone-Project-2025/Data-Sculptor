@@ -1,0 +1,83 @@
+summary: Ask a coding question with context and receive an assistant answer
+description: |
+  Sends the current code plus any previously generated feedback and the
+  user's text question to the assistant. The service replies with plain-text
+  guidance and persists the updated conversation.
+requestBody:
+  required: true
+  content:
+    application/json:
+      schema:
+        type: object
+        required:
+          - conversation_id
+          - user_id
+          - message
+          - current_code
+          - current_localized_feedback
+          - current_non_localized_feedback
+        properties:
+          conversation_id:
+            type: string
+            format: uuid
+            description: Conversation identifier.
+          user_id:
+            type: string
+            format: uuid
+            description: User identifier.
+          message:
+            type: string
+            description: User's current natural-language question.
+          current_code:
+            type: string
+            description: Code snippet to analyse.
+          cell_code_offset:
+            type: integer
+            default: 0
+            description: Global zero-based line offset for the snippet inside the full notebook.
+          current_non_localized_feedback:
+            type: string
+            description: High-level feedback not bound to a specific code location.
+          current_localized_feedback:
+            type: array
+            description: Existing line-localized warnings.
+            items:
+              $ref: "#/components/schemas/LocalizedWarning"
+          use_deep_analysis:
+            type: boolean
+            default: false
+            description: Whether to use deep analysis.
+responses:
+  "200":
+    description: Assistant answer successfully generated.
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/ChatResponse"
+        examples:
+          success:
+            summary: Typical successful response
+            value:
+              message: |
+                You can replace the Python loop with numpy's vectorized
+                operations like this: `result = process(data)` which will be
+                significantly faster.
+  "400":
+    description: Invalid request (e.g. empty code string).
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            detail:
+              type: string
+              example: current_code must not be empty.
+  "500":
+    description: Unexpected server error when generating reply.
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            detail:
+              type: string 
