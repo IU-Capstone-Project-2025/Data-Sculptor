@@ -57,4 +57,12 @@ class FeedbackResponse(BaseModel):
     )
     localized_feedback: list[LocalizedWarning] = Field(default_factory=list)
 
-    # Examples moved to OpenAPI YAML for clearer documentation maintenance.
+
+class FeedbackRequest(BaseModel):
+    current_code: str = Field(..., description="Code snippet to analyse.")
+    cell_code_offset: int = Field(
+        0, ge=0, description="Global line offset of the snippet in the full notebook."
+    )
+    use_deep_analysis: bool = Field(
+        default=False, description="Whether to use deep analysis."
+    )

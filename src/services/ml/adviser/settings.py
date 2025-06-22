@@ -32,9 +32,17 @@ class Settings(BaseSettings):
     llm_base_url: str
     llm_api_key: str
     llm_model: str
-    feedback_service_host: str = "127.0.0.1"
-    feedback_service_port: int = 8000
-    feedback_service_n_workers: int = 1
+    tokenizer_model: str
+
+    chat_service_host: str = "127.0.0.1"
+    chat_service_port: int = 8000
+    chat_service_n_workers: int = 1
+
+    redis_url: str
+    postgres_dsn: str
+
+    token_limit: int = 32768
+    reserved_answer_tokens: int = 1000
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
