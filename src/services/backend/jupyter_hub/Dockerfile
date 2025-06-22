@@ -16,18 +16,24 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
 RUN node -v && npm -v
 RUN npm install -g npm@latest
 
-COPY . .
-
+COPY requirements.txt ./
 
 RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
 
 COPY extensions/ /extensions/
 
 # Load extension to Jupyter
-WORKDIR /extensions/validate-button
+WORKDIR /extensions/semantic-button
 RUN npm install && \
     npm run build && \
     jupyter labextension install .
+
+# WORKDIR /extensions/validate-button
+# RUN npm install && \
+#     npm run build && \
+#     jupyter labextension install .
 
 WORKDIR /srv/jupyterhub
 
