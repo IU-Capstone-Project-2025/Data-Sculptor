@@ -52,8 +52,8 @@ services:
 
   feedback-service:
     build:
-      context: ../src/services/ml/semantic_feedback
-      dockerfile: Dockerfile
+      context: ../src/services/ml
+      dockerfile: semantic_feedback/Dockerfile
     container_name: "${COMPOSE_PROJECT_NAME}-feedback"
     ports:
       - "${FEEDBACK_PORT_EXTERNAL}:9352"
@@ -62,4 +62,57 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
     volumes:
-      - ../src/services/ml/semantic_feedback:/app:rw
+      - ../src/services/ml/semantic_feedback:/app/semantic_feedback:rw
+  
+  adviser-service:
+    build:
+      context: ../src/services/ml
+      dockerfile: adviser/Dockerfile
+    container_name: "${COMPOSE_PROJECT_NAME}-adviser-chat-service"
+    ports:
+      - "${ADVISER_PORT_EXTERNAL}:9353"
+    env_file:
+      - ../src/services/ml/adviser/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ../src/services/ml/adviser:/app/adviser:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:15
+    container_name: "${COMPOSE_PROJECT_NAME}-postgres"
+    ports:
+      - "${POSTGRES_PORT_EXTERNAL}:5432"
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: chatdb
+    volumes:
+      - ../resources/data/postgres:/var/lib/postgresql/data:rw
+      - ../resources/config/postgres/init_scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "app", "-d", "chatdb"]
+      interval: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: "${COMPOSE_PROJECT_NAME}-redis"
+    ports:
+      - "${REDIS_PORT_EXTERNAL}:6379"
+    volumes:
+      - ../resources/data/redis:/data:rw
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+
+volumes:
+  dev_postgres_data:
+  dev_redis_data:
