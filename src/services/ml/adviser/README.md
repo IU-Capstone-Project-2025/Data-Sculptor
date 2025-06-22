@@ -25,12 +25,16 @@ llm_api_key="<your_qwen_llm_api_key>"
 llm_model="<your_qwen_llm_model_name>"
 tokenizer_model="<huggingface_tokenizer_name>"
 
+# Required: Context trimming parameters
+token_limit=32768
+reserved_answer_tokens=1000
+
+# Required: Back-end stores
+redis_url="redis://localhost:6379/0"
+postgres_dsn="postgresql://app:app@localhost:5432/chatdb"
+
 # Optional: Service configuration
 chat_service_host="127.0.0.1"
 chat_service_port=8000
 chat_service_n_workers=1
-
-# Back-end stores
-redis_url="redis://localhost:6379/0"
-postgres_dsn="postgresql://app:app@localhost:5432/chatdb"
 ```
