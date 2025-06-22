@@ -1,32 +1,28 @@
+# analysis_runner.py
 import subprocess, json
 from typing import List, Dict
 
+
+def _run(cmd: list[str]) -> list[dict]:
+    """Run cmd, parse JSON stdout (или stderr)."""
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    out = proc.stdout.strip() or proc.stderr.strip()
+    try:
+***REMOVED*** json.loads(out) if out else []
+    except json.JSONDecodeError:
+        print(f"[lint] JSON parse error. Raw output:\n{out}")
+***REMOVED*** []
+
+
 def run_all_linters(py_path: str) -> List[Dict]:
-    diagnostics: List[Dict] = []
+    diagnostics: list[dict] = []
 
     linters = {
-        "pylint": [
-            "pylint", "--output-format=json", py_path
-        ],
-        "ml_smell_detector": [
-            "ml_smell_detector", "--output=json", py_path
-        ],
+        "pylint": ["pylint", "--output-format=json", py_path],
+        "ml_smell_detector": ["ml_smell_detector", "--output=json", py_path],
     }
 
-    for name, cmd in linters.items():
-        print(f"--- RUNNING {name}: {' '.join(cmd)} ---")
-        proc = subprocess.run(cmd, capture_output=True, text=True)
-        out, err = proc.stdout.strip(), proc.stderr.strip()
-        print(f"[{name}] exit={proc.returncode}")
-        print(f"[{name}] stdout:\n{out or '<empty>'}")
-        print(f"[{name}] stderr:\n{err or '<empty>'}")
-
-        try:
-            data = json.loads(out) if out else []
-        except json.JSONDecodeError as e:
-            print(f"[{name}] JSON parse error: {e}")
-            data = []
-
-        diagnostics += data
+    for cmd in linters.values():
+        diagnostics += _run(cmd)
 
     return diagnostics
