@@ -7,11 +7,15 @@ import urllib.parse
 from lsprotocol.types import Diagnostic, Range, Position, DiagnosticSeverity
 from dotenv import load_dotenv
 server = LanguageServer("example-server", "v0.1")
-
-target = "example_lsp.log"
+from logging.handlers import RotatingFileHandler
+target = "lsp.log"
 logging.basicConfig(
-    filename=target, level=logging.DEBUG,
-    format="%(asctime)s %(levelname)s %(message)s"
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s %(message)s",
+    handlers=[
+        RotatingFileHandler(target, maxBytes=10*1024*1024, backupCount=1),
+        logging.StreamHandler()
+    ]
 )
 
 load_dotenv()
@@ -33,9 +37,9 @@ def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
         raw_diagnostics = requests.post(f"{URL_STATIC_ANALYZER}/analyze", files=files)
         logging.info("RECIEVED DIAGNOSTICS... SEND BACK TO JUPYTERLAB")
 
-    logging.info(raw_diagnostics.json().get("diagnostics"))
+    # logging.info(raw_diagnostics.json().get("diagnostics"))
     logging.info(f"Status:\n {raw_diagnostics.status_code}")
-    logging.info(f"Response body:\n{raw_diagnostics.text}")
+    # logging.info(f"Response body:\n{raw_diagnostics.text}")
     raw_diagnostics = raw_diagnostics.json()["diagnostics"]
     diagnostics = _convert_to_lsp_diagnostics(raw_diagnostics)
     ls.publish_diagnostics(URI, diagnostics)
@@ -80,9 +84,9 @@ def real_time_analysis(ls: LanguageServer, params):
         files = {"file": (filename, f, "application/octet-stream")}
         logging.info(f"Sending file to the server:")
         response = requests.post(f"{URL_LSP_SERVER}/analyze", files=files)
-    logging.info(f"Received response: {response.json()}")
+    logging.info(f"Received response!")
     diagnostics = _convert_to_lsp_diagnostics(response.json()["diagnostics"])
-    logging.info(f"Received diagnostics: {diagnostics}")
+    logging.info(f"Received diagnostics!")
     ls.publish_diagnostics(uri, diagnostics)
 
 
