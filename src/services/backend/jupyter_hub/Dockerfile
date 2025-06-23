@@ -29,7 +29,7 @@ COPY extensions/ /extensions/
 #     jupyter labextension install .
 
 RUN chmod +x /extensions/buttons/start.sh
-ENTRYPOINT ["extensions/buttons/start.sh"]
+ENTRYPOINT ["/extensions/buttons/start.sh"]
 
 COPY . .
 
