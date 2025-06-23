@@ -9,10 +9,21 @@ from starlette.concurrency import run_in_threadpool
 
 from analysis_runner import run_all_linters
 
+from fastapi.middleware.cors import CORSMiddleware
+
 class DiagnosticsResponse(BaseModel):
     diagnostics: list[dict]
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,  # Allow cookies and authorization headers
+    allow_methods=["*"],     # Allow all HTTP methods (GET, POST, PUT, etc.)
+    allow_headers=["*"],     # Allow all headers
+)
+
 @app.post("/analyze", response_model=DiagnosticsResponse)
 async def analyze_code(code_file: UploadFile = File(...)):
     """Принимает .py-файл, прогоняет линтеры, возвращает LSP-diagnostics."""
