@@ -37,7 +37,7 @@ def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
         raw_diagnostics = requests.post(f"{URL_STATIC_ANALYZER}/analyze", files=files)
         logging.info("RECIEVED DIAGNOSTICS... SEND BACK TO JUPYTERLAB")
 
-    # logging.info(raw_diagnostics.json().get("diagnostics"))
+    logging.info(raw_diagnostics.json().get("diagnostics"))
     logging.info(f"Status:\n {raw_diagnostics.status_code}")
     logging.info(f"Response body:\n{raw_diagnostics.text}")
     raw_diagnostics = raw_diagnostics.json()["diagnostics"]
@@ -61,13 +61,13 @@ def _convert_to_lsp_diagnostics_deep(raw_diagnostics):
         # if (d["endColumn"] == None or d['endColumn'] == 'null'):
         #     end_char = 1
         # else:
-        end_char = start_char + 2
+        end_char = start_char + 5
 
         lsp_diags.append(Diagnostic(
             range=Range(
-                start=Position(line=max(0, start) - 1,
+                start=Position(line=max(1, start) - 1,
                               character=start_char),
-                end=Position(line=max(0, end) - 1, character=end_char)
+                end=Position(line=max(1, end) - 1, character=end_char)
             ),
             severity=DiagnosticSeverity(2),
             code=d.get("message-id"),
