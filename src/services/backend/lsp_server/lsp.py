@@ -18,6 +18,7 @@ logging.basicConfig(
     ]
 )
 
+realtime_diagnostics_cache = {}
 load_dotenv()
 URL_STATIC_ANALYZER = os.getenv("URL_STATIC_ANALYZER")
 URL_LSP_SERVER = os.getenv("URL_LSP_SERVER")
@@ -41,9 +42,13 @@ def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
     logging.info(f"Status:\n {raw_diagnostics.status_code}")
     logging.info(f"Response body:\n{raw_diagnostics.text}")
     raw_diagnostics = raw_diagnostics.json()["diagnostics"]
+
     diagnostics = _convert_to_lsp_diagnostics_deep(raw_diagnostics)
+
+    realtime_diags = realtime_diagnostics_cache.get(URI, [])
+    combined_diagnostics = diagnostics + realtime_diags
     logging.info(f"Publishing diagnostics...\n{diagnostics}")
-    ls.publish_diagnostics(URI, diagnostics)
+    ls.publish_diagnostics(URI, combined_diagnostics)
 
 
 def _convert_to_lsp_diagnostics_deep(raw_diagnostics):
@@ -61,19 +66,20 @@ def _convert_to_lsp_diagnostics_deep(raw_diagnostics):
         # if (d["endColumn"] == None or d['endColumn'] == 'null'):
         #     end_char = 1
         # else:
-        end_char = start_char + 5
+        end_char = start_char + 3
 
         lsp_diags.append(Diagnostic(
             range=Range(
-                start=Position(line=max(1, start) - 1,
+                start=Position(line=max(1, start) ,
                               character=start_char),
-                end=Position(line=max(1, end) - 1, character=end_char)
+                end=Position(line=max(1, end) , character=end_char)
             ),
             severity=DiagnosticSeverity(2),
             code=d.get("message-id"),
             source=d.get("tool", "deep-syntatic-analysis"),
             message=d.get("message", "")
         ))
+
     return lsp_diags
 
 
@@ -126,6 +132,7 @@ def real_time_analysis(ls: LanguageServer, params):
     logging.info(f"Received response!")
     diagnostics = _convert_to_lsp_diagnostics(response.json()["diagnostics"])
     logging.info(f"Publishing diagnostics...\n{diagnostics}")
+    realtime_diagnostics_cache[uri] = diagnostics
     ls.publish_diagnostics(uri, diagnostics)
 
 
