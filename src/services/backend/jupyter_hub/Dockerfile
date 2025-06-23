@@ -22,14 +22,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY extensions/ /extensions/
 
-ARG LLM_VALIDATOR_URL
-RUN echo "export const API_ENDPOINT = '${LLM_VALIDATOR_URL}';" > /extensions/buttons/src/config.ts
-
 # Load extension to Jupyter
 RUN cd /extensions/buttons && \
     npm install && \
     npm run build && \
     jupyter labextension install .
+
+RUN chmod +x /extensions/config_build.sh
+ENTRYPOINT ["extensions/config_build.sh"]
 
 COPY . .
 
