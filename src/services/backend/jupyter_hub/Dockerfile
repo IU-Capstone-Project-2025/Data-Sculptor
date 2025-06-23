@@ -20,20 +20,14 @@ COPY requirements.txt ./
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
-
 COPY extensions/ /extensions/
-
 # Load extension to Jupyter
-WORKDIR /extensions/semantic-button
-RUN npm install && \
+RUN cd /extensions/buttons && \
+    npm install && \
     npm run build && \
     jupyter labextension install .
 
-# WORKDIR /extensions/validate-button
-# RUN npm install && \
-#     npm run build && \
-#     jupyter labextension install .
+COPY . .
 
 WORKDIR /srv/jupyterhub
 
