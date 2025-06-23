@@ -67,4 +67,4 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
     volumes:
-      - ../src/services/ml/semantic_feedback:/app:rw
+      - ../src/services/ml/semantic_feedback:/app/semantic_feedback:rw
