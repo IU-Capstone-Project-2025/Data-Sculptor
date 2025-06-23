@@ -1,14 +1,8 @@
-/*
-  ВАЖНО!!!
-  ЭНДПОИНТ ЗАХАРДКОЖЕН!!!
-  я не разорбался...
-
-  - Марат
-*/
 import '../style/index.css';
 import { JupyterFrontEnd, JupyterFrontEndPlugin } from '@jupyterlab/application';
 import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { ToolbarButton } from '@jupyterlab/apputils';
+import { API_ENDPOINT } from './config';
 
 const CHECK_SVG = `
 <svg viewBox="0 0 16 16" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
@@ -21,7 +15,7 @@ const SPINNER_SVG = `
 </svg>`;
 
 // Get environment variable during build time
-const API_ENDPOINT = process.env.LLM_VALIDATOR_URL || 'http://127.0.0.1:9001';
+// const API_ENDPOINT = process.env.LLM_VALIDATOR_URL || 'http://127.0.0.1:9001';
 
 const plugin: JupyterFrontEndPlugin<void> = {
   id: 'combined-validation-plugin:plugin',
