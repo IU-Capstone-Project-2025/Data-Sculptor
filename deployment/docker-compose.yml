@@ -52,8 +52,8 @@ services:
 
   feedback-service:
     build:
-      context: ../src/services/ml/semantic_feedback
-      dockerfile: Dockerfile
+      context: ../src/services/ml
+      dockerfile: semantic_feedback/Dockerfile
     container_name: "${COMPOSE_PROJECT_NAME}-feedback"
     ports:
       - "${FEEDBACK_PORT_EXTERNAL}:9352"
