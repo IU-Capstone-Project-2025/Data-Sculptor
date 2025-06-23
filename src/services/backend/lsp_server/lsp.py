@@ -32,17 +32,49 @@ def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
     logging.info(f"HERES YOUR FILEPATH {filepath}")
     with open(f"{filepath}", "rb") as f:
         logging.info("PREPARE FILE TRANSMISION")
-        files = {"nb_file": (filename, f, "application/octet-stream")}
+        files = {"code_file": (filename, f, "application/octet-stream")}
         logging.info("SEND FILE TO THE SERVER")
         raw_diagnostics = requests.post(f"{URL_STATIC_ANALYZER}/analyze", files=files)
         logging.info("RECIEVED DIAGNOSTICS... SEND BACK TO JUPYTERLAB")
 
     # logging.info(raw_diagnostics.json().get("diagnostics"))
     logging.info(f"Status:\n {raw_diagnostics.status_code}")
-    # logging.info(f"Response body:\n{raw_diagnostics.text}")
+    logging.info(f"Response body:\n{raw_diagnostics.text}")
     raw_diagnostics = raw_diagnostics.json()["diagnostics"]
-    diagnostics = _convert_to_lsp_diagnostics(raw_diagnostics)
+    diagnostics = _convert_to_lsp_diagnostics_deep(raw_diagnostics)
+    logging.info(f"Publishing diagnostics...\n{diagnostics}")
     ls.publish_diagnostics(URI, diagnostics)
+
+
+def _convert_to_lsp_diagnostics_deep(raw_diagnostics):
+    lsp_diags = []
+    for d in raw_diagnostics:
+        start = d["line"]
+        end = d["line"]
+        start_char = None
+        end_char = None
+        if (d["column"] == None or d['column'] == 'null'):
+            start_char = 0
+        else:
+            start_char = d["column"]
+
+        # if (d["endColumn"] == None or d['endColumn'] == 'null'):
+        #     end_char = 1
+        # else:
+        end_char = start_char + 2
+
+        lsp_diags.append(Diagnostic(
+            range=Range(
+                start=Position(line=max(0, start) - 1,
+                              character=start_char),
+                end=Position(line=max(0, end) - 1, character=end_char)
+            ),
+            severity=DiagnosticSeverity(2),
+            code=d.get("message-id"),
+            source=d.get("tool", "deep-syntatic-analysis"),
+            message=d.get("message", "")
+        ))
+    return lsp_diags
 
 
 def _convert_to_lsp_diagnostics(raw_diagnostics):
@@ -67,6 +99,13 @@ def _convert_to_lsp_diagnostics(raw_diagnostics):
         ))
     return lsp_diags
 
+@server.feature(types.TEXT_DOCUMENT_COMPLETION)
+def on_completion(ls: LanguageServer, params: types.CompletionParams):
+    # Implement your completion logic here
+    items = []
+    # Example: items.append(CompletionItem(label="example"))
+    return types.CompletionList(is_incomplete=False, items=items)
+
 @server.feature(types.TEXT_DOCUMENT_DID_OPEN)
 @server.feature(types.TEXT_DOCUMENT_DID_CHANGE)
 def real_time_analysis(ls: LanguageServer, params):
@@ -86,7 +125,7 @@ def real_time_analysis(ls: LanguageServer, params):
         response = requests.post(f"{URL_LSP_SERVER}/analyze", files=files)
     logging.info(f"Received response!")
     diagnostics = _convert_to_lsp_diagnostics(response.json()["diagnostics"])
-    logging.info(f"Received diagnostics!")
+    logging.info(f"Publishing diagnostics...\n{diagnostics}")
     ls.publish_diagnostics(uri, diagnostics)
 
 

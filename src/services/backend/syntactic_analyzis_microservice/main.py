@@ -12,7 +12,7 @@ from analysis_runner import run_all_linters
 class DiagnosticsResponse(BaseModel):
     diagnostics: list[dict]
 
-
+app = FastAPI()
 @app.post("/analyze", response_model=DiagnosticsResponse)
 async def analyze_code(code_file: UploadFile = File(...)):
     """Принимает .py-файл, прогоняет линтеры, возвращает LSP-diagnostics."""
