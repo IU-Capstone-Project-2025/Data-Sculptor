@@ -29,7 +29,7 @@ RUN cd /extensions/buttons && \
     jupyter labextension install .
 
 RUN chmod +x /extensions/buttons/config_build.sh
-ENTRYPOINT ["extensions/buttons/config_build.sh"]
+ENTRYPOINT ["/extensions/buttons/config_build.sh"]
 
 COPY . .
 
