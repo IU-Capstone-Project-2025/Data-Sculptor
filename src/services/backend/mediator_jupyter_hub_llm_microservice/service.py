@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 import httpx
@@ -8,6 +9,14 @@ import os
 from settings import settings
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],           # Allowed origins
+    allow_credentials=True,          # Allow cookies, auth headers
+    allow_methods=["*"],             # Allow all HTTP methods (including OPTIONS)
+    allow_headers=["*"],             # Allow all headers
+)
 
 @app.post("/getMdFeedback")
 async def get_md_feedback(
@@ -40,7 +49,7 @@ async def get_md_feedback(
 	
 		file_path = "generated_file.md"
 		with open(file_path, "w") as f:
-			f.write(response_json.get("feedback",""))
+			f.write(response_json.get("non_localized_feedback",""))
 
 		return FileResponse(
 			path=file_path,
