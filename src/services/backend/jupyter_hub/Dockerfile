@@ -21,6 +21,9 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY extensions/ /extensions/
+
+RUN echo "export const API_ENDPOINT = '${LLM_VALIDATOR_URL}';" > /extensions/buttons/src/config.ts
+
 # Load extension to Jupyter
 RUN cd /extensions/buttons && \
     npm install && \
