@@ -5,6 +5,8 @@ services:
     build:
       context: ../src/services/backend/jupyter_hub
       dockerfile: Dockerfile
+      args:
+        - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
     container_name: "${COMPOSE_PROJECT_NAME}-jupyterhub"
     ports:
       - "${JUPYTER_PORT_EXTERNAL}:8000"
@@ -20,8 +22,6 @@ services:
       - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
       - URL_STATIC_ANALYZER=http://${HOST_IP}:${ANALYZER_PORT_EXTERNAL}
       - URL_LSP_SERVER=http://${HOST_IP}:${LSP_PORT_EXTERNAL}
-    args:
-      - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
 
   deep-syntatic-service:
     build:
