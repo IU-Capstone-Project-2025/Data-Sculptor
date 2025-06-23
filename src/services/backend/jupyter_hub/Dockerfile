@@ -23,16 +23,18 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY extensions/ /extensions/
 
 # Load extension to Jupyter
-RUN cd /extensions/buttons && \
-    npm install && \
-    npm run build && \
-    jupyter labextension install .
+# RUN cd /extensions/buttons && \
+#     npm install && \
+#     npm run build && \
+#     jupyter labextension install .
 
-RUN chmod +x /extensions/buttons/config_build.sh
-ENTRYPOINT ["/extensions/buttons/config_build.sh"]
+RUN chmod +x /extensions/buttons/start.sh
+ENTRYPOINT ["extensions/buttons/start.sh"]
 
 COPY . .
 
 WORKDIR /srv/jupyterhub
 
 RUN mkdir -p /etc/jupyter/jupyter_server_config.d
+
+CMD ["jupyterhub"]
