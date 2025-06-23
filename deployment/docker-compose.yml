@@ -19,9 +19,12 @@ services:
     env_file:
       - ../resources/config/jupyterhub/.env
     environment:
-      - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
-      - URL_STATIC_ANALYZER=http://${HOST_IP}:${ANALYZER_PORT_EXTERNAL}
-      - URL_LSP_SERVER=http://${HOST_IP}:${LSP_PORT_EXTERNAL}
+      # - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
+      # - URL_STATIC_ANALYZER=http://${HOST_IP}:${ANALYZER_PORT_EXTERNAL}
+      # - URL_LSP_SERVER=http://${HOST_IP}:${LSP_PORT_EXTERNAL}
+      - LLM_VALIDATOR_URL=http://mediator:8001
+      - URL_STATIC_ANALYZER=http://deep-syntatic-service:8085
+      - URL_LSP_SERVER=http://real-time-analysis-service:8095
 
   deep-syntatic-service:
     build:
