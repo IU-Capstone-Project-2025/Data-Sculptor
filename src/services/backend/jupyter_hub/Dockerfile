@@ -22,14 +22,17 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY extensions/ /extensions/
 
-# Load extension to Jupyter
-# RUN cd /extensions/buttons && \
-#     npm install && \
-#     npm run build && \
-#     jupyter labextension install .
+ARG LLM_VALIDATOR_URL
+RUN echo "export const API_ENDPOINT = '${LLM_VALIDATOR_URL}';" > /extensions/buttons/src/config.ts
 
-RUN chmod +x /extensions/buttons/start.sh
-ENTRYPOINT ["/extensions/buttons/start.sh"]
+# Load extension to Jupyter
+RUN cd /extensions/buttons && \
+    npm install && \
+    npm run build && \
+    jupyter labextension install .
+
+# RUN chmod +x /extensions/buttons/start.sh
+# ENTRYPOINT ["/extensions/buttons/start.sh"]
 
 COPY . .
 
