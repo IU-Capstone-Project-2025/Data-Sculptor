@@ -39,7 +39,7 @@ cd deployment
 docker compose -p uat --env-file uat.env up --build
 ```
 
-3. Enter the container
+3. Find id of the jupyterhub container and enter the container
 ```bash
 docker exec -it <container_name_or_id> bash
 ```
@@ -53,9 +53,12 @@ chown -R developer:developer /home/developer
 ❗️Exit the container before authorization in browser
 
 4. Login at:
-   http://localhost (default port :11000)
+   http://localhost:11000
 
+5. Credentials:
 
+    login: developer
 
+    password: 12345678
 
 
