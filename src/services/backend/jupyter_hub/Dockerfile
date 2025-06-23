@@ -2,8 +2,39 @@ FROM jupyterhub/jupyterhub:latest
 
 RUN useradd -m developer
 
-COPY . .
+# Remove old built-in npm
+RUN apt-get update && apt-get install -y curl build-essential
+RUN apt-get purge -y nodejs npm libnode* && \
+    rm -rf /usr/lib/node_modules /etc/apt/sources.list.d/nodesource.list && \
+    apt-get autoremove -y
 
+# Install new npm
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs
+
+# If written in vice versa, nothing works lol
+RUN node -v && npm -v
+RUN npm install -g npm@latest
+
+COPY requirements.txt ./
 
 RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+COPY extensions/ /extensions/
+
+# Load extension to Jupyter
+WORKDIR /extensions/semantic-button
+RUN npm install && \
+    npm run build && \
+    jupyter labextension install .
+
+# WORKDIR /extensions/validate-button
+# RUN npm install && \
+#     npm run build && \
+#     jupyter labextension install .
+
+WORKDIR /srv/jupyterhub
+
 RUN mkdir -p /etc/jupyter/jupyter_server_config.d
