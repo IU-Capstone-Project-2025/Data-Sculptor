@@ -22,6 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY extensions/ /extensions/
 
+ARG LLM_VALIDATOR_URL
 RUN echo "export const API_ENDPOINT = '${LLM_VALIDATOR_URL}';" > /extensions/buttons/src/config.ts
 
 # Load extension to Jupyter
