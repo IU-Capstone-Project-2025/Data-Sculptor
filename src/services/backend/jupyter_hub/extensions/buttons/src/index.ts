@@ -2,6 +2,7 @@ import '../style/index.css';
 import { JupyterFrontEnd, JupyterFrontEndPlugin } from '@jupyterlab/application';
 import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { ToolbarButton } from '@jupyterlab/apputils';
+// import { LabIcon } from '@jupyterlab/ui-components'
 import { API_ENDPOINT } from './config';
 
 const CHECK_SVG = `
@@ -13,6 +14,23 @@ const SPINNER_SVG = `
 <svg viewBox="0 0 50 50" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
   <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
 </svg>`;
+
+// const defaultIcon = new LabIcon({
+//   name: 'validation:check-icon',
+//   svgstr: CHECK_SVG
+// });
+// 
+// const loadingIcon = new LabIcon({
+//   name: 'validation:loading-icon',
+//   svgstr: SPINNER_SVG
+// });
+// 
+// const errorIcon = new LabIcon({
+//   name: 'validation:error-icon',
+//   svgstr: `<svg viewBox="0 0 16 16" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+//     <path fill="currentColor" d="M14.7 2.7L13.3 1.3 8 6.6 2.7 1.3 1.3 2.7 6.6 8l-5.3 5.3 1.4 1.4L8 9.4l5.3 5.3 1.4-1.4L9.4 8z"/>
+//   </svg>`
+// });
 
 // Get environment variable during build time
 // const API_ENDPOINT = process.env.LLM_VALIDATOR_URL || 'http://127.0.0.1:9001';
@@ -28,29 +46,30 @@ const plugin: JupyterFrontEndPlugin<void> = {
     // Track seen cells for per-cell validation
     const seenCells = new WeakSet<any>();
 
-    // ========== TOOLBAR BUTTON FUNCTIONALITY ==========
+    // ========== TOOLBAR BUTTON IMPLEMENTATION ==========
     const createToolbarButton = (panel: NotebookPanel) => {
+
       const button = new ToolbarButton({
         className: 'validation-toolbar-button',
         iconClass: 'jp-CheckIcon',
         onClick: async () => {
           console.log('[Notebook Validation] Processing notebook');
-          
-          // Save original state
-          const originalHTML = button.node.innerHTML;
-          const originalTitle = button.node.title;
-          
-          // Show spinner
-          button.node.innerHTML = SPINNER_SVG;
-          button.node.classList.add('spinning');
-          button.node.title = 'Analyzing notebook semantics...';
-          
+      
+          // 1. Preserve original state
+          // const originalIcon = button.icon;
+          // const originalTitle = button.node.title;
+      
+          // 2. Show loading state
+          // button.icon = loadingIcon;
+          // button.node.title = 'Analyzing notebook semantics...';
+          // button.node.classList.add('spinning');
+
           try {
-            // Get notebook content
+            // 3. PREPARE NOTEBOOK DATA
             const context = panel.context;
             const notebookContent = await context.model.toJSON();
-            
-            // Prepare form data
+        
+            // 4. BUILD FORM DATA
             const formData = new FormData();
             const notebookBlob = new Blob(
               [JSON.stringify(notebookContent)], 
@@ -58,34 +77,38 @@ const plugin: JupyterFrontEndPlugin<void> = {
             );
             formData.append('file', notebookBlob, 'notebook.ipynb');
 
-            // Send request
+            // 5. SEND VALIDATION REQUEST
             const response = await fetch(`${API_ENDPOINT}/getMdFeedback`, {
               method: 'POST',
               body: formData,
-              signal: AbortSignal.timeout(30000)
+              signal: AbortSignal.timeout(30000)  // 30s timeout
             });
 
+            // 6. HANDLE RESPONSE ERRORS
             if (!response.ok) {
               const errorText = await response.text();
               throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
 
-            // Process response
+            // 7. PROCESS SUCCESSFUL RESPONSE
             const resultBlob = await response.blob();
             const resultText = await resultBlob.text();
-            
-            // Visual feedback
-            button.node.innerHTML = CHECK_SVG;
-            button.node.style.color = 'green';
-            button.node.title = 'Semantic validation successful!';
-            
+        
+            // 8. SHOW SUCCESS STATE
+            // button.icon = defaultIcon;
+            // button.node.title = 'Semantic validation successful!';
+            // button.node.classList.add('success');
+        
             console.log('Received Markdown feedback:', resultText.substring(0, 100) + '...');
-            
+        
           } catch (error) {
+            // 9. HANDLE VALIDATION FAILURES
             console.error('[Notebook Validation] Validation failed:', error);
-            button.node.innerHTML = '✖';
-            button.node.style.color = 'red';
-            
+            // button.icon = errorIcon;
+            // button.node.title = `Error: ${error.message || 'Request failed'}`;
+            // button.node.classList.add('error');
+        
+            // 10. ERROR MESSAGE HANDLING
             let errorMessage = 'Request failed';
             if (error.name === 'AbortError') {
               errorMessage = 'Request timed out (30s)';
@@ -94,24 +117,26 @@ const plugin: JupyterFrontEndPlugin<void> = {
             } else {
               errorMessage = error.message || 'Request failed';
             }
-            
-            button.node.title = `Error: ${errorMessage}`;
+        
+            // button.node.title = `Error: ${errorMessage}`;
           } finally {
-            button.node.classList.remove('spinning');
-            
-            // Reset after 3 seconds
+            // 11. CLEANUP ANIMATIONS
+            // button.node.classList.remove('spinning');
+        
+            // 12. RESET TO ORIGINAL STATE AFTER DELAY
             setTimeout(() => {
-              button.node.innerHTML = originalHTML;
-              button.node.style.color = '';
-              button.node.title = originalTitle;
-            }, 3000);
+              // button.icon = originalIcon;
+              // button.node.title = originalTitle;
+              // button.node.classList.remove('success', 'error');
+            }, 3000);  // Reset after 3 seconds
           }
         },
-        tooltip: 'Validate notebook semantics'
+        tooltip: 'Validate notebook semantics'  // Initial tooltip
       });
-      
+  
       return button;
     };
+
 
     // ========== PER-CELL BUTTON FUNCTIONALITY ==========
     const addCellButton = (cell: any, panel: NotebookPanel) => {
