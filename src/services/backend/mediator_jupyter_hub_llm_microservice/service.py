@@ -28,7 +28,7 @@ async def get_md_feedback(
 	try:
 		content: bytes = await file.read()
 
-		files = {"file": (file.filename, content, "application/x-ipynb+json")}
+		# files = {"file": (file.filename, content, "application/x-ipynb+json")}
 
 		async with httpx.AsyncClient(
 			timeout=httpx.Timeout(
@@ -40,7 +40,11 @@ async def get_md_feedback(
 		) as client:
 			response = await client.post(
 				url=f"{settings.feedback_service_url}/api/v1/feedback",
-				files=files,
+				data={
+					"current_code": content,
+					"cell_code_offset": 0,
+					"use_deep_analysis": false,
+				}
 			)
   
 		response.raise_for_status()
