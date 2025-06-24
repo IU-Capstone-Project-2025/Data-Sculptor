@@ -43,7 +43,7 @@ async def get_md_feedback(
 				data={
 					"current_code": content,
 					"cell_code_offset": 0,
-					"use_deep_analysis": false,
+					"use_deep_analysis": False,
 				}
 			)
   
