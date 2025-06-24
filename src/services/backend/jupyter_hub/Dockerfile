@@ -29,7 +29,7 @@ RUN echo "export const API_ENDPOINT = '${LLM_VALIDATOR_URL}';" > /extensions/but
 RUN cd /extensions/buttons && \
     npm install && \
     npm run build && \
-    jupyter labextension install .
+    jupyter labextension install --minimize=False .
 
 # RUN chmod +x /extensions/buttons/start.sh
 # ENTRYPOINT ["/extensions/buttons/start.sh"]
