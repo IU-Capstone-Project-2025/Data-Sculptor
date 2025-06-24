@@ -19,6 +19,7 @@ logging.basicConfig(
 )
 
 realtime_diagnostics_cache = {}
+deep_syntatic_diagnostic_cache = {}
 load_dotenv()
 URL_STATIC_ANALYZER = os.getenv("URL_STATIC_ANALYZER")
 URL_LSP_SERVER = os.getenv("URL_LSP_SERVER")
@@ -44,6 +45,7 @@ def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
     raw_diagnostics = raw_diagnostics.json()["diagnostics"]
 
     diagnostics = _convert_to_lsp_diagnostics_deep(raw_diagnostics)
+    deep_syntatic_diagnostic_cache[URI] = diagnostics
 
     realtime_diags = realtime_diagnostics_cache.get(URI, [])
     combined_diagnostics = diagnostics + realtime_diags
@@ -133,7 +135,10 @@ def real_time_analysis(ls: LanguageServer, params):
     diagnostics = _convert_to_lsp_diagnostics(response.json()["diagnostics"])
     logging.info(f"Publishing diagnostics...\n{diagnostics}")
     realtime_diagnostics_cache[uri] = diagnostics
-    ls.publish_diagnostics(uri, diagnostics)
+
+    deep_syntatic_diagnostics = deep_syntatic_diagnostic_cache.get(uri, [])
+    combined_diagnostics = diagnostics + deep_syntatic_diagnostics
+    ls.publish_diagnostics(uri, combined_diagnostics)
 
 
 def main():
