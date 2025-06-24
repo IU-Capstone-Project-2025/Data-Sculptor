@@ -41,7 +41,7 @@ async def get_md_feedback(
 			response = await client.post(
 				url=f"{settings.feedback_service_url}/api/v1/feedback",
 				data={
-					"current_code": content,
+					"current_code": str(content),
 					"cell_code_offset": 0,
 					"use_deep_analysis": False,
 				}
