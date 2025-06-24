@@ -1,0 +1,26 @@
+import os
+import requests
+from typing import Any, List
+from langchain.llms.base import LLM
+from langchain.schema import Generation, LLMResult
+
+class AdviserLLM(LLM):
+    model_name: str = "adviser"
+
+    @property
+    def _llm_type(self) -> str:
+        return self.model_name
+
+    def _call(self, prompt: str, **kwargs: Any) -> str:  # sync вариант
+        chat_request = kwargs.get("chat_request", [])
+        url = os.getenv("ADVISER_API_URL", "http://adviser:9353/api/v1/chat")
+        resp = requests.post(url, json={"messages": chat_request})
+        resp.raise_for_status()
+        return resp.json()["answer"]
+
+    def generate(
+        self, prompts: List[str], **kwargs: Any
+    ) -> LLMResult:  # async-безопасность
+        text = self._call(prompts[0], **kwargs)
+        return LLMResult(generations=[[Generation(text=text)]])
+

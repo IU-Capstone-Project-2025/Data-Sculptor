@@ -107,7 +107,6 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.1.0
 python-json-logger==3.3.0
 python-jsonrpc-server==0.4.0
-python-language-server==0.36.2
 python-lsp-jsonrpc==1.1.2
 python-lsp-ruff==2.2.2
 python-lsp-server==1.12.2
