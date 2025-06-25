@@ -23,7 +23,7 @@ services:
       - ../resources/config/jupyterhub/.env
 
     environment:
-      - ADVISER_API_URL=http://adviser:9353/api/v1/chat
+      - ADVISER_API_URL=http://${HOST_IP}:{ADVISER_PORT_EXTERNAL}/api/v1/chat
       - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
       - URL_STATIC_ANALYZER=http://${HOST_IP}:${ANALYZER_PORT_EXTERNAL}
       - URL_LSP_SERVER=http://${HOST_IP}:${LSP_PORT_EXTERNAL}
@@ -78,15 +78,15 @@ services:
     build:
       context: ../src/services/ml
       dockerfile: adviser/Dockerfile
-    container_name: "${COMPOSE_PROJECT_NAME}-adviser-chat-service"
+    container_name: "${COMPOSE_PROJECT_NAME}-adviser"
     ports:
       - "${ADVISER_PORT_EXTERNAL}:9353"
     env_file:
       - ../src/services/ml/adviser/.env
     environment:
       - PYTHONUNBUFFERED=1
-      - REDIS_URL=redis://10.100.30.239:${REDIS_PORT_EXTERNAL}/0
-      - POSTGRES_DSN=postgresql://app:app@10.100.30.239:${POSTGRES_PORT_EXTERNAL}/chatdb
+      - REDIS_URL=redis://${HOST_IP}:${REDIS_PORT_EXTERNAL}/0
+      - POSTGRES_DSN=postgresql://app:app@${HOST_IP}:${POSTGRES_PORT_EXTERNAL}/chatdb
     volumes:
       - ../src/services/ml/adviser:/app/adviser:ro
     hostname: adviser
