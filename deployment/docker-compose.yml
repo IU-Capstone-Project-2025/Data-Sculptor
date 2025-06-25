@@ -3,12 +3,15 @@ version: '3.8'
 services:
   jupyterhub:
     build:
-      context: ../src/services/backend/jupyter_hub
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: src/services/backend/jupyter_hub/Dockerfile
     container_name: "${COMPOSE_PROJECT_NAME}-jupyterhub"
+
     ports:
       - "${JUPYTER_PORT_EXTERNAL}:8000"
+
     volumes:
+      - ../resources/config/jupyterhub/jupyter_ai_config.py:/etc/jupyter/jupyter_server_config.d/jupyter_ai_config.py:ro
       - ../resources/config/jupyterhub:/srv/jupyterhub:rw
       - ../src/services/backend/jupyter_hub_adapter_microservice/sendCode.py:/home/developer/sendCode.py:rw
       - ../src/services/backend/syntactic_analyzis_microservice/lsp.py:/home/developer/lsp.py:rw
@@ -16,7 +19,9 @@ services:
       - ../resources/data/jupyterhub:/home/developer:rw
     env_file:
       - ../resources/config/jupyterhub/.env
+
     environment:
+      - ADVISER_API_URL=http://adviser:9353/api/v1/chat
       - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
       - URL_STATIC_ANALYZER=http://${HOST_IP}:${ANALYZER_PORT_EXTERNAL}
       - URL_LSP_SERVER=http://${HOST_IP}:${LSP_PORT_EXTERNAL}
@@ -77,6 +82,7 @@ services:
       - PYTHONUNBUFFERED=1
     volumes:
       - ../src/services/ml/adviser:/app/adviser:ro
+    hostname: adviser
     depends_on:
       redis:
         condition: service_healthy
