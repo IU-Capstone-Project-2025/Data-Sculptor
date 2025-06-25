@@ -5,6 +5,8 @@ services:
     build:
       context: ..
       dockerfile: src/services/backend/jupyter_hub/Dockerfile
+      args:
+        - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
     container_name: "${COMPOSE_PROJECT_NAME}-jupyterhub"
 
     ports:
@@ -14,7 +16,7 @@ services:
       - ../resources/config/jupyterhub/jupyter_ai_config.py:/etc/jupyter/jupyter_server_config.d/jupyter_ai_config.py:ro
       - ../resources/config/jupyterhub:/srv/jupyterhub:rw
       - ../src/services/backend/jupyter_hub_adapter_microservice/sendCode.py:/home/developer/sendCode.py:rw
-      - ../src/services/backend/syntactic_analyzis_microservice/lsp.py:/home/developer/lsp.py:rw
+      - ../src/services/backend/lsp_server/lsp.py:/home/developer/lsp.py:rw
       - ../src/services/backend/jupyter_hub/jupyter-lsp-jupyter-server.json:/etc/jupyter/jupyter_server_config.d/jupyter-lsp-jupyter-server.json:rw
       - ../resources/data/jupyterhub:/home/developer:rw
     env_file:
@@ -25,6 +27,9 @@ services:
       - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
       - URL_STATIC_ANALYZER=http://${HOST_IP}:${ANALYZER_PORT_EXTERNAL}
       - URL_LSP_SERVER=http://${HOST_IP}:${LSP_PORT_EXTERNAL}
+        # - LLM_VALIDATOR_URL=http://mediator:8001
+        # - URL_STATIC_ANALYZER=http://deep-syntatic-service:8085
+        # - URL_LSP_SERVER=http://real-time-analysis-service:8095
 
   deep-syntatic-service:
     build:
