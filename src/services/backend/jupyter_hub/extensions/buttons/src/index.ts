@@ -2,6 +2,9 @@ import '../style/index.css';
 import { JupyterFrontEnd, JupyterFrontEndPlugin } from '@jupyterlab/application';
 import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { ToolbarButton } from '@jupyterlab/apputils';
+import { ContentsManager } from '@jupyterlab/services';
+import { PathExt } from '@jupyterlab/coreutils';
+
 // import { LabIcon } from '@jupyterlab/ui-components'
 import { API_ENDPOINT } from './config';
 
@@ -98,8 +101,29 @@ const plugin: JupyterFrontEndPlugin<void> = {
             // button.icon = defaultIcon;
             // button.node.title = 'Semantic validation successful!';
             // button.node.classList.add('success');
-        
-            console.log('Received Markdown feedback:', resultText.substring(0, 100) + '...');
+
+            // 8. SAVE TO JUPYTERHUB FILE SYSTEM
+            // Get current notebook path and directory
+            const notebookPath = panel.context.path;
+            const notebookDir = notebookPath.split('/').slice(0, -1).join('/') || '';
+    
+            // Create filename with timestamp
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const fileName = `markdown_feedback_${timestamp}.md`;
+            const filePath = notebookDir ? `${notebookDir}/${fileName}` : fileName;
+
+            // Save file using JupyterLab API
+            await panel.context.serviceManager.contents.save(filePath, {
+                type: 'file',
+                format: 'text',
+                content: resultText
+            });
+
+            // 9. SHOW SUCCESS STATE
+            console.log(`Feedback saved to: ${filePath}`);
+            // button.icon = defaultIcon;
+            // button.node.title = `Feedback saved to ${fileName}!`;
+            // button.node.classList.add('success');
         
           } catch (error) {
             // 9. HANDLE VALIDATION FAILURES
