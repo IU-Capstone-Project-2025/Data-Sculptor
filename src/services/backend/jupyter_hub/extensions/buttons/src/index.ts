@@ -176,6 +176,8 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
             // 9. SHOW SUCCESS STATE
             console.log(`Feedback saved to: ${savedFilePath}`);
+            console.log("LSP:");
+            console.log(resultLSP);
             // button.icon = defaultIcon;
             // button.node.title = `Feedback saved to ${fileName}!`;
             // button.node.classList.add('success');
