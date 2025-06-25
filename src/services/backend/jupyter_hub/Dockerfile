@@ -34,9 +34,7 @@ COPY src/services/backend/jupyter_hub/extensions/ /extensions/
 ARG LLM_VALIDATOR_URL
 RUN echo "export const API_ENDPOINT = '${LLM_VALIDATOR_URL}';" > /extensions/buttons/src/config.ts
 
-RUN cd /extensions/validate-button && npm install && npm run build && jupyter labextension install . && \
-    cd /extensions/buttons && npm install && npm run build && jupyter labextension install --minimize=False . && \
-    cd /extensions/semantic-button && npm install && npm run build && jupyter labextension install --minimize=False .
+RUN cd /extensions/buttons && npm install && npm run build && jupyter labextension install --minimize=False .
 
 # runtime configuration
 WORKDIR /srv/jupyterhub
