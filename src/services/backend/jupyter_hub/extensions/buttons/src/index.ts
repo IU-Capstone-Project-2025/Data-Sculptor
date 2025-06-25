@@ -2,8 +2,8 @@ import '../style/index.css';
 import { JupyterFrontEnd, JupyterFrontEndPlugin } from '@jupyterlab/application';
 import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { ToolbarButton } from '@jupyterlab/apputils';
-import { ContentsManager } from '@jupyterlab/services';
-import { PathExt } from '@jupyterlab/coreutils';
+import { ServerConnection } from '@jupyterlab/services';
+import { PathExt, URLExt } from '@jupyterlab/coreutils';
 
 // import { LabIcon } from '@jupyterlab/ui-components'
 import { API_ENDPOINT } from './config';
@@ -17,6 +17,51 @@ const SPINNER_SVG = `
 <svg viewBox="0 0 50 50" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
   <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
 </svg>`;
+
+// 2. FILE SAVER FUNCTION
+async function saveFeedbackFile(notebookPath: string, content: string) {
+    try {
+        // Create filename with timestamp
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const fileName = `markdown_feedback_${timestamp}.md`;
+        const directory = PathExt.dirname(notebookPath);
+        const filePath = PathExt.join(directory, fileName);
+
+        // Get server settings with authentication
+        const serverSettings = ServerConnection.makeSettings();
+        const url = URLExt.join(serverSettings.baseUrl, 'api/contents', filePath);
+
+        // Prepare request model
+        const model = {
+            type: 'file',
+            format: 'text',
+            content: content
+        };
+
+        // Send PUT request
+        const response = await ServerConnection.makeRequest(url, {
+            method: 'PUT',
+            body: JSON.stringify(model),
+            headers: {
+                'Content-Type': 'application/json',
+                ...(serverSettings.token ? { Authorization: `Token ${serverSettings.token}` } : {})
+            }
+        }, serverSettings);
+
+        // Handle response
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Failed to save file: ${response.status} - ${errorData.message || response.statusText}`);
+        }
+
+        console.log(`Successfully saved feedback to: ${filePath}`);
+***REMOVED*** filePath;
+
+    } catch (error) {
+        console.error('File save error:', error);
+        throw error;
+    }
+}
 
 // const defaultIcon = new LabIcon({
 //   name: 'validation:check-icon',
@@ -103,33 +148,11 @@ const plugin: JupyterFrontEndPlugin<void> = {
             // button.node.classList.add('success');
 
             // 8. SAVE TO JUPYTERHUB FILE SYSTEM
-            // Get current notebook path and directory
-            const notebookPath = panel.context.path;
-            const notebookDir = notebookPath.split('/').slice(0, -1).join('/') || '';
-    
-            // Create filename with timestamp
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const fileName = `markdown_feedback_${timestamp}.md`;
-            const filePath = notebookDir ? `${notebookDir}/${fileName}` : fileName;
+            const savedFilePath = await saveFeedbackFile(panel.context.path, resultText);
 
-            // Save file using JupyterLab API
-            // TYPE-SAFE ACCESS TO SERVICE MANAGER
-            const serviceManager = (panel.context as any).serviceManager;
-            if (!serviceManager) {
-              throw new Error('Service manager not available in context');
-            }
-    
-            const contentsManager = serviceManager.contents as ContentsManager;
-    
-            // Save file
-            await contentsManager.save(filePath, {
-              type: 'file',
-              format: 'text',
-              content: resultText
-            });
 
             // 9. SHOW SUCCESS STATE
-            console.log(`Feedback saved to: ${filePath}`);
+            console.log(`Feedback saved to: ${savedFilePath}`);
             // button.icon = defaultIcon;
             // button.node.title = `Feedback saved to ${fileName}!`;
             // button.node.classList.add('success');
