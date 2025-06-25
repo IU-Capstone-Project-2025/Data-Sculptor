@@ -114,6 +114,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
           try {
             // 3. PREPARE NOTEBOOK DATA
+            console.log("[Notebook Validation] Preapring notebook data");
             const context = panel.context;
             const notebookContent = await context.model.toJSON();
         
@@ -124,6 +125,8 @@ const plugin: JupyterFrontEndPlugin<void> = {
               { type: 'application/json' }
             );
             formData.append('file', notebookBlob, 'notebook.ipynb');
+            console.log(`[Notebook Validation] data:`);
+            console.log(notebookBlob);
 
             // 5. SEND VALIDATION REQUEST
             const response = await fetch(`${API_ENDPOINT}/getMdFeedback`, {
@@ -132,15 +135,19 @@ const plugin: JupyterFrontEndPlugin<void> = {
               signal: AbortSignal.timeout(30000)  // 30s timeout
             });
 
+            console.log("[notebook validation] fetched response");
             // 6. HANDLE RESPONSE ERRORS
             if (!response.ok) {
               const errorText = await response.text();
               throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
+            console.log("[notebook validation] Response ok");
 
             // 7. PROCESS SUCCESSFUL RESPONSE
             const resultBlob = await response.blob();
             const resultText = await resultBlob.text();
+
+            console.log(`[notebook validation] ${resultBlob} \n\n ${resultText} \n`);
         
             // 8. SHOW SUCCESS STATE
             // button.icon = defaultIcon;
