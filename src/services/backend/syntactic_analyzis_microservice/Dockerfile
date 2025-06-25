@@ -1,5 +1,6 @@
 FROM python:3.10-slim
 
+# system-deps, чтобы pip мог клонировать
 RUN apt-get update \
  && apt-get install -y --no-install-recommends git build-essential \
  && rm -rf /var/lib/apt/lists/*
@@ -11,4 +12,5 @@ RUN pip install --upgrade pip setuptools wheel \
 
 COPY . .
 
+EXPOSE 8085
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8085"]
