@@ -9,7 +9,17 @@ from fastapi.responses import JSONResponse
 import uvicorn
 import urllib.parse
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,  # Allow cookies and authorization headers
+    allow_methods=["*"],     # Allow all HTTP methods (GET, POST, PUT, etc.)
+    allow_headers=["*"],     # Allow all headers
+)
 
 # --- Глобальные переменные ---
 pylsp_proc = None

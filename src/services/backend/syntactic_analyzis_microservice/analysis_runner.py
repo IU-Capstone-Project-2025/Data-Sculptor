@@ -1,174 +1,132 @@
-# analysis_runner.py
-
-import asyncio
+import subprocess
 import json
-import re
-import traceback
-from typing import Tuple
+import tempfile
+import os
+import ast
+from typing import List, Dict, Tuple
 
-from pydantic import BaseModel, Field
 
-# --- LSP Diagnostic Models ---
-class Position(BaseModel):
-    line: int
-    character: int
-
-class Range(BaseModel):
-    start: Position
-    end: Position
-
-class LspDiagnostic(BaseModel):
-    range: Range
-    severity: int = Field(..., ge=1, le=4)  # 1=Error, 2=Warning, 3=Info, 4=Hint
-    code: str
-    source: str
-    message: str
-
-async def _run_cmd(cmd: list[str]) -> tuple[int, str, str]:
+def find_position(py_path: str, smell: str, keywords: List[str]) -> Tuple[int, int]:
     """
-    Execute an external command and capture stdout/stderr.
-    On failure to even start the process, logs the exception and
-    returns (–1, "", "<ExceptionType>: <message>").
+    Находит позицию запаха в коде:
+    1) Если указаны ключевые слова, ищет их в текстовом виде.
+    2) Если smell — числовой литерал, ищет AST.Constant с этим значением.
+    3) Возвращает (0,0) по умолчанию.
     """
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-    except Exception as e:
-        # Логируем короткое сообщение и полную трассировку
-        print("Ошибка запуска команды %r: %s"%( cmd, e))
-        print("Полная трассировка:\n%s"% traceback.format_exc())
-        # Возвращаем информацию об ошибке в stderr
-        return -1, "", f"{type(e).__name__}: {e}"
+    # Поиск по ключевым словам
+    if keywords:
+        try:
+            with open(py_path, encoding="utf-8") as src:
+                for idx, row in enumerate(src):
+                    for kw in keywords:
+                        if kw in row:
+                            return idx, row.index(kw)
+        except OSError:
+            pass
 
-    # Если процесс успешно запущен — подождём вывода
-    out, err = await proc.communicate()
-    return proc.returncode, out.decode(errors="ignore"), err.decode(errors="ignore")
+        # --- Поиск числового литерала через AST ---
+    literal = None
+    import re
+    num_match = re.search(r"[-+]?[0-9]+(?:\.[0-9]+)?", smell)
+    if num_match:
+        try:
+            literal = float(num_match.group())
+        except ValueError:
+            pass
 
-# --- Parsing Functions ---
-def _parse_pylint(json_output: str) -> list[LspDiagnostic]:
-    try:
-        data = json.loads(json_output)
-    except json.JSONDecodeError:
-        return []
-    diags: list[LspDiagnostic] = []
-    for item in data:
-        diags.append(LspDiagnostic(
-            range=Range(
-                start=Position(line=item.get("line", 1) - 1, character=item.get("column", 1) - 1),
-                end=Position(line=item.get("line", 1) - 1, character=item.get("column", 1))
-            ),
-            severity=1 if item.get("type") == "error" else 2,
-            code=item.get("message-id", "pylint"),
-            source="pylint",
-            message=item.get("message", "")
-        ))
-    return diags
+    if literal is not None:
+        try:
+            src_text = open(py_path, encoding="utf-8").read()
+            tree = ast.parse(src_text, py_path)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+                    if node.value == literal:
+                        return node.lineno - 1, node.col_offset
+        except Exception:
+            pass
+
+    return 0, 0
 
 
-def _parse_mypy(json_output: str) -> list[LspDiagnostic]:
-    try:
-        parsed = json.loads(json_output)
-    except json.JSONDecodeError:
-        return []
-    diags: list[LspDiagnostic] = []
-    for item in parsed.get("errors", []):
-        diags.append(LspDiagnostic(
-            range=Range(
-                start=Position(line=item.get("line", 1) - 1, character=item.get("column", 1) - 1),
-                end=Position(line=item.get("line", 1) - 1, character=item.get("column", 1))
-            ),
-            severity=1 if item.get("severity", "error") == "error" else 2,
-            code=item.get("code", "mypy"),
-            source="mypy",
-            message=item.get("message", "")
-        ))
-    return diags
+def run_all_linters(py_path: str) -> List[Dict]:
+    """
+    Запускает ML smell detector и pylint, возвращает унифицированный список diagnostics.
+    """
+    diagnostics: List[Dict] = []
+    module_name = os.path.splitext(os.path.basename(py_path))[0]
 
+    # Маппинги severity и типов
+    pylint_sev_map = {"error":1, "warning":2, "refactor":3, "convention":3, "info":4}
+    ml_sev_map     = {"Framework-Specific Smells":2, "Hugging Face Smells":2, "General ML Smells":3}
+    sev_type_map   = {1:"error", 2:"warning", 3:"information", 4:"hint"}
 
-def _parse_dodgy(text: str) -> list[LspDiagnostic]:
-    pattern = re.compile(r"^(.*?):(\d+):(\d+):\s+\[([EW]\d+)\]\s+(.*)$", re.M)
-    diags: list[LspDiagnostic] = []
-    for m in pattern.finditer(text):
-        _, line, col, code, msg = m.groups()
-        diags.append(LspDiagnostic(
-            range=Range(
-                start=Position(line=int(line) - 1, character=int(col) - 1),
-                end=Position(line=int(line) - 1, character=int(col))
-            ),
-            severity=2,
-            code=code,
-            source="dodgy",
-            message=msg
-        ))
-    return diags
-
-
-def _parse_pydocstyle(json_output: str) -> list[LspDiagnostic]:
-    try:
-        data = json.loads(json_output)
-    except json.JSONDecodeError:
-        return []
-    diags: list[LspDiagnostic] = []
-    for path, issues in data.items():
-        for item in issues:
-            diags.append(LspDiagnostic(
-                range=Range(
-                    start=Position(line=item.get("line", 1) - 1, character=item.get("column", 1) - 1),
-                    end=Position(line=item.get("line", 1) - 1, character=item.get("column", 1))
-                ),
-                severity=3,
-                code=item.get("code", "D???"),
-                source="pydocstyle",
-                message=item.get("message", "")
-            ))
-    return diags
-
-
-def _parse_vulture(text: str) -> list[LspDiagnostic]:
-    pattern = re.compile(r"^(.*?):(\d+): (.*?) \(confidence: [\d\.]+\)$", re.M)
-    diags: list[LspDiagnostic] = []
-    for m in pattern.finditer(text):
-        _, line, msg = m.groups()
-        diags.append(LspDiagnostic(
-            range=Range(
-                start=Position(line=int(line) - 1, character=0),
-                end=Position(line=int(line) - 1, character=0)
-            ),
-            severity=3,
-            code="VULTURE",
-            source="vulture",
-            message=msg
-        ))
-    return diags
-
-
-async def run_all_linters(py_path: str) -> list[dict]:
-    cmds = {
-        "pylint": ["pylint", "--output-format=json", py_path],
-        "mypy":   ["mypy", "--hide-error-context", "--no-color-output",
-                   "--error-summary", "--show-error-codes", "--json-output", py_path],
-        "dodgy":  ["dodgy", py_path],
-        "pydocstyle": ["pydocstyle", "--format=json", py_path],
-        "vulture": ["vulture", "--min-confidence", "50", py_path],
+    # Ключевые слова для ML-smells
+    keywords_map = {
+        "Framework-Specific Smells": ["Sequential("],
+        "Hugging Face Smells":       ["transformers", "AutoModel"],
+        "General ML Smells":         []
     }
 
-    tasks = {name: asyncio.create_task(_run_cmd(cmd)) for name, cmd in cmds.items()}
-    results: dict[str, str] = {}
-    for name, task in tasks.items():
-        code, out, err = await task
-        # Prefer stdout, fallback to stderr
-        results[name] = out.strip() if out.strip() else err.strip()
+    # 1. ML smell detection
+    with tempfile.TemporaryDirectory() as outdir:
+        proc = subprocess.run(
+            ["ml_smell_detector", "analyze", "--output-dir", outdir, py_path],
+            capture_output=True, text=True
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(f"ml_smell_detector failed: {proc.stderr.strip()}")
 
-    diagnostics: list[LspDiagnostic] = []
-    # Safely parse each linter
-    diagnostics += _parse_pylint(results.get("pylint", ""))
-    diagnostics += _parse_mypy(results.get("mypy", ""))
-    diagnostics += _parse_dodgy(results.get("dodgy", ""))
-    diagnostics += _parse_pydocstyle(results.get("pydocstyle", ""))
-    diagnostics += _parse_vulture(results.get("vulture", ""))
+        report_path = os.path.join(outdir, "analysis_report.txt")
+        if os.path.exists(report_path):
+            current_cat = None
+            for raw in open(report_path, encoding="utf-8"):
+                line = raw.strip()
+                if not line:
+                    continue
+                if line.endswith("Smells:"):
+                    current_cat = line[:-1]
+                elif line.startswith("- "):
+                    smell = line[2:]
+                    sev  = ml_sev_map.get(current_cat, 3)
+                    ltype = sev_type_map[sev]
+                    kws  = keywords_map.get(current_cat, [])
+                    ln, col = find_position(py_path, smell, kws)
+                    diagnostics.append({
+                        "tool":       "ml_smell_detector",
+                        "type":       ltype,
+                        "module":     module_name,
+                        "obj":        "",
+                        "line":       ln,
+                        "column":     col,
+                        "message":    smell,
+                        "symbol":     current_cat or "",
+                        "message-id": "",
+                        "severity":   sev
+                    })
 
-    # Return plain dicts
-    return [diag.dict() for diag in diagnostics]
+    # 2. Pylint analysis
+    proc = subprocess.run(
+        ["pylint", py_path, "-f", "json", "--disable=R,C"],
+        capture_output=True, text=True
+    )
+    try:
+        issues = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        issues = []
+
+    for issue in issues:
+        sev = pylint_sev_map.get(issue.get("type", ""), 3)
+        diagnostics.append({
+            "tool":       "pylint",
+            "type":       sev_type_map[sev],
+            "module":     issue.get("module", module_name),
+            "obj":        issue.get("obj", ""),
+            "line":       max(0, issue.get("line", 1) - 1),
+            "column":     issue.get("column", 0),
+            "message":    issue.get("message", ""),
+            "symbol":     issue.get("symbol", ""),
+            "message-id": issue.get("message-id", ""),
+            "severity":   sev
+        })
+
+    return diagnostics
