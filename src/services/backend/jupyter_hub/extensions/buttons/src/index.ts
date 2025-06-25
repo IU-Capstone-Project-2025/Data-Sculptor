@@ -132,22 +132,38 @@ const plugin: JupyterFrontEndPlugin<void> = {
             const response = await fetch(`${API_ENDPOINT}/getMdFeedback`, {
               method: 'POST',
               body: formData,
+              headers: {
+                'Accept': 'application/json'
+              },
               signal: AbortSignal.timeout(30000)  // 30s timeout
             });
 
             console.log("[notebook validation] fetched response");
             // 6. HANDLE RESPONSE ERRORS
             if (!response.ok) {
-              const errorText = await response.text();
-              throw new Error(`HTTP ${response.status}: ${errorText}`);
+              try {
+                // Attempt to parse JSON error response
+                const errorData = await response.json();
+                throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`);
+              } catch {
+                // Fallback to text if JSON parsing fails
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
+              }
             }
             console.log("[notebook validation] Response ok");
 
             // 7. PROCESS SUCCESSFUL RESPONSE
-            const resultBlob = await response.blob();
-            const resultText = await resultBlob.text();
+            const result = await response.json();  // Parse JSON response
 
-            console.log(`[notebook validation] ${resultBlob} \n\n ${resultText} \n`);
+            const resultText = result.non_localized_feedback;
+            if (resultText === null) {
+              throw new Error("md feedback lost");
+            }
+            const resultLSP = result.localized_feedback;
+            if (resultText === null) {
+              throw new Error("lsp feedback lost");
+            }
         
             // 8. SHOW SUCCESS STATE
             // button.icon = defaultIcon;
