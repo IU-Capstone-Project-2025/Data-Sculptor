@@ -35,13 +35,13 @@ cd Data-Sculptor
 2. Start the JupyterHub
 
 ```bash
-cd deployment/uat 
-docker compose up --build
+cd deployment
+docker compose -p uat --env-file uat.env up --build
 ```
 
-3. Enter the container
+3. Enter the JupyterHub container
 ```bash
-docker exec -it <container_name_or_id> bash
+docker exec -it uat-jupyterhub bash
 ```
 
 Then:
@@ -53,9 +53,6 @@ chown -R developer:developer /home/developer
 ❗️Exit the container before authorization in browser
 
 4. Login at:
-   http://localhost (default port :11000)
-
-
-
+   http://localhost:11000
 
 
