@@ -113,10 +113,19 @@ const plugin: JupyterFrontEndPlugin<void> = {
             const filePath = notebookDir ? `${notebookDir}/${fileName}` : fileName;
 
             // Save file using JupyterLab API
-            await panel.context.serviceManager.contents.save(filePath, {
-                type: 'file',
-                format: 'text',
-                content: resultText
+            // TYPE-SAFE ACCESS TO SERVICE MANAGER
+            const serviceManager = (panel.context as any).serviceManager;
+            if (!serviceManager) {
+              throw new Error('Service manager not available in context');
+            }
+    
+            const contentsManager = serviceManager.contents as ContentsManager;
+    
+            // Save file
+            await contentsManager.save(filePath, {
+              type: 'file',
+              format: 'text',
+              content: resultText
             });
 
             // 9. SHOW SUCCESS STATE
