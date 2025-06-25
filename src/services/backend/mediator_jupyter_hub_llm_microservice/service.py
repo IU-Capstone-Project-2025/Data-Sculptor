@@ -49,17 +49,7 @@ async def get_md_feedback(
   
 		response.raise_for_status()
   
-		response_json = response.json()
-	
-		file_path = "generated_file.md"
-		with open(file_path, "w") as f:
-			f.write(response_json.get("non_localized_feedback",""))
-
-		return FileResponse(
-			path=file_path,
-			media_type="text/markdown",
-			filename="generated_file.md",
-		)
+		return response.json()
 	except httpx.TimeoutException as e:
 		raise HTTPException(status_code=408, detail="Sorry, but your request timed out. Please try again later.")
 	except Exception as e:
