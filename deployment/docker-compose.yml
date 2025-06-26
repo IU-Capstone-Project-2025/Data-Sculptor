@@ -8,10 +8,8 @@ services:
       args:
         - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
     container_name: "${COMPOSE_PROJECT_NAME}-jupyterhub"
-
     ports:
       - "${JUPYTER_PORT_EXTERNAL}:8000"
-
     volumes:
       - ../resources/config/jupyterhub/jupyter_ai_config.py:/etc/jupyter/jupyter_server_config.d/jupyter_ai_config.py:ro
       - ../resources/config/jupyterhub:/srv/jupyterhub:rw
@@ -21,15 +19,11 @@ services:
       - ../resources/data/jupyterhub:/home/developer:rw
     env_file:
       - ../resources/config/jupyterhub/.env
-
     environment:
       - ADVISER_API_URL=http://${HOST_IP}:{ADVISER_PORT_EXTERNAL}/api/v1/chat
       - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
       - URL_STATIC_ANALYZER=http://${HOST_IP}:${ANALYZER_PORT_EXTERNAL}
       - URL_LSP_SERVER=http://${HOST_IP}:${LSP_PORT_EXTERNAL}
-        # - LLM_VALIDATOR_URL=http://mediator:8001
-        # - URL_STATIC_ANALYZER=http://deep-syntatic-service:8085
-        # - URL_LSP_SERVER=http://real-time-analysis-service:8095
 
   deep-syntatic-service:
     build:
@@ -67,13 +61,17 @@ services:
     container_name: "${COMPOSE_PROJECT_NAME}-feedback"
     ports:
       - "${FEEDBACK_PORT_EXTERNAL}:9352"
-    env_file:
-      - ../src/services/ml/semantic_feedback/.env
     environment:
       - PYTHONUNBUFFERED=1
+      - LLM_BASE_URL="${LLM_BASE_URL}"
+      - LLM_API_KEY="${LLM_API_KEY}"
+      - LLM_MODEL="${LLM_MODEL}"
+      - FEEDBACK_SERVICE_HOST="${FEEDBACK_SERVICE_HOST}"
+      - FEEDBACK_SERVICE_PORT="${FEEDBACK_SERVICE_PORT}"
+      - FEEDBACK_SERVICE_N_WORKERS="${FEEDBACK_SERVICE_N_WORKERS}"
     volumes:
       - ../src/services/ml/semantic_feedback:/app/semantic_feedback:rw
-  
+
   adviser-service:
     build:
       context: ../src/services/ml
@@ -81,12 +79,17 @@ services:
     container_name: "${COMPOSE_PROJECT_NAME}-adviser"
     ports:
       - "${ADVISER_PORT_EXTERNAL}:9353"
-    env_file:
-      - ../src/services/ml/adviser/.env
     environment:
       - PYTHONUNBUFFERED=1
       - REDIS_URL=redis://${HOST_IP}:${REDIS_PORT_EXTERNAL}/0
       - POSTGRES_DSN=postgresql://app:app@${HOST_IP}:${POSTGRES_PORT_EXTERNAL}/chatdb
+      - LLM_BASE_URL=http:"${LLM_BASE_URL}"
+      - LLM_API_KEY=:"${LLM_API_KEY}"
+      - LLM_MODEL="${LLM_MODEL}"
+      - TOKENIZER_MODEL="${TOKENIZER_MODEL}"
+      - CHAT_SERVICE_HOST="${CHAT_SERVICE_HOST}"
+      - CHAT_SERVICE_PORT="${CHAT_SERVICE_PORT}"
+      - CHAT_SERVICE_N_WORKERS="${CHAT_SERVICE_N_WORKERS}"
     volumes:
       - ../src/services/ml/adviser:/app/adviser:ro
     hostname: adviser
@@ -129,3 +132,4 @@ services:
 volumes:
   dev_postgres_data:
   dev_redis_data:
+
