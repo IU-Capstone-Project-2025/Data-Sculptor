@@ -25,15 +25,25 @@ from openai import BadRequestError
 
 from feedback_generator import generate_feedback
 from warnings_generator import generate_warnings
-from schemas import FeedbackResponse, HealthCheckResponse, FeedbackRequest
+from warning_localizer import localize_warnings
+from schemas import (
+    FeedbackResponse,
+    HealthCheckResponse,
+    FeedbackRequest,
+    MLScentLocalizationRequest,
+    MLScentLocalizationResponse,
+)
 from dependencies import get_llm_client
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# load ./docs/openapi/feedback.yaml relative to this file regardless of cwd
 OPENAPI_SPEC_FEEDBACK = yaml.safe_load(
     (Path(__file__).parent / "docs" / "openapi" / "feedback.yaml").read_text()
+)
+
+OPENAPI_SPEC_LOCALIZE = yaml.safe_load(
+    (Path(__file__).parent / "docs" / "openapi" / "localize_mlscent.yaml").read_text()
 )
 
 
@@ -99,3 +109,53 @@ async def get_feedback(
     except Exception as e:
         logger.error("Unexpected error", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to get feedback: {e}")
+
+
+@router.post(
+    "/localize_mlscent",
+    response_model=MLScentLocalizationResponse,
+    summary="Localise high-level warnings into code positions",
+    tags=["Localization"],
+    openapi_extra=OPENAPI_SPEC_LOCALIZE,
+)
+async def localize_mlscent(
+    body: MLScentLocalizationRequest = Body(...),
+    llm_client=Depends(get_llm_client),
+) -> MLScentLocalizationResponse:
+    """Localise a list of high-level warnings to specific lines of the given code.
+
+    The request body must contain:
+        - current_code: The code snippet to analyse.
+        - warnings: A list of warnings to be localised.
+    """
+
+    try:
+        if not body.current_code.strip():
+            raise HTTPException(
+                status_code=400, detail="current_code must not be empty."
+            )
+        if not body.warnings:
+            raise HTTPException(
+                status_code=400, detail="warnings list must not be empty."
+            )
+
+        localized_feedback = await localize_warnings(
+            llm_client=llm_client,
+            code=body.current_code,
+            warnings=body.warnings,
+            global_line_offset=body.cell_code_offset or 0,
+        )
+
+***REMOVED*** MLScentLocalizationResponse(localized_feedback=localized_feedback)
+
+    except BadRequestError as openai_error:
+        logger.error("LLM request error", exc_info=True)
+        error_body = json.loads(openai_error.response.text)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"LLM request error: {error_body['message']}",
+        ) from openai_error
+
+    except Exception as e:
+        logger.error("Unexpected error", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to localise warnings: {e}")
