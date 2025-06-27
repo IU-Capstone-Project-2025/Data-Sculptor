@@ -1,149 +1,221 @@
-from pygls.server import LanguageServer
+from __future__ import annotations
+
+import ast
+import json
 import os
-from lsprotocol import types
-import logging
-import urllib.parse
+***REMOVED***
+import subprocess
+import tempfile
+from pathlib import Path
+from typing import Any
+
 ***REMOVED***quests
-from lsprotocol.types import Diagnostic, Range, Position, DiagnosticSeverity
 from dotenv import load_dotenv
-server = LanguageServer("example-server", "v0.1")
-from logging.handlers import RotatingFileHandler
-target = "lsp.log"
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s %(levelname)s %(message)s",
-    handlers=[
-        RotatingFileHandler(target, maxBytes=10*1024*1024, backupCount=1),
-        logging.StreamHandler()
-    ]
-)
 
-realtime_diagnostics_cache = {}
-deep_syntatic_diagnostic_cache = {}
 load_dotenv()
-URL_STATIC_ANALYZER = os.getenv("URL_STATIC_ANALYZER")
-URL_LSP_SERVER = os.getenv("URL_LSP_SERVER")
-
-@server.feature(types.TEXT_DOCUMENT_DID_SAVE)
-def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
-    URI = params.text_document.uri
-    filepath_URI = urllib.parse.urlparse(URI).path
-    filepath = urllib.parse.unquote(filepath_URI)
-    filename = os.path.basename(filepath)
-
-    logging.info(f"HERES YOUR FILEPATH {filepath}")
-    with open(f"{filepath}", "rb") as f:
-        logging.info("PREPARE FILE TRANSMISION")
-        files = {"code_file": (filename, f, "application/octet-stream")}
-        logging.info("SEND FILE TO THE SERVER")
-        raw_diagnostics = requests.post(f"{URL_STATIC_ANALYZER}/analyze", files=files)
-        logging.info("RECIEVED DIAGNOSTICS... SEND BACK TO JUPYTERLAB")
-
-    logging.info(raw_diagnostics.json().get("diagnostics"))
-    logging.info(f"Status:\n {raw_diagnostics.status_code}")
-    logging.info(f"Response body:\n{raw_diagnostics.text}")
-    raw_diagnostics = raw_diagnostics.json()["diagnostics"]
-
-    diagnostics = _convert_to_lsp_diagnostics_deep(raw_diagnostics)
-    deep_syntatic_diagnostic_cache[URI] = diagnostics
-
-    realtime_diags = realtime_diagnostics_cache.get(URI, [])
-    combined_diagnostics = diagnostics + realtime_diags
-    logging.info(f"Publishing diagnostics...\n{diagnostics}")
-    ls.publish_diagnostics(URI, combined_diagnostics)
+SEMANTIC_FEEDBACK_LOCALISE_URL = os.getenv("SEMANTIC_FEEDBACK_LOCALISE_URL")
 
 
-def _convert_to_lsp_diagnostics_deep(raw_diagnostics):
-    lsp_diags = []
-    for d in raw_diagnostics:
-        start = d["line"]
-        end = d["line"]
-        start_char = None
-        end_char = None
-        if (d["column"] == None or d['column'] == 'null'):
-            start_char = 0
-        else:
-            start_char = d["column"]
+def find_position(py_path: str, smell: str, keywords: list[str]) -> tuple[int, int]:
+    if keywords:
+        with open(py_path, encoding="utf-8") as src:
+            for idx, row in enumerate(src):
+                for kw in keywords:
+                    if kw in row:
+                ***REMOVED*** idx, row.index(kw)
 
-        # if (d["endColumn"] == None or d['endColumn'] == 'null'):
-        #     end_char = 1
-        # else:
-        end_char = start_char + 3
-
-        lsp_diags.append(Diagnostic(
-            range=Range(
-                start=Position(line=max(1, start) ,
-                              character=start_char),
-                end=Position(line=max(1, end) , character=end_char)
-            ),
-            severity=DiagnosticSeverity(2),
-            code=d.get("message-id"),
-            source=d.get("tool", "deep-syntatic-analysis"),
-            message=d.get("message", "")
-        ))
-
-    return lsp_diags
+    m = re.search(r"[-+]?[0-9]+(?:\.[0-9]+)?", smell)
+    if m:
+        try:
+            literal = float(m.group())
+        except ValueError:
+            literal = None
+        if literal is not None:
+            tree = ast.parse(Path(py_path).read_text(encoding="utf-8"), py_path)
+            for node in ast.walk(tree):
+                if (
+                    isinstance(node, ast.Constant)
+                    and isinstance(node.value, (int, float))
+                    and node.value == literal
+                ):
+            ***REMOVED*** node.lineno - 1, node.col_offset
+    return 0, 0
 
 
-def _convert_to_lsp_diagnostics(raw_diagnostics):
-    lsp_diags = []
-    for d in raw_diagnostics:
-        start = d["range"]["start"]
-        end = d["range"]["end"]
+def run_all_linters(py_path: str) -> list[dict[str, Any]]:
+    diagnostics: list[dict[str, Any]] = []
+    module_name = os.path.splitext(os.path.basename(py_path))[0]
+    code_lines = Path(py_path).read_text(encoding="utf-8").splitlines()
 
-        start_char = max(0, start["character"])
-        end_char = max(0, end["character"])
+    pylint_sev = {"error": 1, "warning": 2, "refactor": 3, "convention": 3, "info": 4}
+    ml_sev = {
+        "Framework-Specific Smells": 2,
+        "Hugging Face Smells": 2,
+        "General ML Smells": 3,
+    }
+    sev_type = {1: "error", 2: "warning", 3: "information", 4: "hint"}
+    kw_map = {
+        "Framework-Specific Smells": ["Sequential("],
+        "Hugging Face Smells": ["transformers", "AutoModel"],
+        "General ML Smells": [],
+    }
+    deferred: list[dict[str, str]] = []
 
-        lsp_diags.append(Diagnostic(
-            range=Range(
-                start=Position(line=max(0, start["line"]),
-                               character=start_char),
-                end=Position(line=max(0, end["line"]), character=end_char)
-            ),
-            severity=DiagnosticSeverity(d["severity"]),
-            code=d.get("code"),
-            source=d.get("source"),
-            message=d.get("message", "")
-        ))
-    return lsp_diags
+    with tempfile.TemporaryDirectory() as outdir:
+        proc = subprocess.run(
+            ["ml_smell_detector", "analyze", "--output-dir", outdir, py_path],
+            capture_output=True,
+            text=True,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(f"ml_smell_detector failed: {proc.stderr.strip()}")
 
-@server.feature(types.TEXT_DOCUMENT_COMPLETION)
-def on_completion(ls: LanguageServer, params: types.CompletionParams):
-    # Implement your completion logic here
-    items = []
-    # Example: items.append(CompletionItem(label="example"))
-    return types.CompletionList(is_incomplete=False, items=items)
+        report = Path(outdir, "analysis_report.txt")
+        if report.exists():
+            lines = report.read_text(encoding="utf-8").splitlines()
+            i, current_cat = 0, None
+            while i < len(lines):
+                line = lines[i].strip()
+                if line.endswith("Smells:"):
+                    current_cat = line[:-1]
+                    i += 1
+                    continue
+                if line.startswith("- "):
+                    title = line[2:].strip()
+                    extras: list[str] = []
+                    i += 1
+                    while i < len(lines) and not lines[i].startswith("- ") and lines[i].strip():
+                        extras.append(lines[i].strip())
+                        i += 1
 
-@server.feature(types.TEXT_DOCUMENT_DID_OPEN)
-@server.feature(types.TEXT_DOCUMENT_DID_CHANGE)
-def real_time_analysis(ls: LanguageServer, params):
-    logging.info("Starting real_time_analysis")
-    
-    uri = params.text_document.uri
-    filepath_URI = urllib.parse.urlparse(uri).path
-    filepath = urllib.parse.unquote(filepath_URI)
-    filename = os.path.basename(filepath)
-    
-    logging.info(f"Requesting analysis for {uri}")
-    
-    # Read the file content
-    with open(filepath, 'rb') as f:
-        files = {"file": (filename, f, "application/octet-stream")}
-        logging.info(f"Sending file to the server:")
-        response = requests.post(f"{URL_LSP_SERVER}/analyze", files=files)
-    logging.info(f"Received response!")
-    diagnostics = _convert_to_lsp_diagnostics(response.json()["diagnostics"])
-    logging.info(f"Publishing diagnostics...\n{diagnostics}")
-    realtime_diagnostics_cache[uri] = diagnostics
+                    framework, fix, benefit = "Not specified", "Not specified", "Not specified"
+                    line_no, col_no = 0, 0
+                    for ex in extras:
+                        if ex.startswith("Framework:"):
+                            framework = ex.split(":", 1)[1].strip() or framework
+                            continue
+                        if ex.startswith("How to fix:"):
+                            fix = ex.split(":", 1)[1].strip() or fix
+                            continue
+                        if ex.startswith("Benefits:"):
+                            benefit = ex.split(":", 1)[1].strip() or benefit
+                            continue
+                        m1 = re.match(r"Location:\s*Line\s+(\d+)", ex, re.I)
+                        if m1:
+                            line_no = int(m1.group(1)) - 1
+                            col_no = 0
+                            continue
+                        m2 = re.match(r"Location:\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)", ex)
+                        if m2:
+                            line_no = int(m2.group(1)) - 1
+                            col_no = int(m2.group(2))
+                            continue
 
-    deep_syntatic_diagnostics = deep_syntatic_diagnostic_cache.get(uri, [])
-    combined_diagnostics = diagnostics + deep_syntatic_diagnostics
-    ls.publish_diagnostics(uri, combined_diagnostics)
+                    if line_no == 0 and col_no == 0:
+                        line_no, col_no = find_position(py_path, title, kw_map.get(current_cat or "", []))
+                    if line_no == 0:
+                        deferred.append(
+                            {"description": title, "framework": framework, "fix": fix, "benefit": benefit}
+                        )
+                        continue
 
+                    sev = ml_sev.get(current_cat, 3)
+                    row_len = len(code_lines[line_no]) if 0 <= line_no < len(code_lines) else 0
+                    diagnostics.append(
+                        {
+                            "tool": "ml_smell_detector",
+                            "type": sev_type[sev],
+                            "module": module_name,
+                            "obj": "",
+                            "line": line_no,
+                            "column": 0,
+                            "endLine": line_no,
+                            "endColumn": row_len,
+                            "message": title,
+                            "symbol": current_cat or "",
+                            "message-id": "",
+                            "severity": sev,
+                            "range": {
+                                "start": {"line": line_no, "character": 0},
+                                "end": {"line": line_no, "character": row_len},
+                            },
+                        }
+                    )
+                else:
+                    i += 1
 
-def main():
-    server.start_io()
+    if deferred:
+        try:
+            payload = {
+                "current_code": Path(py_path).read_text(encoding="utf-8"),
+                "warnings": deferred,
+                "cell_code_offset": 0,
+            }
+            data = requests.post(SEMANTIC_FEEDBACK_LOCALISE_URL, json=payload, timeout=60).json()
+            for item in data.get("localized_feedback", []):
+                rng = item["range"]
+                start, end = rng["start"], rng["end"]
+                sev = item.get("severity", 2)
+                diagnostics.append(
+                    {
+                        "tool": "ml_smell_detector",
+                        "type": sev_type.get(sev, "warning"),
+                        "module": module_name,
+                        "obj": "",
+                        "line": start["line"],
+                        "column": start["character"],
+                        "endLine": end["line"],
+                        "endColumn": end["character"],
+                        "message": item.get("message", ""),
+                        "symbol": "LLM-localised",
+                        "message-id": "",
+                        "severity": sev,
+                        "range": rng,
+                    }
+                )
+        except Exception:
+            for w in deferred:
+                diagnostics.append(
+                    {
+                        "tool": "ml_smell_detector",
+                        "type": "warning",
+                        "module": module_name,
+                        "obj": "",
+                        "line": 0,
+                        "column": 0,
+                        "endLine": 0,
+                        "endColumn": 0,
+                        "message": w["description"],
+                        "symbol": "LLM-localisation-error",
+                        "message-id": "",
+                        "severity": 2,
+                    }
+                )
 
+    proc = subprocess.run(["pylint", py_path, "-f", "json", "--disable=R,C"], capture_output=True, text=True)
+    try:
+        issues = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        issues = []
+    for issue in issues:
+        sev = pylint_sev.get(issue.get("type", ""), 3)
+        line0 = max(0, issue.get("line", 1) - 1)
+        col0 = issue.get("column", 0)
+        diagnostics.append(
+            {
+                "tool": "pylint",
+                "type": sev_type[sev],
+                "module": issue.get("module", module_name),
+                "obj": issue.get("obj", ""),
+                "line": line0,
+                "column": col0,
+                "endLine": line0,
+                "endColumn": col0 + 1,
+                "message": issue.get("message", ""),
+                "symbol": issue.get("symbol", ""),
+                "message-id": issue.get("message-id", ""),
+                "severity": sev,
+            }
+        )
 
-if __name__ == "__main__":
-    main()
+    return diagnostics
