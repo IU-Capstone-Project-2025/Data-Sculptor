@@ -7,8 +7,11 @@ import os
 import subprocess
 import tempfile
 ***REMOVED***quests
+from dotenv import load_dotenv
 
-SEMANTIC_FEEDBACK_LOCALISE_URL = os.getenv("LOCALIZE_MLSCENT_URL")
+load_dotenv()
+
+SEMANTIC_FEEDBACK_LOCALISE_URL = os.getenv("SEMANTIC_FEEDBACK_LOCALISE_URL")
 
 
 def find_position(py_path: str, smell: str, keywords: list[str]) -> tuple[int, int]:
@@ -159,8 +162,6 @@ def run_all_linters(py_path: str) -> list[dict]:
                         # Skip adding diagnostic for now; will add after LLM localisation
                         continue
 
-                    message_text = "\n".join([title] + extras)
-
                     sev = ml_sev_map.get(current_cat, 3)
                     diagnostics.append(
                         {
@@ -170,7 +171,7 @@ def run_all_linters(py_path: str) -> list[dict]:
                             "obj": "",
                             "line": line_no,
                             "column": col_no,
-                            "message": message_text,
+                            "message": title,
                             "symbol": current_cat or "",
                             "message-id": "",
                             "severity": sev,
@@ -180,7 +181,6 @@ def run_all_linters(py_path: str) -> list[dict]:
                     i += 1
 
     if warnings_for_localization:
-        print(warnings_for_localization)
         try:
             code_str = open(py_path, "r", encoding="utf-8").read()
             payload = {
@@ -188,48 +188,31 @@ def run_all_linters(py_path: str) -> list[dict]:
                 "warnings": warnings_for_localization,
                 "cell_code_offset": 0,
             }
-
             resp = requests.post(
                 SEMANTIC_FEEDBACK_LOCALISE_URL, json=payload, timeout=60
             )
-            if resp.ok:
-                data = resp.json()
-                for item in data.get("localized_feedback", []):
-                    rng = item.get("range", {})
-                    start = rng.get("start", {})
+            resp.raise_for_status()
+            data = resp.json()
+            for item in data.get("localized_feedback", []):
+                rng = item.get("range", {})
+                start = rng.get("start", {})
+                end = rng.get("end", {})
 
-                    sev = item.get("severity", 2)
-                    diagnostics.append(
-                        {
-                            "tool": "ml_smell_detector_localised",
-                            "type": sev_type_map.get(sev, "warning"),
-                            "module": module_name,
-                            "obj": "",
-                            "line": start.get("line", 0),
-                            "column": start.get("character", 0),
-                            "message": item.get("message", ""),
-                            "symbol": "LLM-localised",
-                            "message-id": "",
-                            "severity": sev,
-                        }
-                    )
-            else:
-                # Fallback: append diagnostics without location
-                for w in warnings_for_localization:
-                    diagnostics.append(
-                        {
-                            "tool": "ml_smell_detector",
-                            "type": "warning",
-                            "module": module_name,
-                            "obj": "",
-                            "line": 0,
-                            "column": 0,
-                            "message": w["description"],
-                            "symbol": "LLM-localisation-failed",
-                            "message-id": "",
-                            "severity": 2,
-                        }
-                    )
+                sev = item.get("severity", 2)
+                diagnostics.append(
+                    {
+                        "tool": "ml_smell_detector",
+                        "type": sev_type_map.get(sev, "warning"),
+                        "module": module_name,
+                        "obj": "",
+                        "line": start.get("line", 0),
+                        "column": start.get("character", 0),
+                        "message": item.get("message", ""),
+                        "symbol": "LLM-localised",
+                        "message-id": "",
+                        "severity": sev,
+                    }
+                )
         except Exception:
             # Ensure localisation failures don't break primary linter flow
             for w in warnings_for_localization:
@@ -247,6 +230,7 @@ def run_all_linters(py_path: str) -> list[dict]:
                         "severity": 2,
                     }
                 )
+    print(diagnostics)
 
     proc = subprocess.run(
         ["pylint", py_path, "-f", "json", "--disable=R,C"],
