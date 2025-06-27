@@ -6,10 +6,12 @@ import os
 ***REMOVED***
 import subprocess
 import tempfile
-from typing import Dict, List, Tuple
+***REMOVED***quests
+
+SEMANTIC_FEEDBACK_LOCALISE_URL = os.getenv("LOCALIZE_MLSCENT_URL")
 
 
-def find_position(py_path: str, smell: str, keywords: List[str]) -> Tuple[int, int]:
+def find_position(py_path: str, smell: str, keywords: list[str]) -> tuple[int, int]:
     if keywords:
         try:
             with open(py_path, encoding="utf-8") as src_file:
@@ -42,8 +44,9 @@ def find_position(py_path: str, smell: str, keywords: List[str]) -> Tuple[int, i
 
     return 0, 0
 
-def run_all_linters(py_path: str) -> List[Dict]:
-    diagnostics: List[Dict] = []
+
+def run_all_linters(py_path: str) -> list[dict]:
+    diagnostics: list[dict] = []
     module_name = os.path.splitext(os.path.basename(py_path))[0]
 
     pylint_sev_map = {
@@ -65,6 +68,10 @@ def run_all_linters(py_path: str) -> List[Dict]:
         "Hugging Face Smells": ["transformers", "AutoModel"],
         "General ML Smells": [],
     }
+
+    warnings_for_localization: list[
+        dict[str, str]
+    ] = []  # warnings missing explicit location
 
     with tempfile.TemporaryDirectory() as outdir:
         proc = subprocess.run(
@@ -102,23 +109,55 @@ def run_all_linters(py_path: str) -> List[Dict]:
                         extras.append(lines[i].strip())
                         i += 1
 
+                    framework = "Not specified"
+                    fix = "Not specified"
+                    benefit = "Not specified"
+
                     line_no, col_no = 0, 0
-                    for idx_ex, ex in enumerate(extras):
+
+                    for ex in extras:
+                        if ex.startswith("Framework:"):
+                            framework = ex.split(":", 1)[1].strip() or framework
+                            continue
+                        if ex.startswith("How to fix:"):
+                            fix = ex.split(":", 1)[1].strip() or fix
+                            continue
+                        if ex.startswith("Benefits:"):
+                            benefit = ex.split(":", 1)[1].strip() or benefit
+                            continue
+
+                        # --- Location parsing ---
                         m_line = re.match(r"Location:\s*Line\s+(\d+)", ex, re.I)
                         if m_line:
                             line_no = int(m_line.group(1)) - 1
-                            del extras[idx_ex]
-                            break
-                        m_tuple = re.match(r"Location:\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)", ex)
+                            col_no = 0
+                            continue
+
+                        m_tuple = re.match(
+                            r"Location:\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)", ex
+                        )
                         if m_tuple:
                             line_no = int(m_tuple.group(1)) - 1
                             col_no = int(m_tuple.group(2))
-                            del extras[idx_ex]
-                            break
+                            continue
 
+                    # If still unknown – attempt heuristic search
                     if line_no == 0 and col_no == 0:
                         kw_list = keywords_map.get(current_cat or "", [])
                         line_no, col_no = find_position(py_path, title, kw_list)
+
+                    if line_no == 0:
+                        # No reliable location → defer to semantic-feedback service
+                        warnings_for_localization.append(
+                            {
+                                "description": title,
+                                "framework": framework,
+                                "fix": fix,
+                                "benefit": benefit,
+                            }
+                        )
+                        # Skip adding diagnostic for now; will add after LLM localisation
+                        continue
 
                     message_text = "\n".join([title] + extras)
 
@@ -139,6 +178,75 @@ def run_all_linters(py_path: str) -> List[Dict]:
                     )
                 else:
                     i += 1
+
+    if warnings_for_localization:
+        print(warnings_for_localization)
+        try:
+            code_str = open(py_path, "r", encoding="utf-8").read()
+            payload = {
+                "current_code": code_str,
+                "warnings": warnings_for_localization,
+                "cell_code_offset": 0,
+            }
+
+            resp = requests.post(
+                SEMANTIC_FEEDBACK_LOCALISE_URL, json=payload, timeout=60
+            )
+            if resp.ok:
+                data = resp.json()
+                for item in data.get("localized_feedback", []):
+                    rng = item.get("range", {})
+                    start = rng.get("start", {})
+
+                    sev = item.get("severity", 2)
+                    diagnostics.append(
+                        {
+                            "tool": "ml_smell_detector_localised",
+                            "type": sev_type_map.get(sev, "warning"),
+                            "module": module_name,
+                            "obj": "",
+                            "line": start.get("line", 0),
+                            "column": start.get("character", 0),
+                            "message": item.get("message", ""),
+                            "symbol": "LLM-localised",
+                            "message-id": "",
+                            "severity": sev,
+                        }
+                    )
+            else:
+                # Fallback: append diagnostics without location
+                for w in warnings_for_localization:
+                    diagnostics.append(
+                        {
+                            "tool": "ml_smell_detector",
+                            "type": "warning",
+                            "module": module_name,
+                            "obj": "",
+                            "line": 0,
+                            "column": 0,
+                            "message": w["description"],
+                            "symbol": "LLM-localisation-failed",
+                            "message-id": "",
+                            "severity": 2,
+                        }
+                    )
+        except Exception:
+            # Ensure localisation failures don't break primary linter flow
+            for w in warnings_for_localization:
+                diagnostics.append(
+                    {
+                        "tool": "ml_smell_detector",
+                        "type": "warning",
+                        "module": module_name,
+                        "obj": "",
+                        "line": 0,
+                        "column": 0,
+                        "message": w["description"],
+                        "symbol": "LLM-localisation-error",
+                        "message-id": "",
+                        "severity": 2,
+                    }
+                )
 
     proc = subprocess.run(
         ["pylint", py_path, "-f", "json", "--disable=R,C"],

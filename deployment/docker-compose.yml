@@ -32,6 +32,8 @@ services:
     container_name: "${COMPOSE_PROJECT_NAME}-deep-static-analyzer-service"
     ports:
       - "${ANALYZER_PORT_EXTERNAL}:8085"
+    environment:
+      - SEMANTIC_FEEDBACK_LOCALISE_URL=http://${HOST_IP}:${FEEDBACK_PORT_EXTERNAL}/api/v1/localize_mlscent
 
   real-time-analysis-service:
     build:
