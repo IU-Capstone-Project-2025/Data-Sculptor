@@ -17,7 +17,12 @@ An integrated IDE agent that mentors users in Machine Learning and Data Science 
 
     - Edit code in Jupyter notebooks
 
-    - Save with Ctrl+S → Auto-linting
+    - Press Syntactic-Analysis button and get the feedback in LSP format
+    ![image](https://github.com/user-attachments/assets/a0e800d4-1de5-498c-afec-ca5dff8b8d7c)
+
+    - Press Semantic-Analysis button and get the .md report in same directory with .ipynb
+    ![image](https://github.com/user-attachments/assets/2ec28aba-7777-473e-a5f0-53c94319f9e6)
+
 
 4. One-Click Environment
 
