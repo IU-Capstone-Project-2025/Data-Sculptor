@@ -14,4 +14,4 @@ def get_llm_client(body: Annotated[FeedbackRequest, Body(...)]):
         llm_api_key=settings.llm_api_key,
         llm_model=settings.llm_model,
         enable_thinking=body.use_deep_analysis,
-    ) 
+    )
