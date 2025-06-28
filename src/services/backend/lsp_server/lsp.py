@@ -1,9 +1,9 @@
 from pygls.server import LanguageServer
 import os
-from lsprotocol import types
 import logging
 import urllib.parse
 import requests
+from lsprotocol import types
 from lsprotocol.types import Diagnostic, Range, Position, DiagnosticSeverity
 from dotenv import load_dotenv
 from logging.handlers import RotatingFileHandler
@@ -26,18 +26,12 @@ load_dotenv()
 URL_STATIC_ANALYZER = os.getenv("URL_STATIC_ANALYZER")
 URL_LSP_SERVER = os.getenv("URL_LSP_SERVER")
 
-def _convert_to_lsp_diagnostics_deep(raw_diagnostics: list[dict]) -> list[Diagnostic]:
-    """Backend → LSP diagnostics.
 
-    Поддерживает:
-      • старый формат (line/column) – подчёркивает один символ;
-      • расширенный (endLine/endColumn) или range – подчёркивает полный диапазон.
-    """
+def _convert_to_lsp_diagnostics_deep(raw_diagnostics: list[dict]) -> list[Diagnostic]:
     lsp_diags: list[Diagnostic] = []
     for d in raw_diagnostics:
         start_line = int(d.get("line", 0))
         start_char = int(d.get("column") or 0)
-
         if "endLine" in d and "endColumn" in d:
             end_line = int(d["endLine"])
             end_char = int(d["endColumn"])
@@ -64,17 +58,15 @@ def _convert_to_lsp_diagnostics_deep(raw_diagnostics: list[dict]) -> list[Diagno
 
 
 def _convert_to_lsp_diagnostics(raw_diagnostics: list[dict]) -> list[Diagnostic]:
-    """Real-time analyzer already returns range; просто прокидываем."""
     lsp_diags: list[Diagnostic] = []
     for d in raw_diagnostics:
         start = d["range"]["start"]
         end = d["range"]["end"]
-
         lsp_diags.append(
             Diagnostic(
                 range=Range(
                     start=Position(line=max(0, start["line"]), character=max(0, start["character"])),
-                    end=Position(line=max(0, end["line"]), character=max(0, end["character"])),
+                    end=Position(line=max(0, end["line"]),   character=max(0, end["character"])),
                 ),
                 severity=DiagnosticSeverity(d["severity"]),
                 code=d.get("code"),
@@ -116,11 +108,10 @@ def real_time_analysis(ls: LanguageServer, params):
         files = {"file": (filename, f, "application/octet-stream")}
         resp = requests.post(f"{URL_LSP_SERVER}/analyze", files=files)
 
-    diagnostics = _convert_to_lsp_diagnostics(resp.json()["diagnostics"])
+    diagnostics = _convert_to_lsp_diagnostics(resp.json().get("diagnostics", []))
     realtime_diagnostics_cache[uri] = diagnostics
 
-    combined = diagnostics + deep_syntatic_diagnostic_cache.get(uri, [])
-    ls.publish_diagnostics(uri, combined)
+    ls.publish_diagnostics(uri, diagnostics)
 
 
 @server.feature(types.TEXT_DOCUMENT_COMPLETION)
