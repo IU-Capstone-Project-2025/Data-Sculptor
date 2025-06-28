@@ -96,9 +96,18 @@ def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
     ls.publish_diagnostics(uri, combined)
 
 
+
+
+@server.feature(types.TEXT_DOCUMENT_DID_CLOSE)
+def teardown():
+    realtime_diagnostics_cache.clear()
+    deep_syntatic_diagnostic_cache.clear()
+
+        
 @server.feature(types.TEXT_DOCUMENT_DID_OPEN)
 @server.feature(types.TEXT_DOCUMENT_DID_CHANGE)
 def real_time_analysis(ls: LanguageServer, params):
+    realtime_diagnostics_cache.clear()
     uri = params.text_document.uri
     filepath = urllib.parse.unquote(urllib.parse.urlparse(uri).path)
     filename = os.path.basename(filepath)
