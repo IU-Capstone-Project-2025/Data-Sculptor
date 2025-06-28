@@ -1,7 +1,8 @@
 import '../style/index.css';
 import { JupyterFrontEnd, JupyterFrontEndPlugin } from '@jupyterlab/application';
 import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
-import { createToolbarButton, addCellButton } from './syntacticButton';
+import { addCellButton } from './syntacticButton';
+import { createToolbarButton } from './semanticButton';
 import { API_ENDPOINT } from './config';
 
 
