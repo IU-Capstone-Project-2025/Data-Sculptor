@@ -1,87 +1,57 @@
-import {
-  JupyterFrontEnd,
-  JupyterFrontEndPlugin
-} from '@jupyterlab/application';
-import { ToolbarButton } from '@jupyterlab/apputils';
-import { DocumentRegistry } from '@jupyterlab/docregistry';
-import { NotebookPanel, INotebookModel } from '@jupyterlab/notebook';
-import { IDisposable } from '@lumino/disposable';
-import * as nbformat from '@jupyterlab/nbformat';
+import '../style/index.css';
+import { JupyterFrontEnd, JupyterFrontEndPlugin } from '@jupyterlab/application';
+import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
+import { createToolbarButton, addCellButton } from './buttonsCreate';
+import { API_ENDPOINT } from './config';
 
-const buttonExtension: JupyterFrontEndPlugin<void> = {
-  id: 'notebook-rewriter',
+
+// Get environment variable during build time
+// const API_ENDPOINT = process.env.LLM_VALIDATOR_URL || 'http://127.0.0.1:9001';
+
+const plugin: JupyterFrontEndPlugin<void> = {
+  id: 'combined-validation-plugin:plugin',
   autoStart: true,
-  activate: (app: JupyterFrontEnd) => {
-    app.docRegistry.addWidgetExtension('Notebook', new ButtonExtension());
+  requires: [INotebookTracker],
+  activate: (app, tracker: INotebookTracker) => {
+    console.log('[Combined Validation] Plugin activated');
+    console.log(`[Notebook Validation] Using endpoint: ${API_ENDPOINT || 'NOT CONFIGURED'}`);
+
+    // Track seen cells for per-cell validation
+    const seenCells = new WeakSet<any>();
+
+    // ========== PANEL MANAGEMENT ==========
+    const hookPanel = (panel: NotebookPanel) => {
+      // Add toolbar button
+      const toolbarButton = createToolbarButton(panel);
+      panel.toolbar.insertItem(10, 'notebookValidation', toolbarButton);
+      
+      // Add cell buttons
+      panel.sessionContext.ready.then(() => {
+        panel.content.widgets.forEach(cell => addCellButton(cell, panel, seenCells));
+        
+        // Handle new cells
+        panel.content.model.cells.changed.connect((_, args) => {
+          if (args.type === 'add' && Array.isArray(args.newValues)) {
+            for (const model of args.newValues) {
+              const widget = panel.content.widgets.find(c => c.model === model);
+              if (widget) addCellButton(widget, panel, seenCells);
+            }
+          }
+        });
+      });
+    };
+
+    // ========== INITIALIZATION ==========
+    // Hook existing panels
+    app.restored.then(() => {
+      tracker.forEach(panel => hookPanel(panel));
+    });
+    
+    // Hook new panels
+    tracker.widgetAdded.connect((_, panel) => {
+      hookPanel(panel);
+    });
   }
 };
 
-class ButtonExtension implements DocumentRegistry.IWidgetExtension<NotebookPanel, INotebookModel> {
-  createNew(panel: NotebookPanel, context: DocumentRegistry.IContext<INotebookModel>): IDisposable {
-    const button = new ToolbarButton({
-      className: 'rewrite-notebook-btn',
-      label: 'Rewrite Notebook',
-      onClick: async () => {
-        await this.rewriteNotebook(panel);
-      },
-      tooltip: 'Rewrite and save current notebook'
-    });
-
-    panel.toolbar.insertItem(10, 'rewriteNotebook', button);
-    return button;
-  }
-
-  private async rewriteNotebook(panel: NotebookPanel): Promise<void> {
-    const notebook = panel.content;
-    const context = panel.context;
-
-    if (!notebook.model) {
-      console.error('No notebook model available');
-      return;
-    }
-
-    try {
-      // FIX: Type assertion to INotebookContent
-      const current = notebook.model.toJSON() as nbformat.INotebookContent;
-      
-      // Modify content
-      const modified = this.transformContent(current);
-      
-      // FIX: Use standard model API instead of sharedModel
-      notebook.model.fromJSON(modified);
-      
-      // Save to disk
-      await context.save();
-      console.log('Notebook updated successfully!');
-    } catch (error) {
-      console.error('Error rewriting notebook:', error);
-    }
-  }
-
-  private transformContent(notebook: nbformat.INotebookContent): nbformat.INotebookContent {
-    // Example transformation: Add metadata and new cell
-    return {
-      ...notebook,
-      cells: [
-        {
-          cell_type: 'code',
-          execution_count: null,
-          metadata: {},
-          outputs: [],
-          source: [
-            '# Added by JupyterLab Extension\n',
-            'print("Notebook processed successfully!")'
-          ]
-        } as nbformat.ICodeCell,
-        ...notebook.cells
-      ],
-      metadata: {
-        ...notebook.metadata,
-        rewritten: true,
-        processed_date: new Date().toISOString()
-      }
-    };
-  }
-}
-
-export default buttonExtension;
+export default plugin;
