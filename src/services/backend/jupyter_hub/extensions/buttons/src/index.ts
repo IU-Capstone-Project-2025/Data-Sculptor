@@ -6,7 +6,7 @@ import { ToolbarButton } from '@jupyterlab/apputils';
 import { DocumentRegistry } from '@jupyterlab/docregistry';
 import { NotebookPanel, INotebookModel } from '@jupyterlab/notebook';
 import { IDisposable } from '@lumino/disposable';
-import * as nbformat from '@jupyterlab/nbformat'; // Import nbformat
+import * as nbformat from '@jupyterlab/nbformat';
 
 const buttonExtension: JupyterFrontEndPlugin<void> = {
   id: 'notebook-rewriter',
@@ -41,14 +41,15 @@ class ButtonExtension implements DocumentRegistry.IWidgetExtension<NotebookPanel
     }
 
     try {
-      // Get current content as nbformat.INotebookContent
-      const current = notebook.model.toJSON();
+      // FIX: Type assertion to INotebookContent
+      const current = notebook.model.toJSON() as nbformat.INotebookContent;
       
       // Modify content
       const modified = this.transformContent(current);
       
-      // Update model
-      notebook.model.fromJSON(modified);
+      // FIX: Use sharedModel for better compatibility
+      const sharedModel = context.model.sharedModel;
+      sharedModel.updateSource(modified);
       
       // Save to disk
       await context.save();
@@ -58,7 +59,6 @@ class ButtonExtension implements DocumentRegistry.IWidgetExtension<NotebookPanel
     }
   }
 
-  // Updated with proper type annotation
   private transformContent(notebook: nbformat.INotebookContent): nbformat.INotebookContent {
     // Example transformation: Add metadata and new cell
     return {
