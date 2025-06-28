@@ -24,6 +24,8 @@ services:
       - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
       - URL_STATIC_ANALYZER=http://${HOST_IP}:${ANALYZER_PORT_EXTERNAL}
       - URL_LSP_SERVER=http://${HOST_IP}:${LSP_PORT_EXTERNAL}
+    command: >
+      bash -c "chown -R developer:developer /home/developer && exec jupyterhub"
 
   deep-syntatic-service:
     build:
