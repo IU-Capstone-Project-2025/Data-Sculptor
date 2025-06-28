@@ -1,6 +1,6 @@
 import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { ToolbarButton } from '@jupyterlab/apputils';
-import { rewriteNotebook, saveFeedbackFile } from './fileManager.ts'
+import { rewriteNotebook, saveFeedbackFile } from './fileManager'
 
 import { API_ENDPOINT } from './config';
 
