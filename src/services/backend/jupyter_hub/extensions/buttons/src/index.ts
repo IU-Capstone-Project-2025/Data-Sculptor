@@ -47,9 +47,8 @@ class ButtonExtension implements DocumentRegistry.IWidgetExtension<NotebookPanel
       // Modify content
       const modified = this.transformContent(current);
       
-      // FIX: Use sharedModel for better compatibility
-      const sharedModel = context.model.sharedModel;
-      sharedModel.updateSource(modified);
+      // FIX: Use standard model API instead of sharedModel
+      notebook.model.fromJSON(modified);
       
       // Save to disk
       await context.save();
