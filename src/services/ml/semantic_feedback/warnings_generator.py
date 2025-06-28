@@ -9,7 +9,6 @@ provided by the model – character offsets are post-filled (`0` .. len(line)).
 
 from prompts import WARNINGS_PROMPT
 
-from qwen import get_qwen_client
 from schemas import LocalizedWarning, Range, Position
 
 from langchain_core.runnables import Runnable
@@ -21,9 +20,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 async def generate_warnings(
+    llm_client: Runnable,
     code: str,
     global_line_offset: int = 0,
-    llm_client: Runnable | None = None,
 ) -> list[LocalizedWarning]:
     """Generate LSP warnings for a piece of code.
 
@@ -36,9 +35,6 @@ async def generate_warnings(
     Returns:
         List[LocalizedWarning] objects. Always within document bounds.
     """
-
-    if llm_client is None:
-        llm_client = get_qwen_client()
 
     numbered_code = "\n".join(f"{idx + 1} | {line}" for idx, line in enumerate(code.splitlines()))
 

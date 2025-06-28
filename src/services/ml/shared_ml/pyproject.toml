@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shared-ml"
+version = "0.1.0"
+description = "Shared ML utilities for Data Sculptor microservices"
+requires-python = ">=3.10"
+dependencies = [
+    "langchain-core",
+    "langchain-openai",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["shared_ml"] 

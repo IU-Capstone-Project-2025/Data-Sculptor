@@ -22,8 +22,8 @@ def create_app() -> FastAPI:
     """Creates and configures the FastAPI application instance."""
 
     app = FastAPI(
-        title="Jupyter Notebook Feedback Service",
-        description="An API to get LLM-powered feedback on Jupyter notebooks.",
+        title="Semantic Feedback Service",
+        description="An API to get LLM-powered feedback on code.",
         version="0.1.0",
     )
 
@@ -50,7 +50,6 @@ async def startup():
         port=settings.feedback_service_port,
         workers=settings.feedback_service_n_workers,
     )
-    print(f"LLM_MODEL: {settings.llm_model}")
     server = uvicorn.Server(config)
     await server.serve()
 

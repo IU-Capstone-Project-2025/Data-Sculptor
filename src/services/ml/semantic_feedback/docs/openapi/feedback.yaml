@@ -1,29 +1,28 @@
-summary: Submit a Jupyter Notebook for automated code feedback
+summary: Submit code snippet for automated feedback
 description: |
-  Accepts a `.ipynb` file via **multipart/form-data** and returns AI-generated
-  feedback on the notebook's code cells. Set `use_deep_analysis` to `true` to
-  enable the model's chain-of-thought reasoning (slower, higher quality).
+  Accepts a JSON body with `current_code` and an optional `cell_code_offset`.
+  The service returns AI-generated high-level feedback and line-localized warnings
+  suitable for LSP diagnostics.
 requestBody:
   required: true
   content:
-    multipart/form-data:
+    application/json:
       schema:
         type: object
         required:
-          - file
+          - current_code
         properties:
-          file:
+          current_code:
             type: string
-            format: binary
-            description: Jupyter Notebook file (`.ipynb`).
+            description: Code snippet to analyse.
+          cell_code_offset:
+            type: integer
+            default: 0
+            description: Global zero-based line offset for the snippet inside the full notebook.
           use_deep_analysis:
             type: boolean
             default: false
-            description: Enable deeper chain-of-thought analysis.
-          target_cell_id:
-            type: integer
-            default: -1
-            description: '-1 for full notebook, otherwise zero-based code cell index to analyse.'
+            description: Whether to use deep analysis.
 responses:
   "200":
     description: Feedback successfully generated.
@@ -45,7 +44,7 @@ responses:
                   source: Data Sculptor
                   message: Magic number detected.
   "400":
-    description: Invalid request (e.g. wrong file type, prompt too long).
+    description: Invalid request (e.g. empty code string).
     content:
       application/json:
         schema:
@@ -53,7 +52,7 @@ responses:
           properties:
             detail:
               type: string
-              example: Invalid file type. Please upload a .ipynb file.
+              example: current_code must not be empty.
   "500":
     description: Unexpected server error when generating feedback.
     content:

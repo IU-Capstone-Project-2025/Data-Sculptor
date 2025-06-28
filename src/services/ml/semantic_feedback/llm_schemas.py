@@ -28,4 +28,28 @@ class WarningSpan(BaseModel):
 class WarningList(BaseModel):
     """Top-level array wrapper so `with_structured_output` accepts one schema."""
 
-    warnings: list[WarningSpan] 
+    warnings: list[WarningSpan]
+
+
+class MLScentWarningSpan(BaseModel):
+    """Schema describing one localised warning with rationale.
+
+    This model is used exclusively as the *structured output* schema for the
+    localisation LLM call. Compared to :class:`WarningSpan`, it contains an
+    additional ``rationale`` field that holds the model's explanation of why
+    the code span violates the warning.
+    """
+
+    start_line: int = Field(..., description="1-based start line of the span")
+    end_line: int = Field(..., description="1-based end line (inclusive)")
+    description: str = Field(..., description="Warning description.")
+    framework: str = Field(..., description="Associated ML/DS framework.")
+    fix: str = Field(..., description="Suggested fix for the warning.")
+    benefit: str = Field(..., description="Benefit gained by applying the fix.")
+    message: str = Field(..., description="Short warning text for end-users")
+
+
+class MLScentWarningList(BaseModel):
+    """Wrapper so LangChain can enforce a JSON array of localised warnings."""
+
+    warnings: list[MLScentWarningSpan]

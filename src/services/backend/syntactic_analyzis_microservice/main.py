@@ -1,82 +1,47 @@
 # main.py
+import tempfile
+from pathlib import Path
 
-import json
-import logging
-
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
-import nbformat
-from nbconvert import PythonExporter
+from analysis_runner import run_all_linters
 
-from analysis_runner import run_all_linters, LspDiagnostic
+from fastapi.middleware.cors import CORSMiddleware
 
-# --- Logging setup ---
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-
-# --- FastAPI app and exception handler ---
-app = FastAPI(title="Notebook Static Analysis", debug=True)
-
-@app.exception_handler(Exception)
-async def all_exception_handler(request: Request, exc: Exception):
-    logger.error("Unhandled error during analysis", exc_info=exc)
-    return JSONResponse(
-        status_code=500,
-        content={"detail": str(exc)}
-    )
-
-# --- Response model ---
 class DiagnosticsResponse(BaseModel):
-    diagnostics: list[LspDiagnostic]
+    diagnostics: list[dict]
 
-# --- Notebook analysis endpoint ---
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,  # Allow cookies and authorization headers
+    allow_methods=["*"],     # Allow all HTTP methods (GET, POST, PUT, etc.)
+    allow_headers=["*"],     # Allow all headers
+)
+
 @app.post("/analyze", response_model=DiagnosticsResponse)
-async def analyze_notebook(nb_file: UploadFile = File(...)):
-    # 1. Read raw notebook JSON
-    raw = (await nb_file.read()).decode("utf-8")
-    print(raw)
-    # try:
-    #     data = json.loads(raw)
-    # except json.JSONDecodeError as e:
-    #     raise HTTPException(status_code=400, detail=f"Invalid JSON in notebook: {e}")
-    #
-    # # 2. Auto-inject required v4 code-cell fields and normalize source
-    # for cell in data.get("cells", []):
-    #     cell_type = cell.get("cell_type")
-    #     if cell_type == "code":
-    #         cell.setdefault("execution_count", None)
-    #         cell.setdefault("outputs", [])
-    #     # Ensure source is a string (nbformat allows list of lines)
-    #     src = cell.get("source")
-    #     if isinstance(src, list):
-    #         cell["source"] = "".join(src)
-    #
-    # # 3. Convert to NotebookNode
-    # try:
-    #     nb = nbformat.from_dict(data)
-    # except Exception as e:
-    #     raise HTTPException(status_code=400, detail=f"Notebook validation failed: {e}")
+async def analyze_code(code_file: UploadFile = File(...)):
+    """Принимает .py-файл, прогоняет линтеры, возвращает LSP-diagnostics."""
+    # if not code_file.filename.endswith(".py"):
+    #     raise HTTPException(status_code=400, detail="Only .py files are supported")
 
-    # 4. Export to .py source
-    # exporter = PythonExporter()
-    # try:
-    #     source, _ = exporter.from_notebook_node(nb)
-    # except Exception as e:
-    #     raise HTTPException(status_code=500, detail=f"Failed to convert notebook to Python: {e}")
+    content = (await code_file.read()).decode("utf-8", errors="ignore")
 
-    # 5. Write source to a temp file and run linters
-    import tempfile
-    print ("copy virtual document to .py format")
-    with tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w", encoding="utf-8") as tmp:
-        tmp.write(raw)
-        py_path = tmp.name
+    with tempfile.NamedTemporaryFile(suffix=".py", delete=False,
+                                     mode="w", encoding="utf-8") as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
 
-    # 6. Run all linters in parallel
     try:
-        diagnostics = await run_all_linters(py_path)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Linting failed: {e}")
+        # run_all_linters синхронный → завернём в пул, чтобы не блокировать event-loop
+        diagnostics = await run_in_threadpool(run_all_linters, tmp_path)
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
 
+    # ⚠️ НИЧЕГО НЕ УРЕЗАЕМ – отдаём как есть
     return JSONResponse({"diagnostics": diagnostics})

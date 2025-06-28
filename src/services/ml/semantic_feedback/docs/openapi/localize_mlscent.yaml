@@ -1,0 +1,70 @@
+summary: Localise warnings into code positions
+description: |
+  Accepts a code snippet and a list of non-localised MLScent warnings.
+  Returns the warnings with precise line ranges suitable for LSP diagnostics.
+requestBody:
+  required: true
+  content:
+    application/json:
+      schema:
+        type: object
+        required:
+          - current_code
+          - warnings
+        properties:
+          current_code:
+            type: string
+            description: Code snippet to analyse.
+          warnings:
+            type: array
+            description: List of high-level warning objects to be localised.
+            items:
+              type: object
+              required:
+                - description
+                - framework
+                - fix
+                - benefit
+              properties:
+                description:
+                  type: string
+                framework:
+                  type: string
+                fix:
+                  type: string
+                benefit:
+                  type: string
+          cell_code_offset:
+            type: integer
+            default: 0
+            description: Global zero-based line offset for the snippet inside the full notebook.
+          use_deep_analysis:
+            type: boolean
+            default: false
+            description: Whether to use deep analysis.
+responses:
+  "200":
+    description: Warnings successfully localised.
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/MLScentLocalizationResponse"
+  "400":
+    description: Invalid request (e.g. empty code string).
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            detail:
+              type: string
+              example: current_code must not be empty.
+  "500":
+    description: Unexpected server error when localising warnings.
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            detail:
+              type: string 

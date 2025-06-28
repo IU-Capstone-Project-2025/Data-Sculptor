@@ -46,4 +46,48 @@ Return *only* valid JSON. Do not wrap it in markdown or prose.
 Snippet:
 {code}
 """
-) 
+)
+
+LOCALIZE_WARNINGS_PROMPT = PromptTemplate.from_template(
+    """
+You are a rigorous static-analysis assistant. Your task is to **localise** a given set of high-level warnings inside a Python code snippet that is annotated with 1-based line numbers in the form `"<line_no> | <code>"`.
+
+ASSUMPTIONS
+- Each warning in the WARNINGS array **definitely** exists in the code at least once. But could exist in multiple places. Before claiming that warning exists in multiple places, make sure that it is really disting and not connected issues.
+- Ignore any potential issue that is **not** listed in the input warnings.
+
+YOUR TASK
+1. Identify exactly **one** line range that best exemplifies each warning. Do
+   not output more than one localisation object per warning, even if it appears
+   multiple times.
+2. Ensure that the chosen span contains explicit evidence of the issue (e.g.,
+   the problematic identifier or pattern) and quote that evidence in your own
+   reasoning before finalising.
+3. Output exactly one localisation object **per warning** in the WARNINGS list—no
+   more, no less.
+4. For warnings that are difficult to localise to exact line, localise it to the place where it can cause the most harm.
+
+CONSTRAINTS
+- Emit a localisation object **only when you are 100 % certain** the code span violates the specified warning. If confidence <100 %, omit the span.
+- Each input warning is definitely present in the code, so your output should contain at least one object for each warning in the input.
+- Output localisation objects **only for warnings explicitly listed** in the WARNINGS section. **Never invent new warnings.**
+- If the same warning appears multiple times, output one object per distinct, independent occurrence—not adjacent lines of the same issue.
+- In output firstly provide the details of the original warning, then provide `message` of the warning that will be shown to the user.
+- `messages` must contain focused and precise description of the issue. No vague descriptions are allowed.
+
+STYLE GUIDE FOR "message"
+- <= 150 characters.
+- Sentence case, present tense.
+- Include a *brief* reasoning explaining **why** the span violates the warning.
+- Mention variable/function names that cause the issue.
+
+Begin your analysis **after** reading the complete CODE and WARNINGS sections.
+
+INPUT SECTIONS (delimited by triple dashes):
+--- CODE ---
+{code}
+
+--- WARNINGS ---
+{warnings}
+"""
+)

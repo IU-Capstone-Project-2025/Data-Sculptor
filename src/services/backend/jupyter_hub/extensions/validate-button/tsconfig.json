@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+
+    "target": "es2018",
+    "jsx": "preserve",
+
+    "module": "commonjs",
+    "rootDir": "src",
+    "moduleResolution": "node", 
+    "declaration": true,
+    "outDir": "lib",
+    "rootDirs": ["src"],
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": [],
+    // "strict": true,
+    // "noUnusedLocals": true,
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true
+  }
+}
