@@ -4,7 +4,7 @@ import { ServerConnection } from '@jupyterlab/services';
 import { PathExt, URLExt } from '@jupyterlab/coreutils';
 
 // ========== NEW NOTEBOOK REWRITE FUNCTIONALITY ==========
-export async function rewriteNotebook(panel: NotebookPanel): Promise<void> {
+export async function rewriteNotebook(panel: NotebookPanel): Promise<nbformat.INotebookContent> {
   const context = panel.context;
   const model = panel.content.model;
 
