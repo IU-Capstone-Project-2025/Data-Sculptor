@@ -23,6 +23,7 @@ export async function rewriteNotebook(panel: NotebookPanel, lsp: any): Promise<n
     }
 
     const firstCell = notebookContent.cells[0];
+    console.log(firstCell);
     let codeString = '';
     
     // Handle both string and array formats for cell source
@@ -31,16 +32,21 @@ export async function rewriteNotebook(panel: NotebookPanel, lsp: any): Promise<n
     } else {
       codeString = firstCell.source;
     }
+    console.log(codeString);
 
     // 3. Remove existing warning comments
     const cleanedCode = removeWarningComments(codeString);
+    console.log(cleanedCode);
     let lines = cleanedCode.split('\n');
+    console.log(lines);
     
     // 4. Apply LSP feedback to lines
     const transformedLines = applyLSPFeedback(lines, lsp);
+    console.log(transformedLines);
     
     // 5. Join back into a single string
     const modifiedCode = transformedLines.join('\n');
+    console.log(modifiedCode);
     
     // 6. Update the first cell content (preserve original format)
     if (Array.isArray(firstCell.source)) {
