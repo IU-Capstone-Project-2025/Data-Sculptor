@@ -6,9 +6,8 @@
   <component name="ChangeListManager">
     <list default="true" id="d32af22c-d21a-427c-afed-f384e36fb3fd" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/Data-Sculptor.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Data-Sculptor.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/deployment/dev/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/deployment/dev/docker-compose.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/services/backend/static_analyzis_microservice/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/backend/real_time_analysis_microservice/Dockerfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/services/backend/static_analyzis_microservice/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/backend/real_time_analysis_microservice/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -34,23 +33,24 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;dev-backend&quot;,
-    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/home/aziz/Projects/Data-Sculptor/src/services/backend/static_analyzis_microservice&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.main.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "dev",
+    "junie.onboarding.icon.badge.shown": "true",
+    "last_opened_file_path": "/home/aziz/Projects/Data-Sculptor",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "com.maddyhome.idea.vim.ui.VimEmulationConfigurable",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/src/services/backend/static_analyzis_microservice" />
@@ -64,11 +64,12 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-6a121458b545-JavaScript-PY-251.25410.159" />
-        <option value="bundled-python-sdk-e0ed3721d81e-36ea0e71a18c-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-251.25410.159" />
+        <option value="bundled-js-predefined-d6986cc7102b-5c90d61e3bab-JavaScript-PY-242.23339.19" />
+        <option value="bundled-python-sdk-0029f7779945-399fe30bd8c1-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-242.23339.19" />
       </set>
     </attachedChunks>
   </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
       <changelist id="d32af22c-d21a-427c-afed-f384e36fb3fd" name="Changes" comment="" />
@@ -89,6 +90,8 @@
       <workItem from="1749832248174" duration="1193000" />
       <workItem from="1749903114262" duration="21093000" />
       <workItem from="1750157583811" duration="329000" />
+      <workItem from="1751189506341" duration="38000" />
+      <workItem from="1751189545328" duration="235000" />
     </task>
     <servers />
   </component>
