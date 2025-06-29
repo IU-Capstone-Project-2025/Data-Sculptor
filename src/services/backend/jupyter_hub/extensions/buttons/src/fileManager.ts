@@ -90,14 +90,8 @@ function applyLSPFeedback(lines: string[], lsp: any): string[] {
   // Create a copy of the lines array
   const newLines = [...lines];
   
-  // Check for valid feedback structure
-  if (!lsp?.localized_feedback || !Array.isArray(lsp.localized_feedback)) {
-    console.warn('Invalid LSP feedback format');
-    return newLines;
-  }
-
   // Process each feedback entry
-  for (const feedback of lsp.localized_feedback) {
+  for (const feedback of lsp) {
     // Validate feedback structure
     if (!feedback?.range?.start || typeof feedback.range.start.line !== 'number') {
       console.warn('Invalid feedback entry', feedback);
