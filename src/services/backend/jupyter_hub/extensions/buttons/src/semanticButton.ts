@@ -113,7 +113,7 @@ export const createToolbarButton = (panel: NotebookPanel) => {
 
         // 10. REWRITE NOTEBOOK FILE 
 
-        await rewriteNotebook(panel);
+        await rewriteNotebook(panel, resultLSP);
     
       } catch (error) {
         // 9. HANDLE VALIDATION FAILURES
