@@ -15,10 +15,7 @@ export async function rewriteNotebook(panel: NotebookPanel, lsp: any): Promise<n
 
   try {
     // 1. Get current notebook content
-    const notebookContent = await context.model.toJSON();
-    
-    // 4. PREPARE JSON BODY
-    const notebookString=  JSON.stringify(notebookContent)
+    const notebookString = await context.model.source
             .replace(/\\n/g, '\n')  // Replace double-escaped \\n with single \n
 
     const lines = notebookString.split('\n');
@@ -31,16 +28,13 @@ export async function rewriteNotebook(panel: NotebookPanel, lsp: any): Promise<n
     console.log(modifiedString);
     
     // 5. Parse back to notebook content
-    const modified = JSON.parse(modifiedString) as nbformat.INotebookContent;
-    
-    // 3. Update model with modified content
-    model.fromJSON(modified);
+    model.source = modifiedString;
     
     // 4. Save to disk
     await context.save();
     
     console.log('Notebook rewritten and saved successfully!');
-    return modified;
+    return modifiedString;
   } catch (error) {
     console.error('Error rewriting notebook:', error);
     throw error;
