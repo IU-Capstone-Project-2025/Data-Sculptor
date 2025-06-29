@@ -46,25 +46,23 @@ export const createToolbarButton = (panel: NotebookPanel) => {
         const context = panel.context;
         const notebookContent = await context.model.toJSON();
     
-        // 4. BUILD FORM DATA
-        const formData = new FormData();
-        const notebookBlob = new Blob(
-          [JSON.stringify(notebookContent)], 
-          { type: 'application/json' }
-        );
-        formData.append('file', notebookBlob, 'notebook.ipynb');
-        notebookBlob.text().then(text => console.log(text)); // Logs actual JSON
-        console.log(`[Notebook Validation] data:`);
-        console.log(notebookBlob);
+        // 4. PREPARE JSON BODY
+        const payload = {
+            current_code: JSON.stringify(notebookContent)
+        };
+
+        console.log("[Notebook Validation] Sending payload:");
+        console.log(payload);
 
         // 5. SEND VALIDATION REQUEST
-        const response = await fetch(`${API_ENDPOINT}/getMdFeedback`, {
-          method: 'POST',
-          body: formData,
-          headers: {
-            'Accept': 'application/json'
-          },
-          signal: AbortSignal.timeout(30000)  // 30s timeout
+        const response = await fetch(`${API_ENDPOINT}/api/v1/feedback`, {
+            method: 'POST',
+            body: JSON.stringify(payload),  // Send as raw JSON string
+            headers: {
+                'Content-Type': 'application/json',  // Required header
+                'Accept': 'application/json'
+            },
+            signal: AbortSignal.timeout(30000)  // 30s timeout
         });
 
         console.log("[notebook validation] fetched response");
