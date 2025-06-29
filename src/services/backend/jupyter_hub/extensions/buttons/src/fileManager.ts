@@ -5,7 +5,7 @@ import { PathExt, URLExt } from '@jupyterlab/coreutils';
 
 // ========== NEW NOTEBOOK REWRITE FUNCTIONALITY ==========
 // rewriteNotebook adds lsp comments
-export async function getNotebookCode(panel: NotebookPanel): any {
+export async function getNotebookCode(panel: NotebookPanel): Promise<any> {
   const context = panel.context;
   // 1. Get current notebook content with proper typing
   const notebookContent = await context.model.toJSON() as nbformat.INotebookContent;
