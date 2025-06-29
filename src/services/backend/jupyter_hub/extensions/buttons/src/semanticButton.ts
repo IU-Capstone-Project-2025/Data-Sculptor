@@ -1,6 +1,6 @@
 import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { ToolbarButton } from '@jupyterlab/apputils';
-import { rewriteNotebook, saveFeedbackFile } from './fileManager'
+import { rewriteNotebook, saveFeedbackFile, getNotebookCode } from './fileManager'
 
 import { API_ENDPOINT } from './config';
 
@@ -43,13 +43,11 @@ export const createToolbarButton = (panel: NotebookPanel) => {
       try {
         // 3. PREPARE NOTEBOOK DATA
         console.log("[Notebook Validation] Preapring notebook data");
-        const context = panel.context;
-        const notebookContent = await context.model.toJSON();
+        let codeString = await getNotebookCode(panel);
     
         // 4. PREPARE JSON BODY
         const payload = {
-            current_code: JSON.stringify(notebookContent)
-                .replace(/\\n/g, '\n')  // Replace double-escaped \\n with single \n
+            current_code: codeString
         };
 
         console.log("[Notebook Validation] Sending payload:");

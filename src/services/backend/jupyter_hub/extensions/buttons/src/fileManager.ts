@@ -5,6 +5,32 @@ import { PathExt, URLExt } from '@jupyterlab/coreutils';
 
 // ========== NEW NOTEBOOK REWRITE FUNCTIONALITY ==========
 // rewriteNotebook adds lsp comments
+export async function getNotebookCode(panel: NotebookPanel): any {
+  const context = panel.context;
+  // 1. Get current notebook content with proper typing
+  const notebookContent = await context.model.toJSON() as nbformat.INotebookContent;
+ 
+  // 2. Get first cell content
+  if (notebookContent.cells.length === 0 || notebookContent.cells[0].cell_type !== 'code') {
+    throw new Error('First cell is not a code cell');
+  }
+
+  const firstCell = notebookContent.cells[0];
+  console.log(firstCell);
+  let codeString = '';
+ 
+  // Handle both string and array formats for cell source
+  if (Array.isArray(firstCell.source)) {
+    codeString = firstCell.source.join('\n');
+  } else {
+    codeString = firstCell.source;
+  }
+
+  codeString = codeString.replace(/\\n/g, '\n')  // Replace double-escaped \\n with single \n
+  console.log(codeString);
+  return codeString;
+}
+
 export async function rewriteNotebook(panel: NotebookPanel, lsp: any): Promise<nbformat.INotebookContent> {
   const context = panel.context;
   const model = panel.content.model;
@@ -16,23 +42,7 @@ export async function rewriteNotebook(panel: NotebookPanel, lsp: any): Promise<n
   try {
     // 1. Get current notebook content with proper typing
     const notebookContent = await context.model.toJSON() as nbformat.INotebookContent;
-    
-    // 2. Get first cell content
-    if (notebookContent.cells.length === 0 || notebookContent.cells[0].cell_type !== 'code') {
-      throw new Error('First cell is not a code cell');
-    }
-
-    const firstCell = notebookContent.cells[0];
-    console.log(firstCell);
-    let codeString = '';
-    
-    // Handle both string and array formats for cell source
-    if (Array.isArray(firstCell.source)) {
-      codeString = firstCell.source.join('\n');
-    } else {
-      codeString = firstCell.source;
-    }
-    console.log(codeString);
+    let codeString = await getNotebookCode(panel);
 
     // 3. Remove existing warning comments
     const cleanedCode = removeWarningComments(codeString);
@@ -48,6 +58,7 @@ export async function rewriteNotebook(panel: NotebookPanel, lsp: any): Promise<n
     const modifiedCode = transformedLines.join('\n');
     console.log(modifiedCode);
     
+    const firstCell = notebookContent.cells[0];
     // 6. Update the first cell content (preserve original format)
     if (Array.isArray(firstCell.source)) {
       firstCell.source = modifiedCode.split('\n');
