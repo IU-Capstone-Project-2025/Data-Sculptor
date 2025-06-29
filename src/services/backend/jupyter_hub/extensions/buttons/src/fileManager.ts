@@ -17,49 +17,73 @@ export async function rewriteNotebook(panel: NotebookPanel, lsp: any): Promise<n
     // 1. Get current notebook content
     const notebookContent = await context.model.toJSON();
     
-    // 4. PREPARE JSON BODY
-    const notebookString = notebookContent.source
-            .replace(/\\n/g, '\n')  // Replace double-escaped \\n with single \n
+    // 2. Get first cell content
+    let firstCellCode = '';
+    if (notebookContent.cells.length > 0 && notebookContent.cells[0].cell_type === 'code') {
+      firstCellCode = Array.isArray(notebookContent.cells[0].source)
+        ? notebookContent.cells[0].source.join('\n')
+        : notebookContent.cells[0].source;
+    } else {
+      throw new Error('First cell is not a code cell');
+    }
 
-    const lines = notebookString.split('\n');
+    // 3. Remove existing warning comments
+    const cleanedCode = removeWarningComments(firstCellCode);
+    let lines = cleanedCode.split('\n');
     
-    // 3. Apply your transformation logic to the lines array
-    const transformedLines = applyLSPFeedback(lines, lsp);  // Implement your logic here
+    // 4. Apply LSP feedback to lines
+    const transformedLines = applyLSPFeedback(lines, lsp);
     
-    // 4. Join back into a single string
-    const modifiedString = transformedLines.join('\n');
-    console.log(modifiedString);
+    // 5. Join back into a single string
+    const modifiedCode = transformedLines.join('\n');
     
-    // 5. Parse back to notebook content
-    notebookContent.source = modifiedString;
+    // 6. Update the first cell content
+    notebookContent.cells[0].source = modifiedCode;
     
-    // 3. Update model with modified content
+    // 7. Update model with modified content
     model.fromJSON(notebookContent);
     
-    // 4. Save to disk
+    // 8. Save to disk
     await context.save();
     
     console.log('Notebook rewritten and saved successfully!');
-    return modifiedString;
+    return notebookContent;
   } catch (error) {
     console.error('Error rewriting notebook:', error);
     throw error;
   }
 }
 
-// Apply LSP feedback to specific lines
+function removeWarningComments(code: string): string {
+  const lines = code.split('\n');
+  const filteredLines = lines.filter(line => !line.trim().startsWith('# WARNING: '));
+  return filteredLines.join('\n');
+}
+
 function applyLSPFeedback(lines: string[], lsp: any): string[] {
   // Create a copy of the lines array
   const newLines = [...lines];
   
+  // Check for valid feedback structure
+  if (!lsp || !lsp.localized_feedback || !Array.isArray(lsp.localized_feedback)) {
+    console.warn('Invalid LSP feedback format');
+    return newLines;
+  }
+
   // Process each feedback entry
-  for (const feedback of lsp) {
+  for (const feedback of lsp.localized_feedback) {
+    // Validate feedback structure
+    if (!feedback.range || !feedback.range.start || typeof feedback.range.start.line !== 'number') {
+      console.warn('Invalid feedback entry', feedback);
+      continue;
+    }
+    
     const lineNum = feedback.range.start.line;
     
     // Validate line number
     if (lineNum >= 0 && lineNum < newLines.length) {
-      // Append message to the end of the line
-      newLines[lineNum] = newLines[lineNum] + ' # WARNING: ' + feedback.message;
+      // Append message to the end of the line as Python comment
+      newLines[lineNum] = newLines[lineNum] + '  # ' + feedback.message;
     } else {
       console.warn(`Invalid line number ${lineNum} in LSP feedback`);
     }
