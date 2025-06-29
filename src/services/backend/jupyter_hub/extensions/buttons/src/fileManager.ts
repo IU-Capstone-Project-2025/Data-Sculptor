@@ -14,21 +14,26 @@ export async function rewriteNotebook(panel: NotebookPanel, lsp: any): Promise<n
   }
 
   try {
-    // 1. Get current notebook content
-    const notebookContent = await context.model.toJSON();
+    // 1. Get current notebook content with proper typing
+    const notebookContent = await context.model.toJSON() as nbformat.INotebookContent;
     
     // 2. Get first cell content
-    let firstCellCode = '';
-    if (notebookContent.cells.length > 0 && notebookContent.cells[0].cell_type === 'code') {
-      firstCellCode = Array.isArray(notebookContent.cells[0].source)
-        ? notebookContent.cells[0].source.join('\n')
-        : notebookContent.cells[0].source;
-    } else {
+    if (notebookContent.cells.length === 0 || notebookContent.cells[0].cell_type !== 'code') {
       throw new Error('First cell is not a code cell');
     }
 
+    const firstCell = notebookContent.cells[0];
+    let codeString = '';
+    
+    // Handle both string and array formats for cell source
+    if (Array.isArray(firstCell.source)) {
+      codeString = firstCell.source.join('\n');
+    } else {
+      codeString = firstCell.source;
+    }
+
     // 3. Remove existing warning comments
-    const cleanedCode = removeWarningComments(firstCellCode);
+    const cleanedCode = removeWarningComments(codeString);
     let lines = cleanedCode.split('\n');
     
     // 4. Apply LSP feedback to lines
@@ -37,8 +42,12 @@ export async function rewriteNotebook(panel: NotebookPanel, lsp: any): Promise<n
     // 5. Join back into a single string
     const modifiedCode = transformedLines.join('\n');
     
-    // 6. Update the first cell content
-    notebookContent.cells[0].source = modifiedCode;
+    // 6. Update the first cell content (preserve original format)
+    if (Array.isArray(firstCell.source)) {
+      firstCell.source = modifiedCode.split('\n');
+    } else {
+      firstCell.source = modifiedCode;
+    }
     
     // 7. Update model with modified content
     model.fromJSON(notebookContent);
@@ -65,7 +74,7 @@ function applyLSPFeedback(lines: string[], lsp: any): string[] {
   const newLines = [...lines];
   
   // Check for valid feedback structure
-  if (!lsp || !lsp.localized_feedback || !Array.isArray(lsp.localized_feedback)) {
+  if (!lsp?.localized_feedback || !Array.isArray(lsp.localized_feedback)) {
     console.warn('Invalid LSP feedback format');
     return newLines;
   }
@@ -73,7 +82,7 @@ function applyLSPFeedback(lines: string[], lsp: any): string[] {
   // Process each feedback entry
   for (const feedback of lsp.localized_feedback) {
     // Validate feedback structure
-    if (!feedback.range || !feedback.range.start || typeof feedback.range.start.line !== 'number') {
+    if (!feedback?.range?.start || typeof feedback.range.start.line !== 'number') {
       console.warn('Invalid feedback entry', feedback);
       continue;
     }
