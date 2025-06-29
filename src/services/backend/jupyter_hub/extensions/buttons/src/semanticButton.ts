@@ -53,6 +53,7 @@ export const createToolbarButton = (panel: NotebookPanel) => {
           { type: 'application/json' }
         );
         formData.append('file', notebookBlob, 'notebook.ipynb');
+        notebookBlob.text().then(text => console.log(text)); // Logs actual JSON
         console.log(`[Notebook Validation] data:`);
         console.log(notebookBlob);
 

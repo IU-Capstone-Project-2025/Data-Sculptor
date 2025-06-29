@@ -42,8 +42,8 @@ async def get_md_feedback(
 				url=f"{settings.feedback_service_url}/api/v1/feedback",
 				json={
 					"current_code": str(content),
-					"cell_code_offset": 0,
-					"use_deep_analysis": False,
+					# "cell_code_offset": 0,
+					# "use_deep_analysis": False,
 				}
 			)
   

@@ -4,7 +4,8 @@ import { ServerConnection } from '@jupyterlab/services';
 import { PathExt, URLExt } from '@jupyterlab/coreutils';
 
 // ========== NEW NOTEBOOK REWRITE FUNCTIONALITY ==========
-export async function rewriteNotebook(panel: NotebookPanel): Promise<nbformat.INotebookContent> {
+// rewriteNotebook adds lsp comments
+export async function rewriteNotebook(panel: NotebookPanel, lsp: any): Promise<nbformat.INotebookContent> {
   const context = panel.context;
   const model = panel.content.model;
 
@@ -17,7 +18,7 @@ export async function rewriteNotebook(panel: NotebookPanel): Promise<nbformat.IN
     const current = model.toJSON() as nbformat.INotebookContent;
     
     // 2. Modify content (customize this transformation as needed)
-    const modified = transformNotebookContent(current);
+    const modified = transformNotebookContent(current, lsp);
     
     // 3. Update model with modified content
     model.fromJSON(modified);
@@ -34,7 +35,8 @@ export async function rewriteNotebook(panel: NotebookPanel): Promise<nbformat.IN
 }
 
 // Customize this function to implement your specific notebook modifications
-export function transformNotebookContent(notebook: nbformat.INotebookContent): nbformat.INotebookContent {
+// adds lsp comments
+export function transformNotebookContent(notebook: nbformat.INotebookContent, lsp: any): nbformat.INotebookContent {
   // Example transformation: Add timestamp cell at beginning
   const newCell: nbformat.ICodeCell = {
     cell_type: 'code',
