@@ -103,7 +103,7 @@ function applyLSPFeedback(lines: string[], lsp: any): string[] {
     // Validate line number
     if (lineNum >= 0 && lineNum < newLines.length) {
       // Append message to the end of the line as Python comment
-      newLines[lineNum] = newLines[lineNum] + '  # ' + feedback.message;
+      newLines[lineNum] = newLines[lineNum] + '  # WARNING: ' + feedback.message;
     } else {
       console.warn(`Invalid line number ${lineNum} in LSP feedback`);
     }
