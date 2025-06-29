@@ -18,7 +18,17 @@ export async function rewriteNotebook(panel: NotebookPanel, lsp: any): Promise<n
     const current = model.toJSON() as nbformat.INotebookContent;
     
     // 2. Modify content (customize this transformation as needed)
-    const modified = transformNotebookContent(current, lsp);
+    const notebookString = JSON.stringify(current, null, 2);
+    const lines = notebookString.split('\n');
+    
+    // 3. Apply your transformation logic to the lines array
+    const transformedLines = applyLSPFeedback(lines, lsp);  // Implement your logic here
+    
+    // 4. Join back into a single string
+    const modifiedString = transformedLines.join('\n');
+    
+    // 5. Parse back to notebook content
+    const modified = JSON.parse(modifiedString) as nbformat.INotebookContent;
     
     // 3. Update model with modified content
     model.fromJSON(modified);
@@ -34,31 +44,25 @@ export async function rewriteNotebook(panel: NotebookPanel, lsp: any): Promise<n
   }
 }
 
-// Customize this function to implement your specific notebook modifications
-// adds lsp comments
-export function transformNotebookContent(notebook: nbformat.INotebookContent, lsp: any): nbformat.INotebookContent {
-  // Example transformation: Add timestamp cell at beginning
-  const newCell: nbformat.ICodeCell = {
-    cell_type: 'code',
-    execution_count: null,
-    metadata: {},
-    outputs: [],
-    source: [
-      '# Modified by JupyterLab Extension\n',
-      'from datetime import datetime\n',
-      'print("Last modified:", datetime.now().isoformat())'
-    ]
-  };
-
-  return {
-    ...notebook,
-    cells: [newCell, ...notebook.cells],
-    metadata: {
-      ...notebook.metadata,
-      rewritten: true,
-      modified_date: new Date().toISOString()
+// Apply LSP feedback to specific lines
+function applyLSPFeedback(lines: string[], lsp: any): string[] {
+  // Create a copy of the lines array
+  const newLines = [...lines];
+  
+  // Process each feedback entry
+  for (const feedback of lsp) {
+    const lineNum = feedback.range.start.line;
+    
+    // Validate line number
+    if (lineNum >= 0 && lineNum < newLines.length) {
+      // Append message to the end of the line
+      newLines[lineNum] = newLines[lineNum] + ' # WARNING: ' + feedback.message;
+    } else {
+      console.warn(`Invalid line number ${lineNum} in LSP feedback`);
     }
-  };
+  }
+  
+  return newLines;
 }
 
 // 2. FILE SAVER FUNCTION
