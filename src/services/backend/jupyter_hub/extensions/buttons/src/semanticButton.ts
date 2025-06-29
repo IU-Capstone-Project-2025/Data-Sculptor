@@ -49,9 +49,7 @@ export const createToolbarButton = (panel: NotebookPanel) => {
         // 4. PREPARE JSON BODY
         const payload = {
             current_code: JSON.stringify(notebookContent)
-                .replace(/\\\\n/g, '\\n')  // Replace double-escaped \\n with single \n
-                .replace(/\\\\t/g, '\\t')  // Do the same for tabs
-                .replace(/\\\\"/g, '\\"')  // And double quotes
+                .replace(/\\n/g, '\n')  // Replace double-escaped \\n with single \n
         };
 
         console.log("[Notebook Validation] Sending payload:");
