@@ -1,3 +1,4 @@
+from logging.handlers import RotatingFileHandler
 import os
 ***REMOVED***
 import sys
@@ -22,10 +23,15 @@ import asyncio
 import socket
 import logging
 
+from pathlib import Path
+
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s %(levelname)s %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
+      handlers=[
+        RotatingFileHandler("RT.log", maxBytes=10 * 1024 * 1024, backupCount=1),
+        logging.StreamHandler(),
+    ],
 )
 
 
@@ -40,17 +46,15 @@ class RealTimeAnalysis:
 
     def __init__(self):
         self.start_pylsp()
-        pass
 
     def _next_pylsp_process(self):
-        temp = current_lsp_id
-        current_lsp_id = (current_lsp_id + 1) % len(self.NUMBER_OF_PYLSP_PROCESSES)
-***REMOVED*** temp
+        temp = self.current_lsp_id
+        self.current_lsp_id = (self.current_lsp_id + 1) % self.NUMBER_OF_PYLSP_PROCESSES
+***REMOVED*** self.pylsp_pool[temp]
 
     def _next_message_id(self):
-        global message_id
-        temp = message_id
-        message_id += 1
+        temp = self.message_id
+        self.message_id += 1
 ***REMOVED*** temp
 
     def _send_message(self, message: dict, process: subprocess.Popen):
@@ -58,7 +62,7 @@ class RealTimeAnalysis:
         body_encoded = body.encode("utf-8")
         head = f"Content-Length: {len(body_encoded)}\r\n\r\n"
         head_encoded = head.encode("utf-8")
-        logging.info(f"Sending init message to {process.pid}")
+        logging.info(f"Sending message to {process.pid}")
         try:
             process.stdin.write(head_encoded)
             process.stdin.write(body_encoded)
@@ -72,7 +76,7 @@ class RealTimeAnalysis:
         first_init_message = {
             "jsonrpc": "2.0",
             "id": self._next_message_id(),
-            "method": "initialized",
+            "method": "initialize",
             "params": {"processId": os.getpid(), "rootUri": None, "capabilities": {}},
         }
         second_init_message = {"jsonrpc": "2.0", "method": "initialized", "params": {}}
@@ -134,36 +138,74 @@ class RealTimeAnalysis:
             },
         }
         process = self._next_pylsp_process()
+        
+        #WARNING: onSave and DidOpen return same diagnostics
+        # but alone works only didOpen
+        logging.info(f"Sending request on open")
         self._send_message(did_open_request, process)
         did_open_response = self._read_pylsp_response(process)
+
+        logging.info(f"Sending request on save")
         self._send_message(did_save_request, process)
         did_save_response = self._read_pylsp_response(process)
         
-        unique_raw_diagnostics = {json.dumps(d, sort_keys=True): d for d in did_open_response + did_save_response}
-***REMOVED*** unique_raw_diagnostics
+        # unique_raw_diagnostics = {json.dumps(d, sort_keys=True): d for d in did_open_response}
+***REMOVED*** did_open_response
 
     def _read_pylsp_response(self, process: subprocess.Popen):
-        content_length = self._read_content_length(process)
-        raw_diagnostics = self._read_body(content_length, process)
-***REMOVED*** raw_diagnostics
+        """
+        Читает сообщения из stdout pylsp, пока не получит diagnostics.
+        """
+        while True:
+            content_length = self._read_content_length(process)
+            if content_length == 0:
+                continue  # Пропускаем пустые строки
+            body = process.stdout.read(content_length).decode("utf-8")
+            print(f"Read body:\n{body}")
+            try:
+                msg = json.loads(body)
+            except Exception as e:
+                logging.info(f"Error during reading lsp response: \n {e}")
+                continue
+
+            # Если это уведомление о диагностике — возвращаем
+            if msg.get("method") == "textDocument/publishDiagnostics":
+                diagnostics = msg["params"].get("diagnostics", [])
+        ***REMOVED*** diagnostics
+            # Если это просто ответ на запрос — пропускаем
+            # Можно добавить обработку других сообщений, если нужно
 
     def _read_content_length(self, process: subprocess.Popen):
-        content_length = 0
-        while 1:
+        """
+        Читает заголовок Content-Length и возвращает длину следующего сообщения.
+        """
+        while True:
             line = process.stdout.readline()
+            print(f"Read line: {line}")
             if not line:
                 raise RuntimeError("pylsp process closed stdout")
             line = line.decode("utf-8").strip()
-            # WARNING: if empty line separator -> break
             if not line:
-                break
-            if ":" in line:
-                content_length = int(line.split(":", 1)[1].strip())
-***REMOVED*** content_length
+                # Пустая строка — конец заголовков
+                continue
+            if line.lower().startswith("content-length:"):
+                try:
+                    content_length = int(line.split(":", 1)[1].strip())
+                    # Пропускаем все заголовки, ищем пустую строку-разделитель
+                    while True:
+                        next_line = process.stdout.readline()
+                        if not next_line or next_line == b"\r\n" or next_line == b"\n":
+                            break
+            ***REMOVED*** content_length
+                except Exception as e:
+                    logging.info(f"Error parsing content length: {e}")
+                    continue
 
     def _read_body(self, content_length: int, process: subprocess.Popen):
         if content_length > 0:
             body = process.stdout.read(content_length).decode("utf-8")
+            print(f"Read \n{body}")
+
             try:
                 msg = json.loads(body)
             except Exception as e:
@@ -179,15 +221,16 @@ class RealTimeAnalysis:
 
     def analyze(self, code_to_analyze: str, uri: str):
         if not code_to_analyze:
-    ***REMOVED*** JSONResponse(content={"error: No file provided"}, status_code=400)
+    ***REMOVED*** []
         try:
             raw_diagnostics = self._send_analyse_request(code_to_analyze, uri)
     ***REMOVED*** self._convert_to_lsp_diagnostics(raw_diagnostics)
 
         except Exception as e:
-            logging.info("Error during sending code for analyzing:\n{e}")
+            logging.info(f"Error during sending code for analyzing:\n{e}")
+    ***REMOVED*** []
 
-    def _convert_to_lsp_diagnostics(raw_diagnostics: list[dict]) -> list[Diagnostic]:
+    def _convert_to_lsp_diagnostics(self,raw_diagnostics: list[dict]) -> list[Diagnostic]:
         lsp_diags: list[Diagnostic] = []
         for d in raw_diagnostics:
             start = d["range"]["start"]
@@ -220,6 +263,11 @@ class RealTimeAnalysis:
 
 
 if __name__ == "__main__":
-    print("Введи код:")
-    code = input()
-    print
+    with open ("/home/aziz/Projects/Data-Sculptor/src/services/backend/lsp_server/test.txt",'r', encoding='utf-8')as f:
+        
+        code = f.read()
+
+        rt = RealTimeAnalysis()
+        fp = Path("/home/aziz/Projects/Data-Sculptor/src/services/backend/lsp_server/test.txt").resolve()
+        print(rt.analyze(code, fp.as_uri()))
+

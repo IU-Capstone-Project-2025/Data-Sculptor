@@ -1,3 +1,4 @@
+from importlib.metadata import diagnose
 from pygls.server import LanguageServer
 import os
 import logging
@@ -7,7 +8,8 @@ from lsprotocol import types
 from lsprotocol.types import Diagnostic, Range, Position, DiagnosticSeverity
 from dotenv import load_dotenv
 from logging.handlers import RotatingFileHandler
-
+import RT_linter as rt
+real_time_analyzer = rt.RealTimeAnalysis()
 server = LanguageServer("example-server", "v0.1")
 
 logging.basicConfig(
@@ -90,8 +92,9 @@ def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
 
     raw_diags = resp.json().get("diagnostics", [])
     diagnostics = _convert_to_lsp_diagnostics_deep(raw_diags)
-    deep_syntatic_diagnostic_cache[uri] = diagnostics
-
+    if diagnostics is not None:
+        deep_syntatic_diagnostic_cache[uri] = diagnostics
+        
     combined = diagnostics + realtime_diagnostics_cache.get(uri, [])
     ls.publish_diagnostics(uri, combined)
 
@@ -113,12 +116,15 @@ def real_time_analysis(ls: LanguageServer, params):
     filename = os.path.basename(filepath)
 
     logging.info("Real-time analysis for %s", filepath)
-    with open(filepath, "rb") as f:
-        files = {"file": (filename, f, "application/octet-stream")}
-        resp = requests.post(f"{URL_LSP_SERVER}/analyze", files=files)
-
-    diagnostics = _convert_to_lsp_diagnostics(resp.json().get("diagnostics", []))
-    realtime_diagnostics_cache[uri] = diagnostics
+    
+    with open(filepath, "r") as f:
+        code = f.read()
+        # resp = requests.post(f"{URL_LSP_SERVER}/analyze", files=files)
+    # TODO: конвертация в чистый diagnostics в МОДУЛЕ!
+    # diagnostics = _convert_to_lsp_diagnostics(resp.json().get("diagnostics", []))
+    diagnostics = real_time_analyzer.analyze(code,uri) + deep_syntatic_diagnostic_cache.get(uri,[])
+    if diagnostics is not None:
+        realtime_diagnostics_cache[uri] = diagnostics
 
     ls.publish_diagnostics(uri, diagnostics)
 
@@ -134,3 +140,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
