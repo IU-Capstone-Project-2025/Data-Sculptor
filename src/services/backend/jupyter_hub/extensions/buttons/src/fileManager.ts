@@ -15,10 +15,12 @@ export async function rewriteNotebook(panel: NotebookPanel, lsp: any): Promise<n
 
   try {
     // 1. Get current notebook content
-    const current = model.toJSON() as nbformat.INotebookContent;
+    const notebookContent = await context.model.toJSON();
     
-    // 2. Modify content (customize this transformation as needed)
-    const notebookString = JSON.stringify(current, null, 2);
+    // 4. PREPARE JSON BODY
+    const notebookString=  JSON.stringify(notebookContent)
+            .replace(/\\n/g, '\n')  // Replace double-escaped \\n with single \n
+
     const lines = notebookString.split('\n');
     
     // 3. Apply your transformation logic to the lines array
