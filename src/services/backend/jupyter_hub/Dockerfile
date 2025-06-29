@@ -20,12 +20,14 @@ RUN apt-get update && \
 COPY src/common/llm_custom_providers /llm_custom_providers
 RUN pip install /llm_custom_providers
 
+COPY src/services/backend/jupyter_hub/requirements.txt /srv/jupyterhub_build/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
 # jupyterhub service source
 COPY src/services/backend/jupyter_hub/ /srv/jupyterhub_build/
 WORKDIR /srv/jupyterhub_build
 
-RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir "jupyterlab>=4.2" "jupyter-ai[all]" && \
+RUN pip install --no-cache-dir "jupyterlab>=4.2" "jupyter-ai[all]" && \
     jupyter server extension enable jupyter_ai --sys-prefix
 
 # jupyterlab extensions

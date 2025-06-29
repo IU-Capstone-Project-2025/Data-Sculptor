@@ -26,6 +26,7 @@ export async function rewriteNotebook(panel: NotebookPanel, lsp: any): Promise<n
     
     // 4. Join back into a single string
     const modifiedString = transformedLines.join('\n');
+    console.log(modifiedString);
     
     // 5. Parse back to notebook content
     const modified = JSON.parse(modifiedString) as nbformat.INotebookContent;
