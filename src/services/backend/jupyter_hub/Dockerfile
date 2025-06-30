@@ -37,7 +37,14 @@ RUN echo "export const API_ENDPOINT = '${LLM_VALIDATOR_URL}';" > /extensions/but
 RUN cd /extensions/buttons && npm install && npm run build && jupyter labextension install --minimize=False .
 
 # runtime configuration
-WORKDIR /srv/jupyterhub
+
 RUN mkdir -p /etc/jupyter/jupyter_server_config.d
+
+RUN mkdir -p /lsp
+COPY src/services/backend/lsp_server/ /lsp/
+WORKDIR /lsp
+RUN /lsp/custom_linters/setup.sh
+
+WORKDIR /srv/jupyterhub
 
 CMD ["jupyterhub"]
