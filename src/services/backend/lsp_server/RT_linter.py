@@ -1,30 +1,10 @@
 from logging.handlers import RotatingFileHandler
 import os
-import re
-import sys
 import subprocess
-import threading
 import json
-import time
 from lsprotocol.types import Diagnostic, Range, Position, DiagnosticSeverity
-import asyncio
-from turtle import st
-from typing import Set, Optional
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-from xmlrpc.client import TRANSPORT_ERROR
-from fastapi import FastAPI, Request, UploadFile
-from fastapi.responses import JSONResponse
-from psutil import Process
-import pylsp
-import uvicorn
-import urllib.parse
-from fastapi.middleware.cors import CORSMiddleware
-import asyncio
-import socket
 import logging
-
 from pathlib import Path
-
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s %(levelname)s %(message)s",
@@ -145,9 +125,9 @@ class RealTimeAnalysis:
         self._send_message(did_open_request, process)
         did_open_response = self._read_pylsp_response(process)
 
-        logging.info(f"Sending request on save")
-        self._send_message(did_save_request, process)
-        did_save_response = self._read_pylsp_response(process)
+        # logging.info(f"Sending request on save")
+        # self._send_message(did_save_request, process)
+        # did_save_response = self._read_pylsp_response(process)
         
         # unique_raw_diagnostics = {json.dumps(d, sort_keys=True): d for d in did_open_response}
         return did_open_response
