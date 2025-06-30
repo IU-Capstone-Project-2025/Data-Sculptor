@@ -107,7 +107,9 @@ export const createToolbarButton = (panel: NotebookPanel) => {
   const button = new ToolbarButton({
     className: 'validation-toolbar-button',
     iconClass: 'jp-RefreshIcon',
-    onClick: buttonOnClick(panel),
+    onClick: async () => {
+      await buttonOnClick(panel);
+    },
     tooltip: 'Validate notebook semantics'  // Initial tooltip
   });
 
