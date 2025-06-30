@@ -14,7 +14,7 @@ services:
       - ../resources/config/jupyterhub/jupyter_ai_config.py:/etc/jupyter/jupyter_server_config.d/jupyter_ai_config.py:ro
       - ../resources/config/jupyterhub:/srv/jupyterhub:rw
       - ../src/services/backend/jupyter_hub_adapter_microservice/sendCode.py:/home/developer/sendCode.py:rw
-      - ../src/services/backend/lsp_server/lsp.py:/home/developer/lsp.py:rw
+      # - ../src/services/backend/lsp_server/lsp.py:/home/developer/lsp.py:rw
       - ../src/services/backend/jupyter_hub/jupyter-lsp-jupyter-server.json:/etc/jupyter/jupyter_server_config.d/jupyter-lsp-jupyter-server.json:rw
       - ../resources/data/jupyterhub:/home/developer:rw
     env_file:
@@ -37,13 +37,13 @@ services:
     environment:
       - SEMANTIC_FEEDBACK_LOCALISE_URL=http://${HOST_IP}:${FEEDBACK_PORT_EXTERNAL}/api/v1/localize_mlscent
 
-  real-time-analysis-service:
-    build:
-      context: ../src/services/backend/real_time_analysis_microservice
-      dockerfile: Dockerfile
-    container_name: "${COMPOSE_PROJECT_NAME}-real-time-static-analysis"
-    ports:
-      - "${LSP_PORT_EXTERNAL}:8095"
+  # real-time-analysis-service:
+  #   build:
+  #     context: ../src/services/backend/real_time_analysis_microservice
+  #     dockerfile: Dockerfile
+  #   container_name: "${COMPOSE_PROJECT_NAME}-real-time-static-analysis"
+  #   ports:
+  #     - "${LSP_PORT_EXTERNAL}:8095"
 
   mediator:
     build:

@@ -1,4 +1,3 @@
-from importlib.metadata import diagnose
 from pygls.server import LanguageServer
 import os
 import logging

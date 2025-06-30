@@ -1,16 +1,3 @@
-jupyterlab 
-notebook 
-jupyterlab-lsp 
-python-lsp-server
-python-lsp-server[all]
-pylsp-mypy 
-python-lsp-ruff
-python-dotenv
-requests
-ipython
-pygls
-
-
 alembic
 annotated-types
 anyio
