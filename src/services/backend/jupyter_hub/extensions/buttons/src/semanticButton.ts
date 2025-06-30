@@ -8,10 +8,10 @@ import { writeNotebookWithLSP, saveFeedbackFile,
 import { API_ENDPOINT } from './config';
 
 // ========== TOOLBAR BUTTON IMPLEMENTATION ==========
-const buttonOnClick = async(panel: NotebookPanel) => {
+const buttonOnClick = async(panel: NotebookPanel): Promise<void> => {
   try {
     console.log('[Notebook Validation] Processing notebook');
-    panel.content.save();
+    panel.context.save();
 
     // 1. PREPARE NOTEBOOK DATA
     console.log("[Notebook Validation] Preapring notebook data");
