@@ -44,14 +44,14 @@ export async function rewriteNotebook(panel: NotebookPanel, lsp: any): Promise<n
     const notebookContent = await context.model.toJSON() as nbformat.INotebookContent;
     let codeString = await getNotebookCode(panel);
 
-    // 3. Remove existing warning comments
-    const cleanedCode = removeWarningComments(codeString);
-    console.log(cleanedCode);
-    let lines = cleanedCode.split('\n');
+    let lines = codeString.split('\n');
     console.log(lines);
+    // 3. Remove existing warning comments
+    const cleanedLines = removeWarningComments(lines);
+    console.log(cleanedLines);
     
     // 4. Apply LSP feedback to lines
-    const transformedLines = applyLSPFeedback(lines, lsp);
+    const transformedLines = applyLSPFeedback(cleanedLines, lsp);
     console.log(transformedLines);
     
     // 5. Join back into a single string
@@ -80,10 +80,9 @@ export async function rewriteNotebook(panel: NotebookPanel, lsp: any): Promise<n
   }
 }
 
-function removeWarningComments(code: string): string {
-  const lines = code.split('\n');
-  const filteredLines = lines.filter(line => !line.trim().startsWith('# WARNING: '));
-  return filteredLines.join('\n');
+function removeWarningComments(lines: string[]): string[] {
+  const filteredLines = lines.map(line => line.replace(/# WARNING.*/g, '').trim());
+  return filteredLines;
 }
 
 function applyLSPFeedback(lines: string[], lsp: any): string[] {
