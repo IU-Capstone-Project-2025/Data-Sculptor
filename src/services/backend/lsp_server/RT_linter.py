@@ -9,7 +9,7 @@ logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s %(levelname)s %(message)s",
       handlers=[
-        RotatingFileHandler("RT.log", maxBytes=10 * 1024 * 1024, backupCount=1),
+        RotatingFileHandler("/logs/RT.log", maxBytes=3 * 1024 * 1024, backupCount=1),
         logging.StreamHandler(),
     ],
 )
@@ -19,7 +19,7 @@ class RealTimeAnalysis:
 
     current_lsp_id = 0
 
-    NUMBER_OF_PYLSP_PROCESSES = 1
+    NUMBER_OF_PYLSP_PROCESSES = 3
 
     message_id = 0
     pylsp_pool = []
@@ -141,7 +141,7 @@ class RealTimeAnalysis:
             if content_length == 0:
                 continue  # Пропускаем пустые строки
             body = process.stdout.read(content_length).decode("utf-8")
-            print(f"Read body:\n{body}")
+            logging.info(f"Read body:\n{body}")
             try:
                 msg = json.loads(body)
             except Exception as e:
@@ -161,7 +161,7 @@ class RealTimeAnalysis:
         """
         while True:
             line = process.stdout.readline()
-            print(f"Read line: {line}")
+            logging.info(f"Read line: {line}")
             if not line:
                 raise RuntimeError("pylsp process closed stdout")
             line = line.decode("utf-8").strip()
@@ -184,7 +184,7 @@ class RealTimeAnalysis:
     def _read_body(self, content_length: int, process: subprocess.Popen):
         if content_length > 0:
             body = process.stdout.read(content_length).decode("utf-8")
-            print(f"Read \n{body}")
+            logging.info(f"Read \n{body}")
 
             try:
                 msg = json.loads(body)
@@ -196,8 +196,8 @@ class RealTimeAnalysis:
             return diagnostics
         except Exception as e:
             logging.info(f"Error during fetching diagnostics from lsp:\n{e}")
+            raise RuntimeError(f"Error during fetching diagnostics from lsp: {e}")
             return []
-        return []
 
     def analyze(self, code_to_analyze: str, uri: str):
         if not code_to_analyze:
@@ -208,7 +208,7 @@ class RealTimeAnalysis:
 
         except Exception as e:
             logging.info(f"Error during sending code for analyzing:\n{e}")
-            return []
+            raise RuntimeError(f"Error during sending code for analyzing: {e}")
 
     def _convert_to_lsp_diagnostics(self,raw_diagnostics: list[dict]) -> list[Diagnostic]:
         lsp_diags: list[Diagnostic] = []
@@ -234,20 +234,15 @@ class RealTimeAnalysis:
             )
         return lsp_diags
 
-    def health_check():
-        global pylsp_proc
-        if pylsp_proc and pylsp_proc.poll() is None:
-            return {"status": "healthy", "pylsp": "running"}
-        else:
-            return {"status": "unhealthy", "pylsp": "not running"}
 
 
 if __name__ == "__main__":
-    with open ("/home/aziz/Projects/Data-Sculptor/src/services/backend/lsp_server/test.txt",'r', encoding='utf-8')as f:
+    with open ("/home/aziz/test/test.txt",'r', encoding='utf-8')as f:
         
         code = f.read()
 
         rt = RealTimeAnalysis()
-        fp = Path("/home/aziz/Projects/Data-Sculptor/src/services/backend/lsp_server/test.txt").resolve()
-        print(rt.analyze(code, fp.as_uri()))
+        fp = Path("/home/aziz/test/test.txt").resolve()
+        logging.info(rt.analyze(code, fp.as_uri()))
+
 
