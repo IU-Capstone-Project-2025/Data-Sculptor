@@ -1,3 +1,5 @@
+import threading
+from time import thread_time, time
 from pygls.server import LanguageServer
 import os
 import logging
@@ -15,7 +17,7 @@ logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s %(levelname)s %(message)s",
     handlers=[
-        RotatingFileHandler("lsp.log", maxBytes=10 * 1024 * 1024, backupCount=1),
+        RotatingFileHandler("/logs/lsp.log", maxBytes=3 * 1024 * 1024, backupCount=1),
         logging.StreamHandler(),
     ],
 )
@@ -26,7 +28,7 @@ deep_syntatic_diagnostic_cache: dict[str, list[Diagnostic]] = {}
 load_dotenv()
 URL_STATIC_ANALYZER = os.getenv("URL_STATIC_ANALYZER")
 URL_LSP_SERVER = os.getenv("URL_LSP_SERVER")
-
+DEBOUNCE_TIME_MS = 400 #TODO: add to .env
 
 def _convert_to_lsp_diagnostics_deep(raw_diagnostics: list[dict]) -> list[Diagnostic]:
     lsp_diags: list[Diagnostic] = []
@@ -58,24 +60,7 @@ def _convert_to_lsp_diagnostics_deep(raw_diagnostics: list[dict]) -> list[Diagno
     return lsp_diags
 
 
-def _convert_to_lsp_diagnostics(raw_diagnostics: list[dict]) -> list[Diagnostic]:
-    lsp_diags: list[Diagnostic] = []
-    for d in raw_diagnostics:
-        start = d["range"]["start"]
-        end = d["range"]["end"]
-        lsp_diags.append(
-            Diagnostic(
-                range=Range(
-                    start=Position(line=max(0, start["line"]), character=max(0, start["character"])),
-                    end=Position(line=max(0, end["line"]),   character=max(0, end["character"])),
-                ),
-                severity=DiagnosticSeverity(d["severity"]),
-                code=d.get("code"),
-                source=d.get("source"),
-                message=d.get("message", ""),
-            )
-        )
-    return lsp_diags
+
 
 
 @server.feature(types.TEXT_DOCUMENT_DID_SAVE)
@@ -93,21 +78,30 @@ def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
     diagnostics = _convert_to_lsp_diagnostics_deep(raw_diags)
     if diagnostics is not None:
         deep_syntatic_diagnostic_cache[uri] = diagnostics
-        
+
     combined = diagnostics + realtime_diagnostics_cache.get(uri, [])
     ls.publish_diagnostics(uri, combined)
-
-
-
+#
 
 @server.feature(types.TEXT_DOCUMENT_DID_CLOSE)
-def teardown():
-    realtime_diagnostics_cache.clear()
-    deep_syntatic_diagnostic_cache.clear()
+def teardown(ls: LanguageServer, params):
+    uri = params.text_document.uri
+    realtime_diagnostics_cache.pop(uri, None)
+    deep_syntatic_diagnostic_cache.pop(uri, None)
+    logging.info(f"Cache cleared for {uri}")
 
-        
+ 
+timer = None
 @server.feature(types.TEXT_DOCUMENT_DID_OPEN)
 @server.feature(types.TEXT_DOCUMENT_DID_CHANGE)
+def real_time_analysis_debounce(ls: LanguageServer, params):
+    global timer
+    if timer is not None:
+        timer.cancel()
+    timer = threading.Timer(DEBOUNCE_TIME_MS/1000, real_time_analysis, args= (ls, params))
+    timer.start()
+    # real_time_analysis(ls,params)
+
 def real_time_analysis(ls: LanguageServer, params):
     realtime_diagnostics_cache.clear()
     uri = params.text_document.uri
@@ -139,4 +133,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
 
