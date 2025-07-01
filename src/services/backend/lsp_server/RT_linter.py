@@ -197,7 +197,6 @@ class RealTimeAnalysis:
         except Exception as e:
             logging.info(f"Error during fetching diagnostics from lsp:\n{e}")
             raise RuntimeError(f"Error during fetching diagnostics from lsp: {e}")
-            return []
 
     def analyze(self, code_to_analyze: str, uri: str):
         if not code_to_analyze:
@@ -236,13 +235,13 @@ class RealTimeAnalysis:
 
 
 
-if __name__ == "__main__":
-    with open ("/home/aziz/test/test.txt",'r', encoding='utf-8')as f:
-        
-        code = f.read()
-
-        rt = RealTimeAnalysis()
-        fp = Path("/home/aziz/test/test.txt").resolve()
-        logging.info(rt.analyze(code, fp.as_uri()))
+# if __name__ == "__main__":
+#     with open ("/home/aziz/test/test.txt",'r', encoding='utf-8')as f:
+#
+#         code = f.read()
+#
+#         rt = RealTimeAnalysis()
+#         fp = Path("/home/aziz/test/test.txt").resolve()
+#         logging.info(rt.analyze(code, fp.as_uri()))
 
 
