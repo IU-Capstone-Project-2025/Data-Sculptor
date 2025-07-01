@@ -24,6 +24,9 @@ RUN pip install /llm_custom_providers
 COPY src/services/backend/jupyter_hub/ /srv/jupyterhub_build/
 WORKDIR /srv/jupyterhub_build
 
+# multi-user set up
+RUN pip install jupyterhub dockerspawner oauthenticator
+
 RUN pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir "jupyterlab>=4.2" "jupyter-ai[all]" && \
     jupyter server extension enable jupyter_ai --sys-prefix
@@ -36,15 +39,15 @@ RUN echo "export const API_ENDPOINT = '${LLM_VALIDATOR_URL}';" > /extensions/but
 
 RUN cd /extensions/buttons && npm install && npm run build && jupyter labextension install --minimize=False .
 
-# runtime configuration
-
+# real time analysisconfiguration
 RUN mkdir -p /etc/jupyter/jupyter_server_config.d
-
 RUN mkdir -p /lsp
 COPY src/services/backend/lsp_server/ /lsp/
+RUN mkdir -p /logs
 WORKDIR /lsp
 RUN /lsp/custom_linters/setup.sh
 
-WORKDIR /srv/jupyterhub
 
+#WARNING: THIS 2 lines should always be the last!!
+WORKDIR /srv/jupyterhub
 CMD ["jupyterhub"]
