@@ -9,7 +9,7 @@ logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s %(levelname)s %(message)s",
       handlers=[
-        RotatingFileHandler("/logs/RT.log", maxBytes=3 * 1024 * 1024, backupCount=1),
+        RotatingFileHandler("RT.log", maxBytes=3 * 1024 * 1024, backupCount=1),
         logging.StreamHandler(),
     ],
 )
