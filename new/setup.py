@@ -1,8 +1,4 @@
 from setuptools import setup, find_packages
-import os
-
-here = os.path.abspath(os.path.dirname(__file__))
-static_js = os.path.join("llm_custom_providers", "static", "frontend_extension.js")
 
 setup(
     name="llm_custom_providers",
@@ -24,10 +20,19 @@ setup(
             "llm_custom_providers = llm_custom_providers:_jupyter_server_extension_points",
         ],
     },
-    package_data={
-        "llm_custom_providers": ["static/*"],
-    },
+    data_files=[
+        # Frontend extension
+        ("share/jupyter/nbextensions/jupyter_ai_context", [
+            "llm_custom_providers/static/frontend_extension.js",
+        ]),
+        # Extension configuration
+        ("etc/jupyter/jupyter_notebook_config.d", [
+            "jupyter-config/jupyter_notebook_config.d/jupyter_ai_context.json",
+        ]),
+        ("etc/jupyter/jupyter_server_config.d", [
+            "jupyter-config/jupyter_server_config.d/jupyter_ai_context.json",
+        ]),
+    ],
     include_package_data=True,
-    zip_safe=False,
     python_requires=">=3.8",
 )

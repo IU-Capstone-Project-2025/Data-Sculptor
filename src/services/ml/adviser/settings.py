@@ -34,8 +34,8 @@ class Settings(BaseSettings):
     llm_model: str
     tokenizer_model: str
 
-    chat_service_host: str = "127.0.0.1"
-    chat_service_port: int = 8000
+    chat_service_host: str = "0.0.0.0"
+    chat_service_port: int = 9353
     chat_service_n_workers: int = 1
 
     redis_url: str

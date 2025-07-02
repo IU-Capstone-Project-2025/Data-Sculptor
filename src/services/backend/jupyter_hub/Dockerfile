@@ -25,7 +25,10 @@ COPY src/services/backend/jupyter_hub/ /srv/jupyterhub_build/
 WORKDIR /srv/jupyterhub_build
 
 RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir "jupyterlab>=4.2" "jupyter-ai[all]" && \
+    pip install --no-cache-dir "jupyterlab>=4.2" "jupyter-ai[all]" "notebook<7" "nbclassic==0.5.*" && \
+    jupyter nbextension install --py llm_custom_providers --sys-prefix && \
+    jupyter nbextension enable  --py llm_custom_providers --sys-prefix && \
+    jupyter server extension enable llm_custom_providers --sys-prefix && \
     jupyter server extension enable jupyter_ai --sys-prefix
 
 # jupyterlab extensions

@@ -64,6 +64,9 @@ async def chat(
             detail="current_localized_feedback must not be empty.",
         )
 
+    # debug: log incoming request context (first 200 chars of code)
+    logger.info("CHAT_REQ path=%s code_snip=%s", getattr(body, 'notebook_path', None), body.current_code[:200])
+
     try:
         reply: str = await service.generate_response(
             llm_client=llm_client,
