@@ -6,7 +6,7 @@ services:
       context: ..
       dockerfile: src/services/backend/jupyter_hub/Dockerfile
       args:
-        - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
+        - FEEDBACK_SERVICE_URL=http://${HOST_IP}:${FEEDBACK_PORT_EXTERNAL}
     container_name: "${COMPOSE_PROJECT_NAME}-jupyterhub"
     ports:
       - "${JUPYTER_PORT_EXTERNAL}:8000"
