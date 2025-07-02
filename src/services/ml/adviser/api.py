@@ -68,8 +68,8 @@ async def lifespan(app: FastAPI):
     that they can be accessed from request handlers.
     """
     # startup
-    redis = await aioredis.from_url(settings.redis_url, decode_responses=True)
-    pg_pool = await asyncpg.create_pool(settings.postgres_dsn)
+    redis = await aioredis.from_url(settings.adviser_redis_url, decode_responses=True)
+    pg_pool = await asyncpg.create_pool(settings.adviser_postgres_dsn)
     tokenizer = Tokenizer.from_pretrained(settings.tokenizer_model)
 
     # expose objects through lifespan state dict
