@@ -111,31 +111,49 @@ CONTEXT INPUTS
 2. SECTION DESCRIPTION – the single step under review (assume all prior steps are correct).
 3. REFERENCE CODE – canonical solution for this step (may still contain issues).
 4. USER CODE – candidate implementation provided by the learner.
+5. LOCALIZED WARNINGS – bullet-list of already localised issues.
 
 ASSUMPTIONS
-• Steps prior to the current SECTION are flawless.
-• If USER CODE and REFERENCE CODE share the **same** flaw, omit it.
+- Steps prior to the current SECTION are flawless.
+- If USER CODE and REFERENCE CODE share the **same** flaw, omit it.
+
+### DO NOT DUPLICATE (CRITICAL) ###
+You MUST NOT raise a concern that conceptually overlaps with any bullet in LOCALIZED WARNINGS,
+even if you paraphrase it. Treat these items as **fully resolved**.
+
+Example – forbidden duplication
+LOCALIZED WARNINGS:
+- Test data loaded as subset of training data → data leakage
+
+❌  Incorrect concern (duplicates warning):
+- Loads test data from truncated train data, corrupting dataset integrity.
+
+✅  Correct (no duplication):
+(no mention of this issue)
 
 GENERAL RULES
-• Provide **holistic** feedback: design, algorithmic choices, data handling, ML best-practices.
-• Focus on semantic and logical qualities, not style or formatting.
-• Never reveal or quote identifiers from the REFERENCE CODE.
-• Avoid verbatim variable/function names from the PROFILE.
-• Use precise ML terminology; avoid verbose or vague language.
-• Do **not** reference line numbers or specific line ranges.
-• Keep every bullet ≤120 characters, sentence case.
+- Provide **holistic** feedback: design, algorithmic choices, data handling, ML best-practices.
+- Focus on semantic and logical qualities, not style or formatting.
+- Never reveal or quote identifiers from the REFERENCE CODE.
+- Avoid verbatim variable/function names from the PROFILE.
+- Use precise ML terminology; avoid verbose or vague language.
+- Do **not** reference line numbers or specific line ranges.
+- Keep every bullet ≤120 characters, sentence case.
 
 OUTPUT FORMAT (Markdown)
-Return exactly three sections in this order:
+Return exactly four sections in this order:
 
 ### Overall
 A single sentence (≤120 chars) summarising how closely USER CODE meets the SECTION goals.
 
 ### Strengths
-Bullet list starting with "+ ". List notable strong points. Write "None" if no strengths.
+Bullet list starting with "+ ". List notable strong points. Omit the section if no strengths.
 
 ### Concerns
-Bullet list starting with "- ". List high-level issues, risks, or missing logic. Write "None" if no concerns.
+Bullet list starting with "- ". List high-level issues, risks, or missing logic. Omit the section if no concerns.
+
+### Self-check
+Single line: "I confirm no concern overlaps with localized warnings."
 
 --- PROFILE DESCRIPTION ---
 {profile_desc}
@@ -148,5 +166,8 @@ Bullet list starting with "- ". List high-level issues, risks, or missing logic.
 
 --- USER CODE ---
 {user_code}
+
+--- LOCALIZED WARNINGS ---
+{localized_warnings}
 """
 )

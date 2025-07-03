@@ -71,13 +71,6 @@ class FeedbackGenerator:
             reference_code,
         ) = await self._profiles.get_section(profile_id, section_index)
 
-        non_localized = await self._generate_non_localized(
-            user_code=user_code,
-            profile_desc=profile_desc,
-            section_desc=section_desc,
-            reference_code=reference_code,
-        )
-
         localized = await self._generate_localized(
             user_code=user_code,
             profile_desc=profile_desc,
@@ -86,6 +79,13 @@ class FeedbackGenerator:
             line_offset=global_line_offset,
         )
 
+        non_localized = await self._generate_non_localized(
+            user_code=user_code,
+            profile_desc=profile_desc,
+            section_desc=section_desc,
+            reference_code=reference_code,
+            localized_warnings=localized,
+        )
         return non_localized, localized
 
     async def _generate_non_localized(
@@ -95,6 +95,7 @@ class FeedbackGenerator:
         profile_desc: str,
         section_desc: str,
         reference_code: str,
+        localized_warnings: List[LocalizedWarning],
     ) -> str:
         """Generate high-level textual feedback.
 
@@ -107,7 +108,9 @@ class FeedbackGenerator:
         Returns:
             str: A narrative feedback paragraph.
         """
-
+        localized_warnings_str = "\n".join(
+            f"- {warn.message}" for warn in localized_warnings if warn.message
+        )
         chain = FEEDBACK_WITH_PROFILE_PROMPT | self._llm
 
         response = await chain.ainvoke(
@@ -116,6 +119,7 @@ class FeedbackGenerator:
                 "section_desc": section_desc,
                 "reference_code": reference_code,
                 "user_code": user_code,
+                "localized_warnings": localized_warnings_str,
             }
         )
 
@@ -157,7 +161,7 @@ class FeedbackGenerator:
                     "section_desc": section_desc,
                     "reference_code": reference_code,
                     "user_code": numbered_code,
-                }
+                },
             )
             warnings_list = warnings_obj.warnings
         except Exception:
