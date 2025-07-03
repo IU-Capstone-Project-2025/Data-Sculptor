@@ -1,0 +1,9 @@
+# Ignore all files
+*
+
+# Except
+!dev.env
+!beta.env
+!uat.env
+
+!docker-compose.yml
