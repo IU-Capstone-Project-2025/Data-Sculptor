@@ -34,8 +34,8 @@ RUN pip install --no-cache-dir -r requirements.txt && \
 # jupyterlab extensions
 COPY src/services/backend/jupyter_hub/extensions/ /extensions/
 
-ARG LLM_VALIDATOR_URL
-RUN echo "export const API_ENDPOINT = '${LLM_VALIDATOR_URL}';" > /extensions/buttons/src/config.ts
+ARG FEEDBACK_SERVICE_URL
+RUN echo "export const API_ENDPOINT = '${FEEDBACK_SERVICE_URL}';" > /extensions/buttons/src/config.ts
 
 RUN cd /extensions/buttons && npm install && npm run build && jupyter labextension install --minimize=False .
 
