@@ -1,0 +1,24 @@
+name: Deploy dev
+
+on: 
+  push:
+    branches: [dev]
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [dev]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          clean: false
+
+      - name: Deploy to Dev
+        working-directory: deployment
+        run: |
+          docker compose -p dev \
+            --env-file dev.env \
+            up -d --build
