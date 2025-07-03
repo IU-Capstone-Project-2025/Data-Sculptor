@@ -6,48 +6,6 @@ service so that they are defined in one place and can be imported elsewhere.
 
 from langchain_core.prompts import PromptTemplate
 
-FEEDBACK_PROMPT = PromptTemplate.from_template(
-    """
-You are an expert code reviewer.
-You are tasked with providing feedback on the code from a Jupyter Notebook.
-The user has submitted a notebook, and your job is to provide feedback on the code cells.
-
-Please provide a high-level summary of the notebook's purpose, followed by
-specific, constructive feedback on the code. Focus on code quality, logic,
-potential bugs, and areas for improvement. Be clear and concise.
-
-Here is the content of the code cells from the notebook, in order:
-
-{code}
-"""
-)
-
-WARNINGS_PROMPT = PromptTemplate.from_template(
-    """
-You are an automated code quality assistant. The user will send you a code
-snippet from a Jupyter notebook annotated with 1-based line numbers like
-"1 | <code>".
-
-Your task: Identify semantic or logical issues (not syntax errors) and
-return an array of warnings in JSON format. Each warning must have these
-fields:
-  - "start_line": 1-based line number where the problematic span begins.
-  - "end_line":   1-based line number where the span ends (inclusive). Use the same
-    value as "start_line" for single-line issues.
-  - "message":     A short (≤120 chars) description of the issue.
-
-If there are no issues, return an empty JSON list `[]`.
-
-If line doesn't contain any issues, don't report anything about this line.
-Include only the lines that contain semantic or logical issues.
-
-Return *only* valid JSON. Do not wrap it in markdown or prose.
-
-Snippet:
-{code}
-"""
-)
-
 LOCALIZE_WARNINGS_PROMPT = PromptTemplate.from_template(
     """
 You are a rigorous static-analysis assistant. Your task is to **localise** a given set of high-level warnings inside a Python code snippet that is annotated with 1-based line numbers in the form `"<line_no> | <code>"`.
@@ -76,7 +34,7 @@ CONSTRAINTS
 - `messages` must contain focused and precise description of the issue. No vague descriptions are allowed.
 
 STYLE GUIDE FOR "message"
-- <= 150 characters.
+- <= 120 characters.
 - Sentence case, present tense.
 - Include a *brief* reasoning explaining **why** the span violates the warning.
 - Mention variable/function names that cause the issue.
@@ -89,5 +47,106 @@ INPUT SECTIONS (delimited by triple dashes):
 
 --- WARNINGS ---
 {warnings}
+"""
+)
+
+WARNINGS_WITH_PROFILE_PROMPT = PromptTemplate.from_template(
+    """
+You are an automated ML-oriented code-quality assistant used to compare the USER CODE with the REFERENCE CODE.
+You are not responsible for identifying general issues. Your task is only to compare codes logically.
+
+CONTEXT
+You receive two textual inputs:
+1. PROFILE DESCRIPTION – an overarching, multi-step overview of the problem.
+2. SECTION DESCRIPTION – **only one** step extracted from that profile.
+
+Assume that all steps preceding the current SECTION DESCRIPTION have been
+implemented flawlessly and contain no errors. Also ignore any future steps
+that might be referenced in the profile.
+
+GUIDELINES
+- If both USER CODE and REFERENCE CODE contain the same general issue, you MUST ignore it.
+- Use commonly-accepted ML terminology; avoid verbose descriptions.
+- Keep each warning "message" ≤120 characters, sentence case, present tense.
+- Report an issue **only** when it truly applies to the current section.
+- Never mention variable names, functions, classes, or code fragments that
+  originate from the PROFILE itself. Referencing USER CODE specifics is
+  encouraged when helpful.
+- Never reveal or reference identifiers from the REFERENCE CODE.
+- Describe each issue in terms of its potential *consequences* (e.g., "dataset
+  may leak target information leading to optimistic accuracy"), not as a
+  to-do instruction or prescribed fix.
+
+Wording examples:
+- Bad ❌ "Fill missing values before training the model"
+- Good ✅ "NaN values can enter the training set and degrade
+  post-deployment performance"
+
+--- PROFILE DESCRIPTION ---
+{profile_desc}
+
+--- SECTION DESCRIPTION ---
+{section_desc}
+
+--- REFERENCE CODE (ethalon) ---
+{reference_code}
+
+--- USER CODE (annotated with 1-based line numbers "<n> | <code>") ---
+{user_code}
+
+YOUR TASK
+Identify semantic or logical deviations of USER CODE from the REFERENCE CODE that could be localized to a specific lines in USER CODE.
+You MUST NOT report any issues that apply to the whole code.
+  
+If no issues are present, return empty array.
+  """
+)
+
+FEEDBACK_WITH_PROFILE_PROMPT = PromptTemplate.from_template(
+    """
+You are an ML-oriented code-review assistant. Compare the USER CODE against both the PROFILE context and the REFERENCE CODE for the **current section**.
+
+CONTEXT INPUTS
+1. PROFILE DESCRIPTION – a multi-step overview of the problem.
+2. SECTION DESCRIPTION – the single step under review (assume all prior steps are correct).
+3. REFERENCE CODE – canonical solution for this step (may still contain issues).
+4. USER CODE – candidate implementation provided by the learner.
+
+ASSUMPTIONS
+• Steps prior to the current SECTION are flawless.
+• If USER CODE and REFERENCE CODE share the **same** flaw, omit it.
+
+GENERAL RULES
+• Provide **holistic** feedback: design, algorithmic choices, data handling, ML best-practices.
+• Focus on semantic and logical qualities, not style or formatting.
+• Never reveal or quote identifiers from the REFERENCE CODE.
+• Avoid verbatim variable/function names from the PROFILE.
+• Use precise ML terminology; avoid verbose or vague language.
+• Do **not** reference line numbers or specific line ranges.
+• Keep every bullet ≤120 characters, sentence case.
+
+OUTPUT FORMAT (Markdown)
+Return exactly three sections in this order:
+
+### Overall
+A single sentence (≤120 chars) summarising how closely USER CODE meets the SECTION goals.
+
+### Strengths
+Bullet list starting with "+ ". List notable strong points. Write "None" if no strengths.
+
+### Concerns
+Bullet list starting with "- ". List high-level issues, risks, or missing logic. Write "None" if no concerns.
+
+--- PROFILE DESCRIPTION ---
+{profile_desc}
+
+--- SECTION DESCRIPTION ---
+{section_desc}
+
+--- REFERENCE CODE (ethalon) ---
+{reference_code}
+
+--- USER CODE ---
+{user_code}
 """
 )
