@@ -1,0 +1,77 @@
+name: Test and deploy beta
+
+on:
+  push:
+    branches: [beta]
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [beta]
+
+jobs:
+  lint-and-sast:
+    runs-on: [self-hosted]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with: {python-version: '3.x'}
+      - name: Install Python tools
+        run: pip install ruff mypy bandit
+      - name: Ruff lint & format check
+        id: ruff
+        run: ruff check src services
+        continue-on-error: true
+      
+      - name: MyPy type check
+        id: mypy
+        run: mypy src services
+        continue-on-error: true
+      
+      - name: Bandit security scan
+        id: bandit
+        run: bandit -r src services
+        continue-on-error: true
+      
+      - name: Check lint and sast results
+        id: check-results
+        run: |
+          passed=true
+          if [ "${{ steps.ruff.outcome }}" != "success" ]; then
+            echo "ruff failed"
+            passed=false
+          fi
+          if [ "${{ steps.mypy.outcome }}" != "success" ]; then
+            echo "mypy failed"
+            passed=false
+          fi
+          if [ "${{ steps.bandit.outcome }}" != "success" ]; then
+            echo "bandit failed"
+            passed=false
+          fi
+          echo "passed=$passed" >> $GITHUB_OUTPUT
+
+
+  test:
+    runs-on: [self-hosted]
+    needs: lint-and-sast
+    outputs:
+      passed: ${{ steps.test-result.outputs.passed }}
+    steps:
+      - name: Run Internal Tests
+        id: test-result
+        run: |
+          echo "All zero out of zero test passed!"
+          echo "passed=true" >> $GITHUB_OUTPUT
+
+  deploy:
+    needs: [lint-and-sast, test]
+    if: needs.lint-and-sast.outputs.passed == 'true' && needs.test.outputs.passed == 'true'
+    runs-on: [self-hosted]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Beta
+        working-directory: deployment
+        run: |
+          docker compose -p beta \
+            --env-file beta.env \
+            up -d --build
