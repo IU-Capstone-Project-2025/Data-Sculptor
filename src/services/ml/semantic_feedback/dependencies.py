@@ -21,19 +21,22 @@ def get_llm_client(body: Annotated[FeedbackRequest, Body(...)]):
         temperature=0.0,
     )
 
+
 # Database pool dependency
 def get_pg_pool(request: Request):
     """Return the shared *asyncpg* connection pool from the lifespan state."""
 
     return request.state.postgres_pool
 
+
 # Dependency returning a ProfileContextGateway
-def get_profile_context(pg_pool = Depends(get_pg_pool)) -> ProfileContextGateway:  # type: ignore
+def get_profile_context(pg_pool=Depends(get_pg_pool)) -> ProfileContextGateway:  # type: ignore
     return ProfileContextGateway(pg_pool)
+
 
 # Dependency returning a FeedbackGenerator instance
 def get_feedback_generator(
-    llm_client = Depends(get_llm_client),
+    llm_client=Depends(get_llm_client),
     profile_ctx: ProfileContextGateway = Depends(get_profile_context),
 ):
     return FeedbackGenerator(llm_client=llm_client, profile_context=profile_ctx)
