@@ -31,7 +31,7 @@ requestBody:
             description: UUID of the reference profile (task case) to validate against.
           use_deep_analysis:
             type: boolean
-            default: false
+            default: true
             description: Whether to use deep analysis.
 responses:
   "200":

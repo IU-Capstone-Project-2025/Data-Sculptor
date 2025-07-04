@@ -70,7 +70,7 @@ class FeedbackRequest(BaseModel):
         ..., description="Identifier of the profile (case) to validate against."
     )
     use_deep_analysis: bool = Field(
-        default=False, description="Whether to use deep analysis."
+        default=True, description="Whether to use deep analysis."
     )
 
 

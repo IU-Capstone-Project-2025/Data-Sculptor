@@ -10,14 +10,13 @@ from __future__ import annotations
 
 import uuid
 import logging
-from typing import List
 
 from langchain_core.runnables import Runnable
 
-from prompts import FEEDBACK_WITH_PROFILE_PROMPT, WARNINGS_WITH_PROFILE_PROMPT
+from prompts import COMBINED_FEEDBACK_PROMPT
 
 from schemas import LocalizedWarning, Range, Position
-from llm_schemas import WarningList
+from llm_schemas import CombinedFeedback
 
 from profile_context import ProfileContextGateway
 
@@ -45,7 +44,7 @@ class FeedbackGenerator:
         profile_id: uuid.UUID,
         section_index: int,
         global_line_offset: int = 0,
-    ) -> tuple[str, List[LocalizedWarning]]:
+    ) -> tuple[str, list[LocalizedWarning]]:
         """Generate both non-localized and localized feedback.
 
         The method performs **one** database query to retrieve the profile
@@ -71,7 +70,7 @@ class FeedbackGenerator:
             reference_code,
         ) = await self._profiles.get_section(profile_id, section_index)
 
-        localized = await self._generate_localized(
+        non_localized, localized = await self._generate_combined(
             user_code=user_code,
             profile_desc=profile_desc,
             section_desc=section_desc,
@@ -79,53 +78,9 @@ class FeedbackGenerator:
             line_offset=global_line_offset,
         )
 
-        non_localized = await self._generate_non_localized(
-            user_code=user_code,
-            profile_desc=profile_desc,
-            section_desc=section_desc,
-            reference_code=reference_code,
-            localized_warnings=localized,
-        )
         return non_localized, localized
 
-    async def _generate_non_localized(
-        self,
-        *,
-        user_code: str,
-        profile_desc: str,
-        section_desc: str,
-        reference_code: str,
-        localized_warnings: List[LocalizedWarning],
-    ) -> str:
-        """Generate high-level textual feedback.
-
-        Args:
-            user_code: User-submitted code snippet.
-            profile_desc: Full description of the profile/task.
-            section_desc: Description of the specific section.
-            reference_code: Reference implementation for the section.
-
-        Returns:
-            str: A narrative feedback paragraph.
-        """
-        localized_warnings_str = "\n".join(
-            f"- {warn.message}" for warn in localized_warnings if warn.message
-        )
-        chain = FEEDBACK_WITH_PROFILE_PROMPT | self._llm
-
-        response = await chain.ainvoke(
-            {
-                "profile_desc": profile_desc,
-                "section_desc": section_desc,
-                "reference_code": reference_code,
-                "user_code": user_code,
-                "localized_warnings": localized_warnings_str,
-            }
-        )
-
-        return getattr(response, "content", str(response))
-
-    async def _generate_localized(
+    async def _generate_combined(
         self,
         *,
         user_code: str,
@@ -133,49 +88,56 @@ class FeedbackGenerator:
         section_desc: str,
         reference_code: str,
         line_offset: int = 0,
-    ) -> List[LocalizedWarning]:
-        """Generate LSP-compatible diagnostics.
+    ) -> tuple[str, list[LocalizedWarning]]:
+        """Generate both conceptual and localised feedback in a *single* LLM call.
+
+        The method leverages the new ``COMBINED_FEEDBACK_PROMPT`` together with
+        a structured output model (:class:`CombinedFeedback`).  After obtaining
+        the raw LLM response we convert the line-based warnings into
+        :class:`LocalizedWarning` instances used by the public API.
 
         Args:
-            user_code: User-submitted code snippet.
-            profile_desc: Description of the profile.
-            section_desc: Description of the section.
-            reference_code: Reference implementation.
-            line_offset: Global zero-based line offset.
+            user_code: The code snippet provided by the user.
+            profile_desc: Full profile description.
+            section_desc: Current section description.
+            reference_code: Canonical reference implementation.
+            line_offset: Zero-based line offset to align diagnostics with the
+                full notebook.
 
         Returns:
-            list[LocalizedWarning]: List of warnings with precise ranges.
+            tuple[str, list[LocalizedWarning]]: High-level conceptual feedback
+                (bullet-point string) and list of localised warnings.
         """
 
+        # Annotate user code with line numbers for easier localisation.
         numbered_code = "\n".join(
             f"{idx + 1} | {line}" for idx, line in enumerate(user_code.splitlines())
         )
 
-        structured_llm = self._llm.with_structured_output(WarningList)
-        chain = WARNINGS_WITH_PROFILE_PROMPT | structured_llm
+        structured_llm = self._llm.with_structured_output(CombinedFeedback)
+        chain = COMBINED_FEEDBACK_PROMPT | structured_llm
+        combo: CombinedFeedback = await chain.ainvoke(
+            {
+                "profile_desc": profile_desc,
+                "section_desc": section_desc,
+                "reference_code": reference_code,
+                "user_code": numbered_code,
+            }
+        )
 
-        try:
-            warnings_obj: WarningList = await chain.ainvoke(
-                {
-                    "profile_desc": profile_desc,
-                    "section_desc": section_desc,
-                    "reference_code": reference_code,
-                    "user_code": numbered_code,
-                },
-            )
-            warnings_list = warnings_obj.warnings
-        except Exception:
-            logger.warning("Error occurred while generating warnings", exc_info=True)
-            warnings_list = []
+        # ── Build conceptual feedback string ────────────────────────────────
+        conceptual_bullets = [f"- {item}" for item in combo.conceptual if item]
+        conceptual_feedback = "\n".join(conceptual_bullets)
 
+        # ── Convert WarningSpan objects to LocalizedWarning ────────────────
         lines = user_code.splitlines()
         max_line_index = len(lines)
 
         localized: list[LocalizedWarning] = []
-        for item in warnings_list:
-            start_line = item.start_line
-            end_line = item.end_line
-            msg = item.message
+        for span in combo.warnings:
+            start_line = span.start_line
+            end_line = span.end_line
+            msg = span.message
 
             if (
                 start_line < 1
@@ -201,4 +163,4 @@ class FeedbackGenerator:
                 )
             )
 
-        return localized
+        return conceptual_feedback, localized
