@@ -39,13 +39,13 @@ RUN echo "export const API_ENDPOINT = '${FEEDBACK_SERVICE_URL}';" > /extensions/
 
 RUN cd /extensions/buttons && npm install && npm run build && jupyter labextension install --minimize=False .
 
-# real time analysisconfiguration
+# # real time analysisconfiguration #WARNING: Now it is Fast api service
 RUN mkdir -p /etc/jupyter/jupyter_server_config.d
 RUN mkdir -p /lsp
-COPY src/services/backend/lsp_server/ /lsp/
-RUN mkdir -p /logs
-WORKDIR /lsp
-RUN /lsp/custom_linters/setup.sh
+COPY src/services/backend/lsp_server/lsp.py /lsp/lsp.py
+# RUN mkdir -p /logs
+# WORKDIR /lsp
+# RUN /lsp/custom_linters/setup.sh
 
 
 #WARNING: THIS 2 lines should always be the last!!
