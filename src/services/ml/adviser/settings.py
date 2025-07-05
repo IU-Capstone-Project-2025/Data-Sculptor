@@ -38,8 +38,8 @@ class Settings(BaseSettings):
     chat_service_port: int = 8000
     chat_service_n_workers: int = 1
 
-    redis_url: str
-    postgres_dsn: str
+    adviser_redis_url: str
+    adviser_postgres_dsn: str
 
     token_limit: int = 32768
     reserved_answer_tokens: int = 1000

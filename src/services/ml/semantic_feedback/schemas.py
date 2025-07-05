@@ -8,7 +8,7 @@ Public API:
     - FeedbackResponse: Schema for the feedback endpoint response.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, UUID4
 from typing import Literal
 
 
@@ -63,8 +63,14 @@ class FeedbackRequest(BaseModel):
     cell_code_offset: int = Field(
         0, ge=0, description="Global line offset of the snippet in the full notebook."
     )
+    section_index: int = Field(
+        ..., ge=0, description="Identifier of section to validate."
+    )
+    profile_index: UUID4 = Field(
+        ..., description="Identifier of the profile (case) to validate against."
+    )
     use_deep_analysis: bool = Field(
-        default=False, description="Whether to use deep analysis."
+        default=True, description="Whether to use deep analysis."
     )
 
 

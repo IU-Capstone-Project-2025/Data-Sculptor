@@ -22,9 +22,9 @@ from fastapi import (
 )
 import logging
 from openai import BadRequestError
+import uuid
 
-from feedback_generator import generate_feedback
-from warnings_generator import generate_warnings
+from feedback_generator import FeedbackGenerator
 from warning_localizer import localize_warnings
 from schemas import (
     FeedbackResponse,
@@ -33,7 +33,7 @@ from schemas import (
     MLScentLocalizationRequest,
     MLScentLocalizationResponse,
 )
-from dependencies import get_llm_client
+from dependencies import get_feedback_generator, get_llm_client
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -67,14 +67,9 @@ async def health_check() -> HealthCheckResponse:
 )
 async def get_feedback(
     body: FeedbackRequest = Body(...),
-    llm_client=Depends(get_llm_client),
+    generator: FeedbackGenerator = Depends(get_feedback_generator),
 ) -> FeedbackResponse:
-    """Generate feedback for a code snippet supplied by the client.
-
-    The request body must contain:
-        - current_code: The code snippet to analyse.
-        - cell_code_offset: Global line offset applied to generated warnings.
-    """
+    """Generate feedback for a code snippet supplied by the client."""
 
     try:
         if not body.current_code.strip():
@@ -82,14 +77,10 @@ async def get_feedback(
                 status_code=400, detail="current_code must not be empty."
             )
 
-        non_localized_feedback = await generate_feedback(
-            llm_client=llm_client,
-            code=body.current_code,
-        )
-
-        localized_feedback = await generate_warnings(
-            llm_client=llm_client,
-            code=body.current_code,
+        non_localized_feedback, localized_feedback = await generator.generate_feedback(
+            user_code=body.current_code,
+            profile_id=body.profile_index,
+            section_index=body.section_index,
             global_line_offset=body.cell_code_offset,
         )
 
