@@ -142,7 +142,7 @@ def real_time_analysis(ls: LanguageServer, params):
 
     with open(filepath, "rb") as f:
         files = {"file": (filename, f, "application/octet-stream")}
-        raw_diagnostics = requests.post(f"{URL_LSP_SERVER}/analyze", files=files, data={"uri":uri}).json().get("diagnostics", [])
+        raw_diagnostics = requests.post(f"{URL_LSP_SERVER}/analyze", files=files).json().get("diagnostics", [])
         diagnostics = _convert_to_lsp_diagnostics(raw_diagnostics)
     realtime_diagnostics_cache[uri] = diagnostics
 
