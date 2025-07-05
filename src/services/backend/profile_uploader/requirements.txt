@@ -1,10 +1,8 @@
 fastapi
 uvicorn[standard]
-langchain_openai
-langchain-core
 pydantic
 pydantic-settings
-python-multipart
 python-dotenv
-PyYAML
+nbformat
 asyncpg
+python-multipart 

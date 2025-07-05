@@ -86,8 +86,8 @@ services:
       - "${ADVISER_PORT_EXTERNAL}:9353"
     environment:
       - PYTHONUNBUFFERED=1
-      - REDIS_URL=redis://${HOST_IP}:${REDIS_PORT_EXTERNAL}/0
-      - POSTGRES_DSN=postgresql://app:app@${HOST_IP}:${POSTGRES_PORT_EXTERNAL}/chatdb
+      - ADVISER_REDIS_URL=redis://${HOST_IP}:${REDIS_PORT_EXTERNAL}/0
+      - ADVISER_POSTGRES_DSN=postgresql://app:app@${HOST_IP}:${POSTGRES_PORT_EXTERNAL}/datasculptor
       - LLM_BASE_URL=${LLM_BASE_URL}
       - LLM_API_KEY=${LLM_API_KEY}
       - LLM_MODEL=${LLM_MODEL}
@@ -104,6 +104,25 @@ services:
       postgres:
         condition: service_healthy
 
+  profile-uploader-service:
+    build:
+      context: ../src/services/backend/profile_uploader
+      dockerfile: Dockerfile
+    container_name: "${COMPOSE_PROJECT_NAME}-profile-uploader"
+    ports:
+      - "${PROFILE_UPLOAD_PORT_EXTERNAL}:9354"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PROFILE_POSTGRES_DSN=postgresql://app:app@${HOST_IP}:${POSTGRES_PORT_EXTERNAL}/datasculptor
+      - PROFILE_UPLOAD_SERVICE_HOST=${PROFILE_UPLOAD_SERVICE_HOST}
+      - PROFILE_UPLOAD_SERVICE_PORT=${PROFILE_UPLOAD_SERVICE_PORT}
+      - PROFILE_UPLOAD_SERVICE_N_WORKERS=${PROFILE_UPLOAD_SERVICE_N_WORKERS}
+    volumes:
+      - ../src/services/backend/profile_uploader:/app/profile_uploader:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   postgres:
     image: postgres:15
     container_name: "${COMPOSE_PROJECT_NAME}-postgres"
@@ -112,12 +131,12 @@ services:
     environment:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: app
-      POSTGRES_DB: chatdb
+      POSTGRES_DB: datasculptor
     volumes:
       - ../resources/data/postgres:/var/lib/postgresql/data:rw
       - ../resources/config/postgres/init_scripts:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "app", "-d", "chatdb"]
+      test: ["CMD", "pg_isready", "-U", "app", "-d", "datasculptor"]
       interval: 10s
       retries: 5
 

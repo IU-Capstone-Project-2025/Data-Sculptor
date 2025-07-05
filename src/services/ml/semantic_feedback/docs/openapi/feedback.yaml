@@ -1,8 +1,9 @@
 summary: Submit code snippet for automated feedback
 description: |
-  Accepts a JSON body with `current_code` and an optional `cell_code_offset`.
-  The service returns AI-generated high-level feedback and line-localized warnings
-  suitable for LSP diagnostics.
+  Accepts a JSON body containing the user code **and** context identifiers for
+  the reference *profile* and its *section*. The service compares the user code
+  against the reference implementation and returns AI-generated high-level
+  feedback plus line-localized warnings suitable for LSP diagnostics.
 requestBody:
   required: true
   content:
@@ -11,6 +12,8 @@ requestBody:
         type: object
         required:
           - current_code
+          - section_index
+          - profile_index
         properties:
           current_code:
             type: string
@@ -19,9 +22,16 @@ requestBody:
             type: integer
             default: 0
             description: Global zero-based line offset for the snippet inside the full notebook.
+          section_index:
+            type: integer
+            description: Zero-based index of the profile section to validate.
+          profile_index:
+            type: string
+            format: uuid
+            description: UUID of the reference profile (task case) to validate against.
           use_deep_analysis:
             type: boolean
-            default: false
+            default: true
             description: Whether to use deep analysis.
 responses:
   "200":
