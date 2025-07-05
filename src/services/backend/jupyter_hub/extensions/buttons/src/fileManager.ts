@@ -82,7 +82,7 @@ export async function splitCodeInLines(code: string): Promise<string[]> {
 }
 
 export async function removeWarningComments(lines: string[]): Promise<string[]> {
-  const filteredLines = lines.map(line => line.replace(/# WARNING.*/g, '').trim());
+  const filteredLines = lines.map(line => line.replace(/# WARNING.*/g, ''));
   return filteredLines;
 }
 
