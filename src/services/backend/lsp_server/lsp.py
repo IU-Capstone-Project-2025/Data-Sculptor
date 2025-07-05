@@ -9,9 +9,7 @@ from lsprotocol import types
 from lsprotocol.types import Diagnostic, Range, Position, DiagnosticSeverity
 from dotenv import load_dotenv
 from logging.handlers import RotatingFileHandler
-import RT_linter as rt
 
-real_time_analyzer = rt.RealTimeAnalysis()
 server = LanguageServer("example-server", "v0.1")
 
 logging.basicConfig(
@@ -28,6 +26,7 @@ deep_syntatic_diagnostic_cache: dict[str, list[Diagnostic]] = {}
 
 load_dotenv()
 URL_STATIC_ANALYZER = os.getenv("URL_STATIC_ANALYZER")
+URL_LSP_SERVER = os.getenv("URL_LSP_SERVER")
 DEBOUNCE_TIME_MS = 400  # TODO: add to .env
 
 
@@ -108,6 +107,31 @@ def real_time_analysis_debounce(ls: LanguageServer, params):
     # real_time_analysis(ls,params)
 
 
+
+def _convert_to_lsp_diagnostics(raw_diagnostics: list[dict]) -> list[Diagnostic]:
+        lsp_diags: list[Diagnostic] = []
+        for d in raw_diagnostics:
+            start = d["range"]["start"]
+            end = d["range"]["end"]
+            lsp_diags.append(
+                Diagnostic(
+                    range=Range(
+                        start=Position(
+                            line=max(0, start["line"]),
+                            character=max(0, start["character"]),
+                        ),
+                        end=Position(
+                            line=max(0, end["line"]), character=max(0, end["character"])
+                        ),
+                    ),
+                    severity=DiagnosticSeverity(d["severity"]),
+                    code=d.get("code"),
+                    source=d.get("source"),
+                    message=d.get("message", ""),
+                )
+            )
+***REMOVED*** lsp_diags
+
 def real_time_analysis(ls: LanguageServer, params):
     uri = params.text_document.uri
     filepath = urllib.parse.unquote(urllib.parse.urlparse(uri).path)
@@ -115,10 +139,11 @@ def real_time_analysis(ls: LanguageServer, params):
 
     logging.info("Real-time analysis for %s", filepath)
 
-    with open(filepath, "r") as f:
-        code = f.read()
 
-    diagnostics = real_time_analyzer.analyze(code, uri)
+    with open(filepath, "rb") as f:
+        files = {"file": (filename, f, "application/octet-stream")}
+        raw_diagnostics = requests.post(f"{URL_LSP_SERVER}/analyze", files=files, data={"uri":uri}).json().get("diagnostics", [])
+        diagnostics = _convert_to_lsp_diagnostics(raw_diagnostics)
     realtime_diagnostics_cache[uri] = diagnostics
 
     diagnostics = diagnostics + deep_syntatic_diagnostic_cache.get(uri, [])
