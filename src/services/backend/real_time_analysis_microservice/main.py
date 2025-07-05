@@ -1,4 +1,6 @@
 from logging.handlers import RotatingFileHandler
+
+import tempfile
 import os
 import subprocess
 import json
@@ -223,14 +225,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
 @app.post("/analyze")
-def analyze(file :UploadFile=File(...), uri : str = Form(...)):
-    content =  file.file.read().decode('utf-8')
-    raw_diagnostics = rt.analyze(content, uri)
+def analyze(file: UploadFile = File(...)):
+    content = file.file.read().decode('utf-8')
+    temp_filepath = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8', suffix='.py') as temp:
+            temp.write(content)
+            temp_filepath = temp.name
+        uri = f"file://{temp_filepath}"
+        raw_diagnostics = rt.analyze(content, uri)
+    finally:
+        if temp_filepath and os.path.exists(temp_filepath):
+            os.remove(temp_filepath)
     return {
-        "diagnostics":raw_diagnostics
+        "diagnostics": raw_diagnostics
     }
 
 # if __name__ == "__main__":
