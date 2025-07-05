@@ -74,6 +74,7 @@ services:
       - FEEDBACK_SERVICE_HOST=${FEEDBACK_SERVICE_HOST}
       - FEEDBACK_SERVICE_PORT=${FEEDBACK_SERVICE_PORT}
       - FEEDBACK_SERVICE_N_WORKERS=${FEEDBACK_SERVICE_N_WORKERS}
+      - PROFILE_POSTGRES_DSN=postgresql://app:app@${HOST_IP}:${POSTGRES_PORT_EXTERNAL}/datasculptor
     volumes:
       - ../src/services/ml/semantic_feedback:/app/semantic_feedback:rw
 
