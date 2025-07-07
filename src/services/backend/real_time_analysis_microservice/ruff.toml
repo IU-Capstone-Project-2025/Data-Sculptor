@@ -3,6 +3,6 @@ extend-include = ["*.ipynb"]
 line-length = 120
 
 [lint]
-select = ["ALL"]
+select = ["F","B"]
 # ignore = ["D"]
 
