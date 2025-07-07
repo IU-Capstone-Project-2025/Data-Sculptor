@@ -17,13 +17,51 @@ const buttonOnClick = async(panel: NotebookPanel): Promise<void> => {
     console.log("[Notebook Validation] Preapring notebook data");
     const codeString = await getNotebookCode(panel);
     const codeLines = await splitCodeInLines(codeString);
-    const cleanCodeLines = await removeWarningComments(codeLines);
-    const cleanCodeString = await mergeLinesInString(cleanCodeLines);
+
+    // ── Resolve dynamic configuration by scanning for `%env` magics ─────
+    // Default values taken from build-time constants (fallbacks)
+    let profileIdx: string = "Profile index is not provided";
+    let sectionIdx: number = 0;
+
+    // Accept both "%env VAR=value" and "%env VAR value" syntaxes
+    const envRegex = /^\s*%env\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?:=\s*|\s+)\"?([^\"\n]+)\"?\s*$/;
+    for (const line of codeLines) {
+      const match = line.match(envRegex);
+      if (!match) continue;
+
+      const key = match[1].trim();
+      const value = match[2].trim();
+
+      if (key === 'PROFILE_INDEX' && value) {
+        profileIdx = value;
+      } else if (key === 'SECTION_INDEX' && value) {
+        const parsed = parseInt(value, 10);
+        if (!Number.isNaN(parsed)) {
+          sectionIdx = parsed;
+        }
+      }
+    }
+
+    const sectionLines = codeLines;
+
+    // Exclude any %env lines from the payload so the snippet contains pure Python
+    const sectionLinesWithoutEnv = sectionLines.filter(line => !line.trim().startsWith('%env'));
+
+    // Remove any previously injected warning comments
+    const cleanSectionLines = await removeWarningComments(sectionLinesWithoutEnv);
+    const cleanCodeString = await mergeLinesInString(cleanSectionLines);
+
+    // First two rows are taken by PROFILE_INDEX and SECTION_INDEX magic commands
+    const cellCodeOffset = 2;
 
     // 2. PREPARE JSON BODY
     console.log("[Notebook Validation] Preapring json body");
     const payload = {
-        current_code: cleanCodeString
+        current_code: cleanCodeString,
+        cell_code_offset: cellCodeOffset,
+        section_index: sectionIdx,
+        profile_index: profileIdx,
+        use_deep_analysis: true,
     };
 
     console.log("[Notebook Validation] Sending payload:");
