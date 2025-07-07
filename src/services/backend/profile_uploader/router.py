@@ -6,7 +6,8 @@ import logging
 from pathlib import Path
 
 import yaml
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status, Path
+from typing import Optional
 
 from schemas import HealthCheckResponse, UploadResponse
 from dependencies import get_profile_service
@@ -67,3 +68,32 @@ async def upload_profile(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return UploadResponse(profile_id=profile_id)
+
+
+@router.post(
+    "/upload_case/{id}",
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload a case with requirements, dataset, profile, and template",
+    tags=["Cases"],
+)
+async def upload_case(
+    id: str = Path(..., description="Case UUID"),
+    requirements: UploadFile = File(..., description="requirements.txt file"),
+    dataset: UploadFile = File(..., description="Dataset file"),
+    profile: UploadFile = File(..., description="Profile notebook file (.ipynb)"),
+    template: UploadFile = File(..., description="Solution template file"),
+    service: ProfileUploader = Depends(get_profile_service),
+) -> dict:
+    """Upload a case and process it: build Docker image, store in MinIO, record in DB."""
+    try:
+        await service.upload_case(
+            case_id=id,
+            requirements=requirements,
+            dataset=dataset,
+            profile=profile,
+            template=template,
+        )
+***REMOVED*** {"status_code": 201}
+    except Exception as exc:
+        logger.error("Error uploading case", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(exc))
