@@ -103,36 +103,40 @@ class ProfileUploader:
         description: str = cells[0].get("source", "").strip()
         sections: list[Section] = []
 
-        # locate the *first* markdown cell after the profile description
+        # locate the *first* cell with ```json after the profile description
         idx = 1
-        while idx < len(cells) and cells[idx].get("cell_type") != "markdown":
-            # skip any leading code/other cells until the first section markdown
+        while idx < len(cells):
+            cell = cells[idx]
+            if (cell.get("cell_type") == "markdown" and 
+                "```json" in cell.get("source", "")):
+                break
             idx += 1
 
-        # iterate over remaining cells to collect (markdown, code) pairs
+        # iterate over remaining cells to collect (description, code) pairs
         while idx < len(cells) - 1:
-            md_cell = cells[idx]
+            desc_cell = cells[idx]
 
-            # if the current cell is not markdown, advance to next and continue search
-            if md_cell.get("cell_type") != "markdown":
+            # if the current cell doesn't contain ```json, advance to next and continue search
+            if (desc_cell.get("cell_type") != "markdown" or 
+                "```json" not in desc_cell.get("source", "")):
                 idx += 1
                 continue
 
             next_idx = idx + 1
             if next_idx >= len(cells):
-                break  # no cell following the markdown -> incomplete pair
+                break  # no cell following the description -> incomplete pair
 
             code_cell = cells[next_idx]
 
-            # pair must be markdown followed immediately by code
+            # pair must be markdown with ```json followed immediately by code
             if code_cell.get("cell_type") != "code":
                 logger.warning(
-                    "Markdown cell at %d not followed by code cell; skipping", idx
+                    "Description cell at %d not followed by code cell; skipping", idx
                 )
                 idx += 1
                 continue
 
-            sec_desc = md_cell.get("source", "").strip()
+            sec_desc = desc_cell.get("source", "").strip()
             sec_code = code_cell.get("source", "")
             sections.append((sec_desc, sec_code))
 
@@ -140,7 +144,7 @@ class ProfileUploader:
 
         if not sections:
             raise NotebookParseError(
-                "No markdown/code section pairs found after description"
+                "No description/code section pairs found after profile description"
             )
 
         return description, sections
