@@ -89,6 +89,15 @@ async def get_feedback(
             localized_feedback=localized_feedback,
         )
 
+    except ValueError:
+        logger.error(
+            f"Profile {body.profile_index} or section {body.section_index} not found"
+        )
+        raise HTTPException(
+            status_code=404,
+            detail=f"Profile {body.profile_index} or section {body.section_index} not found",
+        )
+
     except BadRequestError as openai_error:
         logger.error("LLM request error", exc_info=True)
         error_body = json.loads(openai_error.response.text)

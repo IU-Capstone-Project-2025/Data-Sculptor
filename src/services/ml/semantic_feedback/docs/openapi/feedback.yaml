@@ -63,6 +63,16 @@ responses:
             detail:
               type: string
               example: current_code must not be empty.
+  "404":
+    description: Profile or section not found.
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            detail:
+              type: string
+              example: Profile 123e4567-e89b-12d3-a456-426614174000 or section 0 not found.
   "500":
     description: Unexpected server error when generating feedback.
     content:
