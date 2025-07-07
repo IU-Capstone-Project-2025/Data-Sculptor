@@ -20,7 +20,7 @@ services:
       - ../resources/config/jupyterhub/.env
     environment:
       - ADVISER_API_URL=http://${HOST_IP}:{ADVISER_PORT_EXTERNAL}/api/v1/chat
-      - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
+      # - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL} # Медиатор не используется
       - URL_STATIC_ANALYZER=http://${HOST_IP}:${ANALYZER_PORT_EXTERNAL}
       - URL_LSP_SERVER=http://${HOST_IP}:${LSP_PORT_EXTERNAL}
       # - JUPYTERHUB_HOST=${HOST_IP}:${JUPYTER_PORT_EXTERNAL}
@@ -46,18 +46,18 @@ services:
     ports:
       - "${LSP_PORT_EXTERNAL}:8095"
 
-  mediator:
-    build:
-      context: ../src/services/backend/mediator_jupyter_hub_llm_microservice
-      dockerfile: Dockerfile
-    container_name: "${COMPOSE_PROJECT_NAME}-mediator"
-    ports:
-      - "${MEDIATOR_PORT_EXTERNAL}:8001"
-    environment:
-      - PYTHONUNBUFFERED=1
-      - FEEDBACK_SERVICE_URL=http://${HOST_IP}:${FEEDBACK_PORT_EXTERNAL}
-    volumes:
-      - ../src/services/backend/mediator_jupyter_hub_llm_microservice:/app:rw
+  # mediator:
+  #   build:
+  #     context: ../src/services/backend/mediator_jupyter_hub_llm_microservice
+  #     dockerfile: Dockerfile
+  #   container_name: "${COMPOSE_PROJECT_NAME}-mediator"
+  #   ports:
+  #     - "${MEDIATOR_PORT_EXTERNAL}:8001"
+  #   environment:
+  #     - PYTHONUNBUFFERED=1
+  #     - FEEDBACK_SERVICE_URL=http://${HOST_IP}:${FEEDBACK_PORT_EXTERNAL}
+  #   volumes:
+  #     - ../src/services/backend/mediator_jupyter_hub_llm_microservice:/app:rw
 
   feedback-service:
     build:

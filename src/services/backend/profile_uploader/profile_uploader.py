@@ -22,6 +22,10 @@ from __future__ import annotations
 
 import uuid
 import logging
+import tempfile
+import shutil
+from fastapi import UploadFile
+import subprocess
 
 import asyncpg
 import nbformat
@@ -175,3 +179,63 @@ class ProfileUploader:
                         for section_id, (sec_desc, sec_code) in enumerate(sections)
                     ],
                 )
+
+    async def upload_case(
+        self,
+        case_id: str,
+        requirements: UploadFile,
+        dataset: UploadFile,
+        profile: UploadFile,
+        template: UploadFile,
+    ):
+        """
+        Handles the upload of a case: saves files, builds Docker image, uploads to MinIO, records in DB.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            req_path = f"{tmpdir}/requirements.txt"
+            data_path = f"{tmpdir}/dataset"
+            prof_path = f"{tmpdir}/profile.ipynb"
+            tmpl_path = f"{tmpdir}/template"
+
+            # Save files
+            await self._save_upload_file(requirements, req_path)
+            await self._save_upload_file(dataset, data_path)
+            await self._save_upload_file(profile, prof_path)
+            await self._save_upload_file(template, tmpl_path)
+
+            image_tag = f"case-{case_id}"
+            await self._build_docker_image_with_repo2docker(tmpdir, image_tag)
+
+            # docker_image_url = await self._upload_docker_image_to_minio(image_tag)
+            # profile_url = await self._upload_file_to_minio(prof_path, f"profiles/{case_id}.ipynb")
+
+            # await self._insert_case_record(case_id, profile_url, docker_image_url)
+
+    async def _save_upload_file(self, upload_file: UploadFile, dest_path: str):
+        with open(dest_path, "wb") as out_file:
+            content = await upload_file.read()
+            _ = out_file.write(content)
+
+    async def _build_docker_image_with_repo2docker(self, build_dir: str, image_tag: str):
+        cmd = [
+            "jupyter-repo2docker",
+            "--no-run",
+            "--image-name",
+            image_tag,
+            build_dir,
+        ]
+        result = subprocess.run(cmd, text=True, capture_output=True)
+        if result.returncode != 0:
+            raise RuntimeError(f"Failed to build Docker image: {result.stderr}")
+
+    async def _upload_docker_image_to_minio(self, image_tag: str):
+        # TODO: Implement Docker image save and upload to MinIO
+        pass
+
+    async def _upload_file_to_minio(self, file_path: str, minio_path: str):
+        # TODO: Implement file upload to MinIO
+        pass
+
+    async def _insert_case_record(self, case_id: str, profile_url: str, docker_image_url: str):
+        # TODO: Implement case record insertion
+        pass
