@@ -9,24 +9,50 @@ services:
         - FEEDBACK_SERVICE_URL=http://${HOST_IP}:${FEEDBACK_PORT_EXTERNAL}
     container_name: "${COMPOSE_PROJECT_NAME}-jupyterhub"
     ports:
-      - "${JUPYTER_PORT_EXTERNAL}:8000"
+      - "${JUPYTERHUB_PORT_EXTERNAL}:${JUPYTERHUB_PORT_INTERNAL}"
     volumes:
-      - ../resources/config/jupyterhub/jupyter_ai_config.py:/etc/jupyter/jupyter_server_config.d/jupyter_ai_config.py:ro
+      - /var/run/docker.sock:/var/run/docker.sock # This is used to create User containers
+      - ../resources/config/jupyterhub/jupyter_ai_confi.py:/etc/jupyter/jupyter_server_config.d/jupyter_ai_config.py:ro
       - ../resources/config/jupyterhub:/srv/jupyterhub:rw
-      # - ../src/services/backend/jupyter_hub_adapter_microservice/sendCode.py:/home/developer/sendCode.py:rw
+      - ../src/services/backend/jupyter_hub_adapter_microservice/sendCode.py:/home/developer/sendCode.py:rw
+      - ../src/services/backend/lsp_server/lsp.py:/home/developer/lsp.py:rw
       - ../src/services/backend/jupyter_hub/jupyter-lsp-jupyter-server.json:/etc/jupyter/jupyter_server_config.d/jupyter-lsp-jupyter-server.json:rw
       - ../resources/data/jupyterhub:/home/developer:rw
     env_file:
       - ../resources/config/jupyterhub/.env
     environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - JUPYTERHUB_USR_CONTAINERS_HOME=${JUPYTERHUB_USR_CONTAINERS_HOME}
+      - CLIENT_ID=${KEYCLOAK_AUTH_CLIENT_ID}
+      - CLIENT_SECRET=${KEYCLOAK_AUTH_CLIENT_SECRET}
+      - JUPYTERHUB_PORT_INTERNAL=${JUPYTERHUB_PORT_INTERNAL}
+      - JUPYTERHUB_DOMAIN_NAME=${JUPYTERHUB_DOMAIN}
       - ADVISER_API_URL=http://${HOST_IP}:{ADVISER_PORT_EXTERNAL}/api/v1/chat
       - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
       - URL_STATIC_ANALYZER=http://${HOST_IP}:${ANALYZER_PORT_EXTERNAL}
       - URL_LSP_SERVER=http://${HOST_IP}:${LSP_PORT_EXTERNAL}
-      # - JUPYTERHUB_HOST=${HOST_IP}:${JUPYTER_PORT_EXTERNAL}
-      # - KEYLOCK_HOST=${HOST_IP}:53010 #TODO: убрать хардкод, тк пока один инстанс  
     command: >
       bash -c "chown -R developer:developer /home/developer && exec jupyterhub"
+    depends_on:
+      - keycloak
+    entrypoint: ["sh", "-c", "until nc -z keycloak.site 53010; do sleep 1; done && jupyterhub"]
+    networks:
+      jupyter-network:
+        aliases:
+          - jupyterhub.site
+
+  # Assigns users to their containers based on usernamev
+  nginx:
+    image: nginx:alpine
+    container_name: jupyter-proxy
+    ports:
+      - "80:80"
+    volumes:
+      - ../resources/config/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - jupyterhub
+    networks:
+      - jupyter-network
 
   deep-syntatic-service:
     build:
@@ -123,7 +149,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-
   postgres:
     image: postgres:15
     container_name: "${COMPOSE_PROJECT_NAME}-postgres"
@@ -153,8 +178,63 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       retries: 5
+  
+  keycloak:
+    build:
+      context: ../src/services/backend/keycloak
+      dockerfile: Dockerfile
+    container_name: "${COMPOSE_PROJECT_NAME}_keycloak"
+    ports: 
+      - "53010:53010"
+      - "${KEYCLOAK_HTTPS_PORT}:8443"
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data:rw
+      - keycloak_data:/opt/keycloak/data:rw
+    environment:
+      KEYCLOAK_DB_NAME:     "${KEYCLOAK_DB_NAME}"
+      KEYCLOAK_DB_USER:     "${KEYCLOAK_DB_USER}"
+      KEYCLOAK_DB_PASSWORD: "${KEYCLOAK_DB_PASSWORD}"
+      KEYCLOAK_ADMIN_USER:  "${KEYCLOAK_ADMIN_USER}"
+      KEYCLOAK_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}"
+      KEYCLOAK_DB_PORT: "5432"
+      KC_HOSTNAME: "${KC_HOSTNAME}" 
+      KC_HTTP_PORT: "53010"
+      KC_HOSTNAME_PORT: "53010"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    command: start-dev
+    networks:
+      jupyter-network:
+        aliases:
+          - "${KC_HOSTNAME}"
+  vault:
+    image: hashicorp/vault:1.17
+    container_name: "${COMPOSE_PROJECT_NAME}_vault"
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: myroot  # Root token for dev mode
+      VAULT_ADDR: "http://${HOST_IP}:${VAULT_HTTP_PORT}"
+    ports:
+      - "${VAULT_HTTP_PORT}:8200"
+    command: server -dev  # temp dev mode
+    volumes:
+      - vault-data:/vault/file
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
 volumes:
   dev_postgres_data:
   dev_redis_data:
+  keycloak_db_data:
+  keycloak_data:
+  vault-data:
 
+networks:
+  jupyter-network:
+    name: jupyter-network
+    driver: bridge
