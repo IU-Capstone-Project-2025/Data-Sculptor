@@ -1,0 +1,175 @@
+
+
+"""Module with multiple linting violations."""
+  
+import os
+import sys
+from typing import Any, List, Dict
+
+UNUSED_GLOBAL = "unused"
+PASSWORD = "secret123"  # Dodgy: hardcoded password
+API_KEY = "ghp_abc123"  # Dodgy: potential secret
+
+# Pyflakes: unused imports (sys, os)
+# Pylint: unused-import
+
+def missing_return(x: int) -> str:
+    """Function with missing return path."""
+    if x > 0:
+***REMOVED*** "positive"
+    # MyPy: Missing return statement
+
+
+def type_error(a: int) -> str:
+    """Incorrect return type."""
+    return a  # MyPy: Incompatible return value type
+
+def unused_local() -> None:
+    """Function with unused variables."""
+    x = 10  # Pyflakes: unused variable
+    y = [1, 2, 3]  # Vulture: unused variable
+
+# Vulture: unused function
+def dead_code() -> None:
+    """Never called function."""
+    pass
+
+# Pydocstyle: Missing docstring
+def no_docstring():
+    return 42
+
+class BadClass:
+    """Class with multiple issues."""
+
+    # Pylint: invalid-name
+    def __init__(self, A: int) -> None:
+        self.a = A  # Pycodestyle: mixedCase variable
+
+    # Pydocstyle: missing docstring
+    def method1(self):
+        pass
+
+    def long_method(self) -> None:
+        """Method with high complexity."""
+        # McCabe: complex function (> default threshold)
+        x = 0
+        if x > 1: ...
+        if x > 2: ...
+        if x > 3: ...
+        if x > 4: ...
+        if x > 5: ...
+        if x > 6: ...
+        if x > 7: ...
+        if x > 8: ...
+        if x > 9: ...
+        if x > 10: ...
+
+def formatting_issues() -> None:
+    """Function with style violations."""
+    # Pycodestyle: multiple issues
+    a=1  # E225 missing whitespace around operator
+    b = [1,2,3]  # E231 missing whitespace after comma
+    c = {'key1':'value1','key2':'value2'}  # E231
+    print ( "hello" )  # E211 whitespace before '('
+    
+    # Pycodestyle: line too long
+    long_line = "This is a very long line that exceeds 79 characters and should trigger pycodestyle warning E501"
+
+def dodgy_comments() -> None:
+    """Function with suspicious patterns."""
+    # Dodgy: bind all addresses
+    os.system("nc -lvp 1234 -e /bin/bash")  # Dodgy: suspicious command
+    # Dodgy: potential secret in comment? password=secret
+
+def inconsistent_return() -> int:
+    """Function with inconsistent return types."""
+    if os.name == "nt":
+***REMOVED*** 42
+    return None  # MyPy: Incompatible return value type
+
+# Pylint: too many arguments
+def too_many_args(a: int, b: int, c: int, d: int, e: int, f: int) -> None:
+    """Too many arguments."""
+    pass
+
+# Pyflakes: undefined name
+def undefined_name() -> None:
+    print(undefined_var)  # Pyflakes: undefined name
+
+def duplicate_code() -> None:
+    """Not actually duplicate but triggers McCabe complexity."""
+    # McCabe: complex function
+    x = 0
+    while x < 10:
+        if x % 2 == 0: ...
+        elif x % 3 == 0: ...
+        else: ...
+        x += 1
+
+def more_type_errors() -> None:
+    """More MyPy violations."""
+    # MyPy: Incompatible types
+    s: str = 123  # MyPy: Incompatible types in assignment
+
+    # MyPy: Unsupported operand types
+    result = "foo" + 42  # MyPy: Unsupported operand types
+
+def unused_import() -> None:
+    """Pyflakes unused import inside function."""
+    from collections import defaultdict  # Pyflakes: unused import
+    x = 1
+
+# Pylint: too few public methods
+class SmallClass:
+    """Pylint R0903: too few public methods."""
+    pass
+
+def docstring_errors() -> None:
+    """Pydocstyle violations.
+    
+    Returns
+    -------
+    None
+        But doesn't actually return anything meaningful.
+    """
+    # Pydocstyle: DAR101 missing parameter
+    # Pydocstyle: DAR201 no blank line
+    pass
+
+def not_called() -> None:  # Vulture: unused function
+    """Another unused function."""
+    pass
+
+# Pylint: duplicate code threshold (simulated duplication)
+def duplicate_function() -> None:
+    """Not actually duplicate but triggers duplication check."""
+    x = 0
+    while x < 10:
+        if x % 2 == 0: ...
+        elif x % 3 == 0: ...
+        else: ...
+        x += 1
+
+def trailing_whitespace():
+    """Pycode W291 trailing whitespace."""
+    return 0 
+
+def whitespace_around_operator():
+    """Pycode E226 missing whitespace."""
+    return 1+2
+
+    # Type error
+    type_error("string")  # MyPy: Argument has incompatible type
+
+
+import subprocess
+def insecure_shell_command(user_input):
+    # Опасный вызов shell с пользовательским вводом — риск выполнения произвольного кода
+    subprocess.call(user_input, shell=True)
+
+
+user_input = "rm -rf /"  # Опасная команда
+insecure_shell_command(user_input)
+user_input = "os.system('rm -rf /')"
+eval(user_input)  # S307: Use of eval detected, which can lead to security issues
+

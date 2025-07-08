@@ -1,132 +1,254 @@
+from logging.handlers import RotatingFileHandler
+
+import tempfile
 import os
-import sys
 import subprocess
-import threading
 import json
-import time
-from fastapi import FastAPI, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse
-import uvicorn
-import urllib.parse
+from lsprotocol.types import Diagnostic, Range, Position, DiagnosticSeverity
+import logging
+from pathlib import Path
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s %(message)s",
+      handlers=[
+        RotatingFileHandler("RT.log", maxBytes=3 * 1024 * 1024, backupCount=1),
+        logging.StreamHandler(),
+    ],
+)
 
-app = FastAPI()
 
-# --- Глобальные переменные ---
-pylsp_proc = None
-pylsp_lock = threading.Lock()
-diagnostics_result = {}
-diagnostics_event = threading.Event()
-message_id = 1
+class RealTimeAnalysis:
 
-def start_pylsp():
-    global pylsp_proc
-    pylsp_proc = subprocess.Popen(
-        ["pylsp"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
-    threading.Thread(target=read_loop, daemon=True).start()
-    # Отправляем initialize
-    root_uri = f"file://{os.getcwd()}"
-    send_request({
-        "jsonrpc": "2.0",
-        "id": next_msg_id(),
-        "method": "initialize",
-        "params": {"processId": os.getpid(), "rootUri": root_uri, "capabilities": {}}
-    })
-    send_request({"jsonrpc": "2.0", "method": "initialized", "params": {}})
+    current_lsp_id = 0
 
-def next_msg_id():
-    global message_id
-    message_id += 1
-    return message_id
+    NUMBER_OF_PYLSP_PROCESSES = 3
 
-def send_request(message: dict):
-    global pylsp_proc
-    body = json.dumps(message)
-    header = f"Content-Length: {len(body)}\r\n\r\n"
-    pylsp_proc.stdin.write(header.encode('utf-8'))
-    pylsp_proc.stdin.write(body.encode('utf-8'))
-    pylsp_proc.stdin.flush()
+    message_id = 0
+    pylsp_pool = []
 
-def read_loop():
-    global pylsp_proc, diagnostics_result, diagnostics_event
-    while True:
-        headers = {}
-        while True:
-            line = pylsp_proc.stdout.readline()
-            if not line:
-        ***REMOVED***
-            line = line.decode('utf-8').strip()
-            if not line:
-                break
-            key, val = line.split(":", 1)
-            headers[key.strip()] = val.strip()
-        length = int(headers.get("Content-Length", 0))
-        body = pylsp_proc.stdout.read(length).decode('utf-8')
+    def __init__(self):
+        self.start_pylsp()
+
+    def _next_pylsp_process(self):
+        temp = self.current_lsp_id
+        self.current_lsp_id = (self.current_lsp_id + 1) % self.NUMBER_OF_PYLSP_PROCESSES
+***REMOVED*** self.pylsp_pool[temp]
+
+    def _next_message_id(self):
+        temp = self.message_id
+        self.message_id += 1
+***REMOVED*** temp
+
+    def _send_message(self, message: dict, process: subprocess.Popen):
+        body = json.dumps(message)
+        body_encoded = body.encode("utf-8")
+        head = f"Content-Length: {len(body_encoded)}\r\n\r\n"
+        head_encoded = head.encode("utf-8")
+        logging.info(f"Sending message to {process.pid}")
         try:
-            msg = json.loads(body)
-        except Exception:
-            continue
-        # Ловим diagnostics
-        if msg.get("method") == "textDocument/publishDiagnostics":
-            uri = msg["params"]["uri"]
-            diagnostics_result[uri] = msg["params"]["diagnostics"]
-            diagnostics_event.set()
+            process.stdin.write(head_encoded)
+            process.stdin.write(body_encoded)
+            process.stdin.flush()
+        except Exception as e:
+            logging.error(f"Failed to send  message {e}")
+            # TODO: start lsp?
+            self.start_pylsp()
 
-@app.on_event("startup")
-def on_startup():
-    start_pylsp()
-@app.post("/analyze")
-async def analyze(file: UploadFile):
-    if not file:
-***REMOVED*** JSONResponse(content={"error": "No file provided"}, status_code=400)
-    
-    content = await file.read()
-    content = content.decode('utf-8')
-    
-    # Create a file URI with the full path
-    # Use a temporary file or a specific directory for analysis
-    temp_dir = os.path.join(os.getcwd(), "temp_analysis")
-    os.makedirs(temp_dir, exist_ok=True)
-    
-    temp_filepath = os.path.join(temp_dir, file.filename)
-    with open(temp_filepath, 'w', encoding='utf-8') as f:
-        f.write(content)
-    
-    # Create a proper file URI
-    file_uri = f"file://{os.path.abspath(temp_filepath)}"
-    
-    # Синхронизируем доступ к pylsp
-    with pylsp_lock:
-        diagnostics_event.clear()
-        send_request({
+    def _send_init_requests(self):
+        first_init_message = {
+            "jsonrpc": "2.0",
+            "id": self._next_message_id(),
+            "method": "initialize",
+            "params": {"processId": os.getpid(), "rootUri": None, "capabilities": {}},
+        }
+        second_init_message = {"jsonrpc": "2.0", "method": "initialized", "params": {}}
+        for proc in self.pylsp_pool:
+
+            self._send_message(first_init_message, proc)
+            self._send_message(second_init_message, proc)
+
+    def _create_pylsp_processes(self):
+        for i in range(0, self.NUMBER_OF_PYLSP_PROCESSES):
+            proc = subprocess.Popen(
+                ["pylsp"], stdin=subprocess.PIPE, stdout=subprocess.PIPE
+            )
+            logging.info(f"Created process {proc.pid}")
+            self.pylsp_pool.append(proc)
+
+    def start_pylsp(self):
+        self._clear_variables()
+        self._create_pylsp_processes()
+        self._send_init_requests()
+        # TODO: read_loop
+
+    def _clear_variables(self):
+        self.pylsp_pool.clear()
+        self.message_id = 0
+        self.current_lsp_id = 0
+
+    # def on_shutdown():
+    #     # TODO: kill all pyl processes
+    #     global pylsp_proc, executor
+    #     if pylsp_proc:
+    #         pylsp_proc.terminate()
+    #         pylsp_proc.wait()
+    #     executor.shutdown(wait=True)
+
+    def _send_analyse_request(self, code: str, uri: str):
+        did_open_request = {
             "jsonrpc": "2.0",
             "method": "textDocument/didOpen",
             "params": {
                 "textDocument": {
-                    "uri": file_uri,
+                    "uri": uri,
                     "languageId": "python",
                     "version": 1,
-                    "text": content
+                    "text": code,
                 }
-            }
-        })
-        send_request({
+            },
+        }
+        did_save_request = {
             "jsonrpc": "2.0",
             "method": "textDocument/didSave",
-            "params": {"textDocument": {"uri": file_uri}}
-        })
-        # Ждем diagnostics (максимум 4 секунды)
-        diagnostics_event.wait(timeout=4)
-        diags = diagnostics_result.get(file_uri, [])
+            "params": {
+                "textDocument": {
+                    "uri": uri,
+                    "languageId": "python",
+                    "version": 1,
+                    "text": code,
+                }
+            },
+        }
+        process = self._next_pylsp_process()
         
-        # Clean up the temporary file
-        try:
-            os.remove(temp_filepath)
-        except:
-            pass
-            
-    return {"diagnostics": diags}
+        #WARNING: onSave and DidOpen return same diagnostics
+        # but alone works only didOpen
+        logging.info(f"Sending request on open")
+        self._send_message(did_open_request, process)
+        did_open_response = self._read_pylsp_response(process)
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8095)
+        # logging.info(f"Sending request on save")
+        # self._send_message(did_save_request, process)
+        # did_save_response = self._read_pylsp_response(process)
+        
+        # unique_raw_diagnostics = {json.dumps(d, sort_keys=True): d for d in did_open_response}
+***REMOVED*** did_open_response
+
+    def _read_pylsp_response(self, process: subprocess.Popen):
+        """
+        Читает сообщения из stdout pylsp, пока не получит diagnostics.
+        """
+        while True:
+            content_length = self._read_content_length(process)
+            if content_length == 0:
+                continue  # Пропускаем пустые строки
+            body = process.stdout.read(content_length).decode("utf-8")
+            logging.info(f"Read body:\n{body}")
+            try:
+                msg = json.loads(body)
+            except Exception as e:
+                logging.info(f"Error during reading lsp response: \n {e}")
+                continue
+
+            # Если это уведомление о диагностике — возвращаем
+            if msg.get("method") == "textDocument/publishDiagnostics":
+                diagnostics = msg["params"].get("diagnostics", [])
+        ***REMOVED*** diagnostics
+            # Если это просто ответ на запрос — пропускаем
+            # Можно добавить обработку других сообщений, если нужно
+
+    def _read_content_length(self, process: subprocess.Popen):
+        """
+        Читает заголовок Content-Length и возвращает длину следующего сообщения.
+        """
+        while True:
+            line = process.stdout.readline()
+            logging.info(f"Read line: {line}")
+            if not line:
+                raise RuntimeError("pylsp process closed stdout")
+            line = line.decode("utf-8").strip()
+            if not line:
+                # Пустая строка — конец заголовков
+                continue
+            if line.lower().startswith("content-length:"):
+                try:
+                    content_length = int(line.split(":", 1)[1].strip())
+                    # Пропускаем все заголовки, ищем пустую строку-разделитель
+                    while True:
+                        next_line = process.stdout.readline()
+                        if not next_line or next_line == b"\r\n" or next_line == b"\n":
+                            break
+            ***REMOVED*** content_length
+                except Exception as e:
+                    logging.info(f"Error parsing content length: {e}")
+                    continue
+
+    def _read_body(self, content_length: int, process: subprocess.Popen):
+        if content_length > 0:
+            body = process.stdout.read(content_length).decode("utf-8")
+            logging.info(f"Read \n{body}")
+
+            try:
+                msg = json.loads(body)
+            except Exception as e:
+                logging.info(f"Error during reading lsp response: \n {e}")
+        ***REMOVED*** []
+        try:
+            diagnostics = msg["params"].get("diagnostics", [])
+    ***REMOVED*** diagnostics
+        except Exception as e:
+            logging.info(f"Error during fetching diagnostics from lsp:\n{e}")
+            raise RuntimeError(f"Error during fetching diagnostics from lsp: {e}")
+
+    def analyze(self, code_to_analyze: str, uri: str):
+        if not code_to_analyze:
+    ***REMOVED*** []
+        try:
+            raw_diagnostics = self._send_analyse_request(code_to_analyze, uri)
+    ***REMOVED*** raw_diagnostics
+
+        except Exception as e:
+            logging.info(f"Error during sending code for analyzing:\n{e}")
+            raise RuntimeError(f"Error during sending code for analyzing: {e}")
+
+
+
+app = FastAPI()
+rt = RealTimeAnalysis()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+@app.post("/analyze")
+def analyze(file: UploadFile = File(...)):
+    content = file.file.read().decode('utf-8')
+    temp_filepath = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8', suffix='.py') as temp:
+            temp.write(content)
+            temp_filepath = temp.name
+        uri = f"file://{temp_filepath}"
+        raw_diagnostics = rt.analyze(content, uri)
+    finally:
+        if temp_filepath and os.path.exists(temp_filepath):
+            os.remove(temp_filepath)
+    return {
+        "diagnostics": raw_diagnostics
+    }
+
+# if __name__ == "__main__":
+#     with open ("/home/aziz/test/test.txt",'r', encoding='utf-8')as f:
+#
+#         code = f.read()
+#
+#         rt = RealTimeAnalysis()
+#         fp = Path("/home/aziz/test/test.txt").resolve()
+#         logging.info(rt.analyze(code, fp.as_uri()))
+
 

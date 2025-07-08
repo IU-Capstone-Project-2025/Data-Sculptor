@@ -1,0 +1,34 @@
+{
+  "global": {
+    "api_timeout": 300,
+    "api_url": "http://localhost:9362/v1/chat/completions",
+    "request_timeout": 60,
+    "n_requests": 10,
+    "sizes": [100, 2000, 5000],
+    "prompt_template": "Write a concise encyclopedia-style article about quantum computing. Aim for roughly {max_tokens} tokens, avoid questions, and provide clear technical explanations.",
+    "input_prompt_template": "Please provide a concise summary (4-5 sentences) of the following text:\n\n{text}\n\nSummary:",
+    "copy_prompt_template": "Repeat the following text verbatim:\n\n{text}\n\nOutput:"
+  },
+  "benchmarks": [
+    {
+      "name": "vllm_qwen3_base",
+      "model": "/home/developer/.cache/huggingface/hub/models--Qwen--Qwen3-30B-A3B/snapshots/ae659febe817e4b3ebd7355f47792725801204c9",
+      "script": "/launch_scripts/vllm_base.sh"
+    },
+    {
+      "name": "vllm_qwen3_flashinfer",
+      "model": "/home/developer/.cache/huggingface/hub/models--Qwen--Qwen3-30B-A3B/snapshots/ae659febe817e4b3ebd7355f47792725801204c9",
+      "script": "/launch_scripts/vllm_flashinfer.sh"
+    },
+    {
+      "name": "sglang_qwen3_base",
+      "model": "/home/developer/.cache/huggingface/hub/models--Qwen--Qwen3-30B-A3B/snapshots/ae659febe817e4b3ebd7355f47792725801204c9",
+      "script": "/launch_scripts/sglang_base.sh"
+    },
+    {
+      "name": "sglang_qwen3_flashattention",
+      "model": "/home/developer/.cache/huggingface/hub/models--Qwen--Qwen3-30B-A3B/snapshots/ae659febe817e4b3ebd7355f47792725801204c9",
+      "script": "/launch_scripts/sglang_flashattention.sh"
+    }
+  ]
+}
