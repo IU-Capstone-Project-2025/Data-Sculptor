@@ -1,17 +1,26 @@
+import os
+import sys
 from dotenv import load_dotenv
-import os 
+
+HERE = os.path.dirname(__file__)
+PROJECT_ROOT = os.path.abspath(os.path.join(HERE, os.pardir, os.pardir, os.pardir))
+
+deploy_env = os.path.join(PROJECT_ROOT, 'deployment', 'marsel.env')
+load_dotenv(deploy_env, override=True)
+
+jhub_env = os.path.join(HERE, '.env')
+load_dotenv(jhub_env, override=True)
 
 c = get_config()
+c.JupyterHub.spawner_class = 'dockerspawner.DockerSpawner'
+c.DockerSpawner.image = 'jupyter/scipy-notebook'
+c.DockerSpawner.remove = True
 
 c.JupyterHub.authenticator_class = "shared-password"
-
-# add passwords into .env file
-load_dotenv()
 c.SharedPasswordAuthenticator.user_password = os.getenv("SHARED_PASSWORD")
 c.SharedPasswordAuthenticator.admin_password = os.getenv("ADMIN_PASSWORD")
-
 c.Authenticator.allowed_users = {"developer"}
-c.Authenticator.admin_users = {"admin"}
+c.Authenticator.admin_users   = {"admin"}
 
 # Startup tweaks
 c.Spawner.start_timeout = 120
@@ -19,7 +28,6 @@ c.Spawner.http_timeout = 120
 c.Spawner.debug = True
 
 # Environment variables passed from docker-compose.yml
-
 LLM_VALIDATOR_URL = os.getenv('LLM_VALIDATOR_URL')
 URL_STATIC_ANALYZER = os.getenv("URL_STATIC_ANALYZER")
 URL_LSP_SERVER = os.getenv("URL_LSP_SERVER")

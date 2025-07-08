@@ -1,33 +1,6 @@
 version: '3.8'
 
 services:
-  jupyterhub:
-    build:
-      context: ..
-      dockerfile: src/services/backend/jupyter_hub/Dockerfile
-      args:
-        - FEEDBACK_SERVICE_URL=http://${HOST_IP}:${FEEDBACK_PORT_EXTERNAL}
-    container_name: "${COMPOSE_PROJECT_NAME}-jupyterhub"
-    ports:
-      - "${JUPYTER_PORT_EXTERNAL}:8000"
-    volumes:
-      - ../resources/config/jupyterhub/jupyter_ai_config.py:/etc/jupyter/jupyter_server_config.d/jupyter_ai_config.py:ro
-      - ../resources/config/jupyterhub:/srv/jupyterhub:rw
-      # - ../src/services/backend/jupyter_hub_adapter_microservice/sendCode.py:/home/developer/sendCode.py:rw
-      - ../src/services/backend/jupyter_hub/jupyter-lsp-jupyter-server.json:/etc/jupyter/jupyter_server_config.d/jupyter-lsp-jupyter-server.json:rw
-      - ../resources/data/jupyterhub:/home/developer:rw
-    env_file:
-      - ../resources/config/jupyterhub/.env
-    environment:
-      - ADVISER_API_URL=http://${HOST_IP}:{ADVISER_PORT_EXTERNAL}/api/v1/chat
-      - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
-      - URL_STATIC_ANALYZER=http://${HOST_IP}:${ANALYZER_PORT_EXTERNAL}
-      - URL_LSP_SERVER=http://${HOST_IP}:${LSP_PORT_EXTERNAL}
-      # - JUPYTERHUB_HOST=${HOST_IP}:${JUPYTER_PORT_EXTERNAL}
-      # - KEYLOCK_HOST=${HOST_IP}:53010 #TODO: убрать хардкод, тк пока один инстанс  
-    command: >
-      bash -c "chown -R developer:developer /home/developer && exec jupyterhub"
-
   deep-syntatic-service:
     build:
       context: ../src/services/backend/syntactic_analyzis_microservice
