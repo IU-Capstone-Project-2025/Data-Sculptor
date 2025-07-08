@@ -22,7 +22,6 @@ from fastapi import (
 )
 import logging
 from openai import BadRequestError
-import uuid
 
 from feedback_generator import FeedbackGenerator
 from warning_localizer import localize_warnings
