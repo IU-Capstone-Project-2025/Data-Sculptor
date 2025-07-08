@@ -65,8 +65,9 @@ class CaseUploader:
         cmd = [
             "jupyter-repo2docker",
             "--no-run",
-            "--image-name",
-            image_tag,
+            "--user-name", "jovyan",
+            "--user-id", "1000",
+            "--image-name", image_tag,
             build_dir,
         ]
         
