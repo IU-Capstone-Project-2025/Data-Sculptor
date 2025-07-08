@@ -1,3 +1,4 @@
+
 from dockerspawner import DockerSpawner
 from oauthenticator.generic import GenericOAuthenticator
 from tornado.web import HTTPError
@@ -6,6 +7,7 @@ import logging
 import re
 import os
 
+
 logging.basicConfig(level=logging.DEBUG)
 
 PROTO = "http"
@@ -13,6 +15,10 @@ JH_DOMAIN = os.getenv("JUPYTERHUB_DOMAIN_NAME")
 JH_PORT = os.getenv("JUPYTERHUB_PORT_INTERNAL")
 logging.info(f"starting on {JH_DOMAIN}:{JH_PORT}")
 c = get_config()
+c.JupyterHub.spawner_class = 'dockerspawner.DockerSpawner'
+c.DockerSpawner.image = 'jupyter/scipy-notebook'
+c.DockerSpawner.remove = True
+
 
 logging.info(f"Secret of {os.getenv('CLIENT_ID')} is {os.getenv('CLIENT_SECRET')}")
 
@@ -30,11 +36,13 @@ c.GenericOAuthenticator.userdata_token_method = "Bearer"
 c.GenericOAuthenticator.username_claim = 'preferred_username'
 c.GenericOAuthenticator.scope = ['openid', 'profile', 'email']
 
+
 async def get_auth_state(auth_state):
     auth_state_data = auth_state.get("auth_state")
     if not auth_state_data:
         auth_state_data = auth_state
     return auth_state_data
+
 
 # Check if user in JH group
 async def post_auth_hook(authenticator, handler, auth_state):
@@ -46,6 +54,7 @@ async def post_auth_hook(authenticator, handler, auth_state):
     oauth_user = auth_state_data.get("oauth_user")
     role = oauth_user.get("jupyterhub-role")
     logging.info(f"logged {role}, auth state: {oauth_user}")
+
 
     if role not in ["user", "admin"]:
         logging.error(f"Access for {oauth_user} denied")
