@@ -8,15 +8,16 @@ from settings import settings
 
 from profile_context import ProfileContextGateway
 from feedback_generator import FeedbackGenerator
+from schemas import MLScentLocalizationRequest, FeedbackRequest
 
 
-def get_llm_client(body: Annotated[dict, Body(...)]):
+def get_llm_client(body: Annotated[FeedbackRequest | MLScentLocalizationRequest, Body(...)]):
     """Return a configured Qwen LLM client for this request."""
     return get_qwen_client(
         llm_base_url=settings.llm_base_url,
         llm_api_key=settings.llm_api_key,
         llm_model=settings.llm_model,
-        enable_thinking=body["use_deep_analysis"],
+        enable_thinking=body.use_deep_analysis,
         temperature=0.0,
     )
 
