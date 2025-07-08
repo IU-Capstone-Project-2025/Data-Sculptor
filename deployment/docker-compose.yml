@@ -111,7 +111,7 @@ services:
       dockerfile: Dockerfile
     container_name: "${COMPOSE_PROJECT_NAME}-profile-uploader"
     ports:
-      - "${PROFILE_UPLOAD_PORT_EXTERNAL}:9354"
+      - "${PROFILE_UPLOAD_PORT_EXTERNAL}:${PROFILE_UPLOAD_SERVICE_PORT}"
     environment:
       - PYTHONUNBUFFERED=1
       - PROFILE_POSTGRES_DSN=postgresql://app:app@${HOST_IP}:${POSTGRES_PORT_EXTERNAL}/datasculptor
