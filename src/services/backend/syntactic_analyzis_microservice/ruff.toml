@@ -1,0 +1,7 @@
+extend-include = ["*.ipynb"]
+line-length = 120
+
+[lint]
+select = [
+  "E", "D", "N", "UP", "ANN", "S", "SIM", "RET", "SLF", "PD", "NPY", "ERA", "FLY", "TRY", "PERF", "RUF", "EXE", "LOG", "G", "COM", "BLE", "FBT", "A", "DTZ", "EM", "PIE", "RSE", "TC", "FIX", "ISC", "DOC", "FURB", "YESQA"
+]
