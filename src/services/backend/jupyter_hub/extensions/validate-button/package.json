@@ -1,0 +1,22 @@
+{
+  "name": "validate-button",
+  "version": "1.0.0",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "style": "style/index.css",
+  "license": "MIT",
+  "jupyterlab": {
+    "extension": true
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "dependencies": {
+    "@jupyterlab/application": "^4.4.3",
+    "@jupyterlab/notebook": "^4.4.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

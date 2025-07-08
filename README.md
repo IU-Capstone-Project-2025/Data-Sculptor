@@ -17,7 +17,12 @@ An integrated IDE agent that mentors users in Machine Learning and Data Science 
 
     - Edit code in Jupyter notebooks
 
-    - Save with Ctrl+S → Auto-linting
+    - Press Syntactic-Analysis button and get the feedback in LSP format
+    ![image](https://github.com/user-attachments/assets/a0e800d4-1de5-498c-afec-ca5dff8b8d7c)
+
+    - Press Semantic-Analysis button and get the .md report in same directory with .ipynb
+    ![image](https://github.com/user-attachments/assets/2ec28aba-7777-473e-a5f0-53c94319f9e6)
+
 
 4. One-Click Environment
 
@@ -35,13 +40,13 @@ cd Data-Sculptor
 2. Start the JupyterHub
 
 ```bash
-cd deployment/uat 
-docker compose up --build
+cd deployment
+docker compose -p uat --env-file uat.env up --build
 ```
 
-3. Enter the container
+3. Enter the JupyterHub container
 ```bash
-docker exec -it <container_name_or_id> bash
+docker exec -it uat-jupyterhub bash
 ```
 
 Then:
@@ -53,9 +58,6 @@ chown -R developer:developer /home/developer
 ❗️Exit the container before authorization in browser
 
 4. Login at:
-   http://localhost (default port :11000)
-
-
-
+   http://localhost:11000
 
 

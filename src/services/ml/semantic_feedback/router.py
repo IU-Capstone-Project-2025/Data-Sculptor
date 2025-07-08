@@ -15,35 +15,42 @@ from pathlib import Path
 import yaml
 from fastapi import (
     APIRouter,
-    File,
-    Form,
     HTTPException,
-    UploadFile,
     status,
+    Body,
+    Depends,
 )
 import logging
 from openai import BadRequestError
 
-from notebook import JupyterNotebook
-from feedback_generator import generate_feedback
-from warnings_generator import generate_warnings
-from qwen import get_qwen_client
-from settings import settings
-from schemas import FeedbackResponse, HealthCheckResponse
+from feedback_generator import FeedbackGenerator
+from warning_localizer import localize_warnings
+from schemas import (
+    FeedbackResponse,
+    HealthCheckResponse,
+    FeedbackRequest,
+    MLScentLocalizationRequest,
+    MLScentLocalizationResponse,
+)
+from dependencies import get_feedback_generator, get_llm_client
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 OPENAPI_SPEC_FEEDBACK = yaml.safe_load(
-    Path(settings.open_api_folder).joinpath("feedback.yaml").read_text()
+    (Path(__file__).parent / "docs" / "openapi" / "feedback.yaml").read_text()
 )
+
+OPENAPI_SPEC_LOCALIZE = yaml.safe_load(
+    (Path(__file__).parent / "docs" / "openapi" / "localize_mlscent.yaml").read_text()
+)
+
 
 @router.get(
     "/health",
     response_model=HealthCheckResponse,
     summary="Health check endpoint",
     tags=["Health"],
-    openapi_extra=OPENAPI_SPEC_FEEDBACK,
 )
 async def health_check() -> HealthCheckResponse:
     """Performs a health check of the service."""
@@ -53,50 +60,43 @@ async def health_check() -> HealthCheckResponse:
 @router.post(
     "/feedback",
     response_model=FeedbackResponse,
-    summary="Submit a Jupyter Notebook for automated code feedback",
+    summary="Submit code for automated feedback",
     tags=["Feedback"],
     openapi_extra=OPENAPI_SPEC_FEEDBACK,
 )
 async def get_feedback(
-    file: UploadFile = File(...),
-    target_cell_id: int = Form(-1),
-    use_deep_analysis: bool = Form(False),
+    body: FeedbackRequest = Body(...),
+    generator: FeedbackGenerator = Depends(get_feedback_generator),
 ) -> FeedbackResponse:
-    """Receives a Jupyter notebook, extracts code, and returns general LLM feedback."""
+    """Generate feedback for a code snippet supplied by the client."""
+
     try:
-        if not file.filename or not file.filename.endswith(".ipynb"):
-            raise HTTPException(status_code=400, detail="Invalid file type. Please upload a .ipynb file.")
-        
-        llm_client = get_qwen_client(enable_thinking=use_deep_analysis)
+        if not body.current_code.strip():
+            raise HTTPException(
+                status_code=400, detail="current_code must not be empty."
+            )
 
-        notebook = JupyterNotebook(await file.read())
-        code_cells = notebook.get_code_cells()
-        if not code_cells:
-            raise HTTPException(status_code=400, detail="The notebook does not contain any code cells.")
-
-        formatted_code = "\n".join(code_cells)
-        
-        non_localized_feedback = await generate_feedback(formatted_code, llm_client=llm_client)
-        
-        if target_cell_id == -1:
-            warn_code, global_offset = formatted_code, 0
-        else:
-            warn_code, global_offset = notebook.get_code_cell_with_offset(target_cell_id)
-
-        localized_feedback = await generate_warnings(
-            warn_code,
-            global_line_offset=global_offset,
-            llm_client=llm_client,
+        non_localized_feedback, localized_feedback = await generator.generate_feedback(
+            user_code=body.current_code,
+            profile_id=body.profile_index,
+            section_index=body.section_index,
+            global_line_offset=body.cell_code_offset,
         )
 
         return FeedbackResponse(
             non_localized_feedback=non_localized_feedback,
             localized_feedback=localized_feedback,
         )
-    except IndexError:
-        logger.error("Invalid target cell index", exc_info=True)
-        raise HTTPException(status_code=400, detail="Invalid target cell index")
-    
+
+    except ValueError:
+        logger.error(
+            f"Profile {body.profile_index} or section {body.section_index} not found"
+        )
+        raise HTTPException(
+            status_code=404,
+            detail=f"Profile {body.profile_index} or section {body.section_index} not found",
+        )
+
     except BadRequestError as openai_error:
         logger.error("LLM request error", exc_info=True)
         error_body = json.loads(openai_error.response.text)
@@ -108,3 +108,53 @@ async def get_feedback(
     except Exception as e:
         logger.error("Unexpected error", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to get feedback: {e}")
+
+
+@router.post(
+    "/localize_mlscent",
+    response_model=MLScentLocalizationResponse,
+    summary="Localise high-level warnings into code positions",
+    tags=["Localization"],
+    openapi_extra=OPENAPI_SPEC_LOCALIZE,
+)
+async def localize_mlscent(
+    body: MLScentLocalizationRequest = Body(...),
+    llm_client=Depends(get_llm_client),
+) -> MLScentLocalizationResponse:
+    """Localise a list of high-level warnings to specific lines of the given code.
+
+    The request body must contain:
+        - current_code: The code snippet to analyse.
+        - warnings: A list of warnings to be localised.
+    """
+
+    try:
+        if not body.current_code.strip():
+            raise HTTPException(
+                status_code=400, detail="current_code must not be empty."
+            )
+        if not body.warnings:
+            raise HTTPException(
+                status_code=400, detail="warnings list must not be empty."
+            )
+
+        localized_feedback = await localize_warnings(
+            llm_client=llm_client,
+            code=body.current_code,
+            warnings=body.warnings,
+            global_line_offset=body.cell_code_offset or 0,
+        )
+
+        return MLScentLocalizationResponse(localized_feedback=localized_feedback)
+
+    except BadRequestError as openai_error:
+        logger.error("LLM request error", exc_info=True)
+        error_body = json.loads(openai_error.response.text)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"LLM request error: {error_body['message']}",
+        ) from openai_error
+
+    except Exception as e:
+        logger.error("Unexpected error", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to localise warnings: {e}")
