@@ -40,7 +40,7 @@ async def test_case_upload():
     
     # Upload to the service
     async with aiohttp.ClientSession() as session:
-        url = "http://localhost:52768/api/v1/upload_case/test-data-analysis"
+        url = "http://10.100.30.239:51804/api/v1/upload_case/test-data-analysis"
         
         try:
             print(f"\n🚀 Uploading to: {url}")
