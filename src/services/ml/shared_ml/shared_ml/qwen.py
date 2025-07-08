@@ -3,12 +3,14 @@
 This module provides functionality to interact with the Qwen LLM through LangChain.
 """
 
+from __future__ import annotations
+
 import os
+
 from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
 
-
-__all__ = [
+__all__: list[str] = [
     "get_qwen_client",
 ]
 
@@ -45,4 +47,4 @@ def get_qwen_client(
         },
         **kwargs,
     )
-    return llm
+    return llm 
