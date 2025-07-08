@@ -61,7 +61,7 @@ async def test_case_upload():
 async def test_health_check():
     """Test the health check endpoint."""
     async with aiohttp.ClientSession() as session:
-        url = "http://10.100.30.239:51804/api/v1/health"
+        url = "http://localhost:51804/api/v1/health"
         
         try:
             async with session.get(url) as response:
