@@ -195,7 +195,13 @@ cython_debug/
 
 .DS_Store
 
-/resources/
+/resources/data/
+/resources/static_resources/
 
 Pycharm
 .idea/
+src/services/ml/semantic_feedback/.env
+
+
+# Aziz's trash
+/deployment/restart.sh

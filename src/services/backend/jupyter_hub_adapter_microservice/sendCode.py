@@ -18,6 +18,22 @@ class AnalyzeMagic(Magics):
         '''
         display(Javascript(js))
         print("💾 Notebook saved; static analysis will run on save.")
+    
+    @cell_magic
+    def LLM_Validation(self, line, cell):
+        file_path = line.strip()
+        self.path_is_valid(file_path)
+        backend_URL = os.getenv("LLM_VALIDATOR_URL")
+        try:
+            with open(file_path, 'rb') as f:
+                files = {'file': f}
+                response = requests.post(f"{backend_URL}/getMdFeedback", files=files)
+            
+            with open(f"{os.path.dirname(file_path)}/response.md", "wb") as f:
+                f.write(response.content)
+                
+        except requests.exceptions.RequestException as e:
+            print(f"[ERROR] {e}")
 
 
 def load_ipython_extension(ipython):

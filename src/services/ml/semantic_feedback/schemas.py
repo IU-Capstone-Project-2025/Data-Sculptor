@@ -8,7 +8,7 @@ Public API:
     - FeedbackResponse: Schema for the feedback endpoint response.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, UUID4
 from typing import Literal
 
 
@@ -57,4 +57,55 @@ class FeedbackResponse(BaseModel):
     )
     localized_feedback: list[LocalizedWarning] = Field(default_factory=list)
 
-    # Examples moved to OpenAPI YAML for clearer documentation maintenance.
+
+class FeedbackRequest(BaseModel):
+    current_code: str = Field(..., description="Code snippet to analyse.")
+    cell_code_offset: int = Field(
+        0, ge=0, description="Global line offset of the snippet in the full notebook."
+    )
+    section_index: int = Field(
+        ..., ge=0, description="Identifier of section to validate."
+    )
+    profile_index: UUID4 = Field(
+        ..., description="Identifier of the profile (case) to validate against."
+    )
+    use_deep_analysis: bool = Field(
+        default=True, description="Whether to use deep analysis."
+    )
+
+
+class MLScentWarningItem(BaseModel):
+    """Input schema for a single high-level warning description from MLScent."""
+
+    description: str = Field(..., description="Warning description.")
+    framework: str = Field(..., description="Associated ML/DS framework.")
+    fix: str = Field(..., description="Suggested fix for the warning.")
+    benefit: str = Field(..., description="Benefit gained by applying the fix.")
+
+    def get_llm_description(self) -> str:
+        fix = f"How to fix: {self.fix}" if self.fix != "Not specified" else ""
+        benefit = f"Benefits: {self.benefit}" if self.benefit != "Not specified" else ""
+        return f"Description: {self.description}\nFramework: {self.framework}\n{fix}\n{benefit}"
+
+
+class MLScentLocalizationRequest(BaseModel):
+    """Request model for localising warnings into code positions."""
+
+    current_code: str = Field(..., description="Code snippet to analyse.")
+    warnings: list[MLScentWarningItem] = Field(
+        ..., description="List of high-level warning objects to be localised."
+    )
+    cell_code_offset: int | None = Field(
+        0,
+        ge=0,
+        description="Global line offset of the snippet in the full notebook (optional).",
+    )
+    use_deep_analysis: bool = Field(
+        default=False, description="Whether to use deep analysis."
+    )
+
+
+class MLScentLocalizationResponse(BaseModel):
+    """Response model containing localised warnings in LSP format."""
+
+    localized_feedback: list[LocalizedWarning] = Field(default_factory=list)

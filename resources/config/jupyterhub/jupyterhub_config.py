@@ -32,3 +32,22 @@ c.Spawner.environment = {
     'URL_LSP_SERVER':URL_LSP_SERVER
 
 }
+
+
+# from oauthenticator.generic import GenericOAuthenticator
+#
+# KEYLOCK_HOST = os.getenv("KEYLOCK_HOST")
+# JUPYTERHUB_HOST = os.getenv("JUPYTERHUB_HOST")
+#
+# c.JupyterHub.authenticator_class = GenericOAuthenticator
+#
+# c.GenericOAuthenticator.client_id = 'jupyterhub'
+# c.GenericOAuthenticator.client_secret = 'SgWlrwMEvOdQ5N4jlheipE8us91DHzMI'
+# c.GenericOAuthenticator.oauth_callback_url = f'http://{JUPYTERHUB_HOST}/hub/oauth_callback'
+#
+# c.GenericOAuthenticator.authorize_url = f'http://{KEYLOCK_HOST}/realms/App-Users/protocol/openid-connect/auth'
+# c.GenericOAuthenticator.token_url = f'http://{KEYLOCK_HOST}/realms/App-Users/protocol/openid-connect/token'
+# c.GenericOAuthenticator.userdata_url = f'http://{KEYLOCK_HOST}/realms/App-Users/protocol/openid-connect/userinfo'
+#
+# c.GenericOAuthenticator.username_key = 'preferred_username'
+# c.GenericOAuthenticator.scope = ['openid', 'profile', 'email']

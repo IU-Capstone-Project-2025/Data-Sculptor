@@ -27,6 +27,7 @@ class Settings(BaseSettings):
         feedback_service_host (str): The host for the feedback service.
         feedback_service_port (int): The port for the feedback service.
         feedback_service_n_workers (int): The number of workers for the feedback service.
+        profile_postgres_dsn (str): PostgreSQL DSN for fetching reference profiles.
     """
 
     llm_base_url: str
@@ -35,8 +36,9 @@ class Settings(BaseSettings):
     feedback_service_host: str = "127.0.0.1"
     feedback_service_port: int = 8000
     feedback_service_n_workers: int = 1
-    
-    open_api_folder: str = "./docs/openapi/"
+
+    # Database connection string for accessing reference profiles.
+    profile_postgres_dsn: str
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
