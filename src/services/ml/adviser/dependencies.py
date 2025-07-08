@@ -13,7 +13,7 @@ from fastapi import Body, Depends
 
 from schemas import ChatRequest
 from settings import settings
-from services.ml.shared_ml.qwen import get_qwen_client
+from shared_ml.qwen import get_qwen_client
 from tokenizers import Tokenizer
 from memory_manager import MemoryManager
 
