@@ -7,6 +7,7 @@ import asyncpg
 from fastapi import UploadFile
 from minio import Minio
 from minio.error import S3Error
+import sys
 
 
 class CaseUploader:
@@ -61,20 +62,34 @@ class CaseUploader:
             out_file.write(content)
 
     async def _build_docker_image_with_repo2docker(self, build_dir: str, image_tag: str):
-        """Build Docker image using repo2docker."""
+        """Build Docker image using repo2docker and stream output to logs."""
         cmd = [
             "jupyter-repo2docker",
             "--no-run",
-            "--user-name", "jovyan",
+            "--user-name", "jovyan", # jupyter-repo2docker does not allow run by root
             "--user-id", "1000",
             "--image-name", image_tag,
             build_dir,
         ]
-        
-        result = subprocess.run(cmd, text=True, capture_output=True)
-        
-        if result.returncode != 0:
-            raise RuntimeError(f"Failed to build Docker image: {result.stderr}")
+        print(f"Running command: {' '.join(cmd)}")
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        # Stream output line by line
+        if process.stdout is not None:
+            for line in process.stdout:
+                print(line, end='')  # Already includes newline
+            process.stdout.close()
+        else:
+            print("No output from process.")
+
+        process.wait()
+        if process.returncode != 0:
+            raise RuntimeError(f"Failed to build Docker image, see logs above.")
 
     async def _save_and_upload_docker_image(self, image_tag: str, case_id: str) -> str:
         """Save Docker image to tar file and upload to MinIO."""
