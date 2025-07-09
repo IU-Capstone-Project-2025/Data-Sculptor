@@ -9,7 +9,7 @@ An integrated IDE agent that mentors users in Machine Learning and Data Science 
 
 2. Deep Syntax Validation
   
-    Comprehensive code analysis using multiple linters: pylint, mypy, dodgy, pydocstyle, vulture
+    Comprehensive code analysis using multiple linters: ruff, pylint, vulture, bandit, ml-smell-detector
 
 3. Integrated Workflow
   
@@ -20,7 +20,7 @@ An integrated IDE agent that mentors users in Machine Learning and Data Science 
     - Press Syntactic-Analysis button and get the feedback in LSP format
     ![image](https://github.com/user-attachments/assets/a0e800d4-1de5-498c-afec-ca5dff8b8d7c)
 
-    - Press Semantic-Analysis button and get the .md report in same directory with .ipynb
+    - Press Semantic-Analysis button and get the .md report in same directory with .ipynb and localized feedback as comments in your notebook
     ![image](https://github.com/user-attachments/assets/2ec28aba-7777-473e-a5f0-53c94319f9e6)
 
 
@@ -58,6 +58,6 @@ chown -R developer:developer /home/developer
 ❗️Exit the container before authorization in browser
 
 4. Login at:
-   http://localhost:11000
+   http://localhost:52152
 
 
