@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     # required
     profile_postgres_dsn: str
 
+    # MinIO settings
+    minio_endpoint: str = "localhost:9000"
+    minio_access_key: str = "minioadmin"
+    minio_secret_key: str = "minioadmin"
+    minio_bucket_name: str = "cases"
+
     # optional with sane defaults
     profile_upload_service_host: str = "127.0.0.1"
     profile_upload_service_port: int = 8001

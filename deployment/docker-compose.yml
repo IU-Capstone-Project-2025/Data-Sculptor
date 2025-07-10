@@ -28,7 +28,7 @@ services:
       - JUPYTERHUB_PORT_INTERNAL=${JUPYTERHUB_PORT_INTERNAL}
       - JUPYTERHUB_DOMAIN_NAME=${JUPYTERHUB_DOMAIN}
       - ADVISER_API_URL=http://${HOST_IP}:{ADVISER_PORT_EXTERNAL}/api/v1/chat
-      - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
+      # - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL} # Медиатор не используется
       - URL_STATIC_ANALYZER=http://${HOST_IP}:${ANALYZER_PORT_EXTERNAL}
       - URL_LSP_SERVER=http://${HOST_IP}:${LSP_PORT_EXTERNAL}
     command: >
@@ -72,18 +72,18 @@ services:
     ports:
       - "${LSP_PORT_EXTERNAL}:8095"
 
-  mediator:
-    build:
-      context: ../src/services/backend/mediator_jupyter_hub_llm_microservice
-      dockerfile: Dockerfile
-    container_name: "${COMPOSE_PROJECT_NAME}-mediator"
-    ports:
-      - "${MEDIATOR_PORT_EXTERNAL}:8001"
-    environment:
-      - PYTHONUNBUFFERED=1
-      - FEEDBACK_SERVICE_URL=http://${HOST_IP}:${FEEDBACK_PORT_EXTERNAL}
-    volumes:
-      - ../src/services/backend/mediator_jupyter_hub_llm_microservice:/app:rw
+  # mediator:
+  #   build:
+  #     context: ../src/services/backend/mediator_jupyter_hub_llm_microservice
+  #     dockerfile: Dockerfile
+  #   container_name: "${COMPOSE_PROJECT_NAME}-mediator"
+  #   ports:
+  #     - "${MEDIATOR_PORT_EXTERNAL}:8001"
+  #   environment:
+  #     - PYTHONUNBUFFERED=1
+  #     - FEEDBACK_SERVICE_URL=http://${HOST_IP}:${FEEDBACK_PORT_EXTERNAL}
+  #   volumes:
+  #     - ../src/services/backend/mediator_jupyter_hub_llm_microservice:/app:rw
 
   feedback-service:
     build:
@@ -137,18 +137,26 @@ services:
       dockerfile: Dockerfile
     container_name: "${COMPOSE_PROJECT_NAME}-profile-uploader"
     ports:
-      - "${PROFILE_UPLOAD_PORT_EXTERNAL}:9354"
+      - "${PROFILE_UPLOAD_PORT_EXTERNAL}:${PROFILE_UPLOAD_SERVICE_PORT}"
     environment:
       - PYTHONUNBUFFERED=1
       - PROFILE_POSTGRES_DSN=postgresql://app:app@${HOST_IP}:${POSTGRES_PORT_EXTERNAL}/datasculptor
       - PROFILE_UPLOAD_SERVICE_HOST=${PROFILE_UPLOAD_SERVICE_HOST}
       - PROFILE_UPLOAD_SERVICE_PORT=${PROFILE_UPLOAD_SERVICE_PORT}
       - PROFILE_UPLOAD_SERVICE_N_WORKERS=${PROFILE_UPLOAD_SERVICE_N_WORKERS}
+      - MINIO_ENDPOINT=${HOST_IP}:${MINIO_PORT_EXTERNAL}
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET_NAME=cases
     volumes:
       - ../src/services/backend/profile_uploader:/app/profile_uploader:ro
+      - /var/run/docker.sock:/var/run/docker.sock:rw
     depends_on:
       postgres:
         condition: service_healthy
+      minio:
+        condition: service_healthy
+
   postgres:
     image: postgres:15
     container_name: "${COMPOSE_PROJECT_NAME}-postgres"
@@ -162,8 +170,9 @@ services:
       - ../resources/data/postgres:/var/lib/postgresql/data:rw
       - ../resources/config/postgres/init_scripts:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "app", "-d", "datasculptor"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U app -d datasculptor"]
+      interval: 5s
+      timeout: 5s
       retries: 5
 
   redis:
@@ -227,12 +236,31 @@ services:
       timeout: 10s
       retries: 5
 
+  minio:
+    image: minio/minio:latest
+    container_name: "${COMPOSE_PROJECT_NAME}-minio"
+    ports:
+      - "${MINIO_PORT_EXTERNAL}:9000"
+      - "${MINIO_CONSOLE_PORT_EXTERNAL}:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - ../resources/data/minio:/data:rw
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
 volumes:
   dev_postgres_data:
   dev_redis_data:
   keycloak_db_data:
   keycloak_data:
   vault-data:
+  dev_minio_data:
 
 networks:
   jupyter-network:
