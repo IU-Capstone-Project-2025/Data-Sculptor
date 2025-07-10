@@ -44,7 +44,7 @@ services:
   # Assigns users to their containers based on usernamev
   nginx:
     image: nginx:alpine
-    container_name: jupyter-proxy
+    container_name: "${COMPOSE_PROJECT_NAME}-jupyter-proxy"
     ports:
       - "80:80"
     volumes:
