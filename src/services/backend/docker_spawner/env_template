@@ -1,0 +1,21 @@
+# Docker Spawner Service Environment Variables
+
+# AWS Configuration
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+AWS_DEFAULT_REGION=us-east-1
+
+# S3 Configuration
+S3_BUCKET_NAME=case
+S3_REGION=us-east-1
+
+# Authentication Service
+AUTH_SERVICE_URL=http://localhost:8080
+
+# Service Configuration
+LOG_LEVEL=INFO
+PORT=8000
+HOST=0.0.0.0
+
+# Docker Configuration
+DOCKER_HOST=unix:///var/run/docker.sock 
