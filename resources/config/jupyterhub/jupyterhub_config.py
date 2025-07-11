@@ -3,6 +3,7 @@ from oauthenticator.generic import GenericOAuthenticator
 from tornado.web import HTTPError
 #from jupyter_helper_classes import MyDockerSpawner
 import logging
+import base64
 ***REMOVED***
 import os
 
@@ -10,8 +11,12 @@ logging.basicConfig(level=logging.DEBUG)
 
 PROTO = "http"
 JH_DOMAIN = os.getenv("JUPYTERHUB_DOMAIN_NAME")
-JH_PORT = os.getenv("JUPYTERHUB_PORT_INTERNAL")
-logging.info(f"starting on {JH_DOMAIN}:{JH_PORT}")
+DOMAIN = os.getenv("DOMAIN")
+
+JH_PORT_EXT = os.getenv("JUPYTERHUB_PORT_EXTERNAL")
+JH_PORT_INT = os.getenv("JUPYTERHUB_PORT_INTERNAL")
+
+logging.info(f"starting on {JH_DOMAIN}:{JH_PORT_INT}")
 c = get_config()
 
 logging.info(f"Secret of {os.getenv('CLIENT_ID')} is {os.getenv('CLIENT_SECRET')}")
@@ -82,23 +87,41 @@ c.DockerSpawner.use_internal_ip = True
 c.DockerSpawner.name_template = 'jupyter-{username}'
 c.DockerSpawner.debug = True
 c.DockerSpawner.docker_host = 'unix:///var/run/docker.sock'
-
+c.DockerSpawner.subdomain = '{username}'
 
 # Subdomain proxy
-c.JupyterHub.bind_url = f'{PROTO}://0.0.0.0:8000'
+c.JupyterHub.bind_url = f'{PROTO}://0.0.0.0:{JH_PORT_INT}'
 c.JupyterHub.hub_connect_ip = JH_DOMAIN
 c.JupyterHub.subdomain_host = f'{PROTO}://{JH_DOMAIN}'
 c.JupyterHub.db_url = 'sqlite:////srv/jupyterhub/jupyterhub.sqlite'
 c.JupyterHub.allow_named_servers = True
 c.JupyterHub.redirect_to_server = False
-c.JupyterHub.cookie_domain = f'.{JH_DOMAIN}'
+
+c.JupyterHub.log_level = 'DEBUG'
+c.ConfigurableHTTPProxy.debug = True
+
+with open("/srv/jupyterhub/jupyterhub_cookie_secret", "r") as f:
+    secret_str = f.read().strip()
+    logging.info(f"READING COOKIE KEY {secret_str}")
+
+key = base64.urlsafe_b64decode(secret_str.encode())
+c.CryptKeeper.keys = [key]
+
+c.JupyterHub.cookie_domain = f'.{DOMAIN}'
 c.JupyterHub.trusted_downstream_ips = ['0.0.0.0/0']
 
+# Only https`
+#c.JupyterHub.cookie_options = {
+#    "SameSite": "None"
+#}
+
+c.DockerSpawner.environment = {
+    'JUPYTERHUB_CRYPT_KEY': secret_str
+}
 
 c.JupyterHub.tornado_settings = {
     'headers': {
-        'Access-Control-Allow-Origin': f'{PROTO}://{JH_DOMAIN}:{JH_PORT}',
+        'Access-Control-Allow-Origin': f'{PROTO}://{DOMAIN}:{JH_PORT_INT}',
         'Access-Control-Allow-Credentials': 'true',
     }
 }
-
