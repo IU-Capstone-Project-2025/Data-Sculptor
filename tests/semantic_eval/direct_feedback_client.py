@@ -3,6 +3,14 @@
 This script imports and uses the FeedbackGenerator from the main codebase
 while also accessing local test utilities, replacing HTTP-based router client
 with direct function calls to eliminate network overhead.
+
+IMPORTANT: Importing this module will shadow all local models with names:
+    - prompts
+    - schemas
+    - llm_schemas
+    - profile_context
+    - feedback_generator
+If you need to use local models with such names, import them with importlib.
 """
 
 from __future__ import annotations
@@ -96,15 +104,15 @@ class MockProfileContextGateway:
     async def get_section(
         self, case_id: uuid.UUID, section_index: int
     ) -> tuple[str, str, str]:
-        """Return (profile_desc, section_desc, reference_code) for the section.
+        """Return profile and section data for the specified case and section.
 
         Args:
             case_id: UUID of the case.
             section_index: Zero-based index of the section within the profile.
 
         Returns:
-            tuple[str, str, str]: A tuple containing the profile description,
-            section description, and reference code.
+            A tuple containing the profile description, section description,
+            and reference code.
 
         Raises:
             ValueError: If the case/section pair does not exist.
