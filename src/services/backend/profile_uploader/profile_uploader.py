@@ -39,11 +39,11 @@ class ProfileUploader:
     """Parse and persist Jupyter notebook *profiles*.
 
     Args:
-        pg_pool: Asyncpg connection pool used for database access.
+        conn: Asyncpg connection with an active transaction for database access.
     """
 
-    def __init__(self, pg_pool: asyncpg.Pool):
-        self._pg_pool = pg_pool
+    def __init__(self, conn: asyncpg.Connection):
+        self._conn = conn
 
     async def store_profile(self, ipynb_bytes: bytes, case_id: str) -> None:
         """Extract notebook content and write a new profile to Postgres.
@@ -151,30 +151,28 @@ class ProfileUploader:
     async def _insert_into_db(
         self, case_id: uuid.UUID, description: str, sections: list[Section]
     ) -> None:
-        """Insert *profile* and its *sections* within a single transaction."""
-        async with self._pg_pool.acquire() as conn:
-            async with conn.transaction():
-                await conn.execute(
-                    """
-                    INSERT INTO profile_descriptions(case_id, description, created_at)
-                    VALUES($1, $2, now())
-                    """,
-                    case_id,
-                    description,
-                )
+        """Insert *profile* and its *sections* using the transactional connection."""
+        await self._conn.execute(
+            """
+            INSERT INTO profile_descriptions(case_id, description, created_at)
+            VALUES($1, $2, now())
+            """,
+            case_id,
+            description,
+        )
 
-                await conn.executemany(
-                    """
-                    INSERT INTO profile_sections(case_id, section_id, description, code, created_at)
-                    VALUES($1, $2, $3, $4, now())
-                    """,
-                    [
-                        (
-                            case_id,
-                            section_id,
-                            section.description,
-                            section.code,
-                        )
-                        for section_id, section in enumerate(sections)
-                    ],
+        await self._conn.executemany(
+            """
+            INSERT INTO profile_sections(case_id, section_id, description, code, created_at)
+            VALUES($1, $2, $3, $4, now())
+            """,
+            [
+                (
+                    case_id,
+                    section_id,
+                    section.description,
+                    section.code,
                 )
+                for section_id, section in enumerate(sections)
+            ],
+        )

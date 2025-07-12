@@ -12,10 +12,16 @@ from case_uploader import CaseUploader
 from settings import settings
 
 
-def get_pg_pool(request: Request):
-    """Return the shared *asyncpg* connection pool from the lifespan state."""
-
-    return request.state.postgres_pool
+async def get_pg_transaction_connection(request: Request):
+    """Return a transactional database connection from the shared pool.
+    
+    Creates a connection with an active transaction that will be automatically
+    committed on success or rolled back on error.
+    """
+    pool = request.state.postgres_pool
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            yield conn
 
 
 def get_minio_client() -> Minio:
@@ -29,18 +35,18 @@ def get_minio_client() -> Minio:
 
 
 def get_profile_service(
-    pg_pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    conn: Annotated[asyncpg.Connection, Depends(get_pg_transaction_connection)],
 ) -> ProfileUploader:
-    """Create a *ProfileUploaderService* instance wired with *pg_pool*."""
+    """Create a *ProfileUploader* instance wired with a transactional connection."""
 
-    return ProfileUploader(pg_pool)
+    return ProfileUploader(conn)
 
 
 def get_case_uploader(
-    pg_pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    conn: Annotated[asyncpg.Connection, Depends(get_pg_transaction_connection)],
     minio_client: Annotated[Minio, Depends(get_minio_client)],
     profile_uploader: Annotated[ProfileUploader, Depends(get_profile_service)],
 ) -> CaseUploader:
-    """Create a *CaseUploader* instance wired with *pg_pool*, *minio_client*, and *profile_uploader*."""
+    """Create a *CaseUploader* instance wired with a transactional connection, *minio_client*, and *profile_uploader*."""
 
-    return CaseUploader(pg_pool, minio_client, profile_uploader)
+    return CaseUploader(conn, minio_client, profile_uploader)
