@@ -46,34 +46,15 @@ The system uses the following configuration (all optional except `EVALUATOR_LLM_
 
 ### Startup
 
-1. Install dependencies
-```bash
-pip install -r requirements.txt
+1. Put testcases in `./test_cases` in the following format:
+```
+test_cases/
+├── case_1/
+│   ├── profile.ipynb
+│   └── solution.ipynb
 ```
 
 2. Run the evaluation
 ```bash
-python evaluate.py --input_dir ./test_cases --output_dir ./results
-```
-
-### Command Line Arguments
-
-- `--input_dir`: Path to folder containing case directories with profile.ipynb and solution.ipynb
-- `--output_dir`: Directory to store JSON results (default: "results")
-
-
-## Output
-
-The system generates JSON files with detailed metrics:
-
-```json
-{
-  "case_id": "test_case_1",
-  "accuracy": 0.85,
-  "completeness": 0.90,
-  "clarity": 0.80,
-  "overall_quality": 0.85,
-  "detailed_feedback": "...",
-  "timestamp": "2024-01-01T12:00:00Z"
-}
+./evaluate.sh ./test_cases ./results
 ```
