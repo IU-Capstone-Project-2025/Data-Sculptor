@@ -1,4 +1,9 @@
 # Requirements for semantic evaluation scripts
+
+# Core web framework and ASGI server
+fastapi
+uvicorn[standard]
+
 # Core data processing and scientific computing
 numpy>=1.21.0
 scipy>=1.7.0
@@ -19,10 +24,15 @@ nbformat>=5.1.0
 # LangChain for structured LLM output
 langchain>=0.1.0
 langchain-openai>=0.1.0
+langchain-core
 
-# Configuration management
+# Configuration management and validation
+pydantic
 pydantic-settings>=2.0.0
 python-dotenv>=0.19.0
 
 # HTTP client for API calls
 requests>=2.28.0
+
+# Async PostgreSQL driver
+asyncpg
