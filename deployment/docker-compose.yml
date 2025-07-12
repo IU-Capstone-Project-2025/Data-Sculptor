@@ -47,7 +47,7 @@ services:
   # Assigns users to their containers based on usernamev
   nginx:
     image: nginx:alpine
-    container_name: jupyter-proxy
+    container_name: ${COMPOSE_PROJECT_NAME}-jupyter-proxy
     ports:
       - "80:80"
     volumes:
@@ -81,7 +81,7 @@ services:
       dockerfile: semantic_feedback/Dockerfile
     container_name: "${COMPOSE_PROJECT_NAME}-feedback"
     ports:
-      - "${FEEDBACK_PORT_EXTERNAL}:9352"
+      - "${FEEDBACK_PORT_EXTERNAL}:${FEEDBACK_SERVICE_PORT}"
     environment:
       - PYTHONUNBUFFERED=1
       - LLM_BASE_URL=${LLM_BASE_URL}
@@ -103,7 +103,7 @@ services:
       dockerfile: adviser/Dockerfile
     container_name: "${COMPOSE_PROJECT_NAME}-adviser"
     ports:
-      - "${ADVISER_PORT_EXTERNAL}:9353"
+      - "${ADVISER_PORT_EXTERNAL}:${CHAT_SERVICE_PORT}"
     environment:
       - PYTHONUNBUFFERED=1
       - ADVISER_REDIS_URL=redis://${HOST_IP}:${REDIS_PORT_EXTERNAL}/0
@@ -187,7 +187,7 @@ services:
       dockerfile: Dockerfile
     container_name: "${COMPOSE_PROJECT_NAME}_keycloak"
     ports: 
-      - "53010:53010"
+      - "${KEYCLOAK_HTTP_PORT}:53010"
       - "${KEYCLOAK_HTTPS_PORT}:8443"
     volumes:
       - keycloak_db_data:/var/lib/postgresql/data:rw
