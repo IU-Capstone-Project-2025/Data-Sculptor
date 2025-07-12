@@ -5,7 +5,7 @@ from minio import Minio
 import subprocess
 import logging
 import sys
-
+import asyncio
 load_dotenv()
 
 host = os.getenv("HOST_IP")
@@ -33,13 +33,14 @@ class CustomDockerSpawner (DockerSpawner):
     """
     async def start(self):
         case_id = await self._get_case_id()
-        path = self._get_image_from_db(case_id)
-        response = self._load_image(path)
-        self.image = self._get_image_name(response)
+        path = await asyncio.to_thread( self._get_image_from_db, case_id)
+        response = await asyncio.to_thread(self._load_image, path)
+        os.remove(path) 
+        self.image = await asyncio.to_thread(self._get_image_name, response)
 ***REMOVED*** await super().start()
     
     async def stop(self, now=False):
-***REMOVED*** await super().stop(True)
+***REMOVED*** await super().stop(now)
     async def poll(self):
 ***REMOVED*** await super().poll()
 
