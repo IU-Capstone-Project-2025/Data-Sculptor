@@ -13,16 +13,15 @@ from validation import FileValidator
 from settings import settings
 
 
-async def get_pg_transaction_connection(request: Request):
+async def get_pg_connection(request: Request):
     """Return a transactional database connection from the shared pool.
-    
+
     Creates a connection with an active transaction that will be automatically
     committed on success or rolled back on error.
     """
     pool = request.state.postgres_pool
     async with pool.acquire() as conn:
-        async with conn.transaction():
-            yield conn
+        yield conn
 
 
 def get_minio_client() -> Minio:
@@ -31,12 +30,12 @@ def get_minio_client() -> Minio:
         settings.minio_endpoint,
         access_key=settings.minio_access_key,
         secret_key=settings.minio_secret_key,
-        secure=False  # Set to True if using HTTPS
+        secure=False,  # Set to True if using HTTPS
     )
 
 
 def get_profile_service(
-    conn: Annotated[asyncpg.Connection, Depends(get_pg_transaction_connection)],
+    conn: Annotated[asyncpg.Connection, Depends(get_pg_connection)],
 ) -> ProfileUploader:
     """Create a *ProfileUploader* instance wired with a transactional connection."""
 
@@ -49,7 +48,7 @@ def get_file_validator() -> FileValidator:
 
 
 def get_case_uploader(
-    conn: Annotated[asyncpg.Connection, Depends(get_pg_transaction_connection)],
+    conn: Annotated[asyncpg.Connection, Depends(get_pg_connection)],
     minio_client: Annotated[Minio, Depends(get_minio_client)],
     case_uploader: Annotated[ProfileUploader, Depends(get_profile_service)],
     validator: Annotated[FileValidator, Depends(get_file_validator)],

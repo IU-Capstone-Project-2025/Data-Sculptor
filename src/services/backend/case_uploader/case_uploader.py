@@ -103,19 +103,32 @@ class CaseUploader:
                 prof_path, f"profile.ipynb", bucket_name
             )
             logger.debug("Template and profile uploaded to case bucket")
-
-            # Insert case record into database with bucket URL
-            logger.debug("Inserting case record into database...")
-            bucket_url = f"minio://{bucket_name}"
-            await self._insert_case_record(case_id, case_name, bucket_url)
-            logger.info("Case record inserted successfully")
             
-            logger.debug("Parsing and storing profile structure...")
-            await self._case_uploader.store_profile(validated_profile_content, case_id)
-            logger.info("Profile structure stored successfully")
+            try:
+                async with self._conn.transaction():
+                    # Insert case record into database with bucket URL
+                    logger.debug("Inserting case record into database...")
+                    bucket_url = f"minio://{bucket_name}"
+                    await self._insert_case_record(case_id, case_name, bucket_url)
+                    logger.info("Case record inserted successfully")
 
-            logger.info(f"Upload completed successfully for case_id: {case_id}")
-            return case_id
+                    logger.debug("Parsing and storing profile structure...")
+                    await self._case_uploader.store_profile(
+                        validated_profile_content, case_id
+                    )
+                    logger.info("Profile structure stored successfully")
+
+                    logger.info(f"Upload completed successfully for case_id: {case_id}")
+                return case_id
+            except Exception as e:
+                logger.error(f"Database transaction failed for case {case_id}: {e}. Rolling back...")
+                
+                # Clean up MinIO bucket and Docker image on database failure
+                await self._cleanup_case_bucket(bucket_name)
+                await self._cleanup_docker_image(image_tag)
+                
+                # Re-raise the original exception
+                raise
 
     async def _save_file(self, file_data: UploadFile | bytes, dest_path: str):
         """Save file data to temporary directory.
@@ -178,47 +191,6 @@ class CaseUploader:
             content = await upload_file.read()
             out_file.write(content)
 
-    async def _build_docker_image_with_repo2docker(
-        self, build_dir: str, image_tag: str
-    ):
-        """Build Docker image using repo2docker and stream output to logs."""
-        cmd = [
-            "jupyter-repo2docker",
-            "--no-run",
-            "--user-name",
-            "jovyan",  # jupyter-repo2docker does not allow run by root
-            "--user-id",
-            "1000",
-            "--image-name",
-            image_tag,
-            build_dir,
-        ]
-        logger.debug(f"Running command: {' '.join(cmd)}")
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-        )
-        # Stream output line by line
-        if process.stdout is not None:
-            for line in process.stdout:
-                logger.debug(line.rstrip())
-            process.stdout.close()
-        else:
-            logger.warning("No output from process.")
-
-        process.wait()
-        if process.returncode != 0:
-            logger.error("Failed to build Docker image, see logs above.")
-            raise RuntimeError(f"Failed to build Docker image, see logs above.")
-
-        # Remove requirements.txt from the built image
-        logger.debug(f"Removing requirements.txt from image {image_tag}...")
-        await self._remove_requirements_from_image(image_tag)
-        logger.debug("requirements.txt removed from image successfully")
-
     async def _remove_requirements_from_image(self, image_tag: str):
         """Remove requirements.txt from the built Docker image."""
         try:
@@ -226,7 +198,16 @@ class CaseUploader:
             container_name = f"temp-{image_tag}-{uuid.uuid4().hex[:8]}"
 
             # Run a temporary container in detached mode with sleep to keep it running
-            run_cmd = ["docker", "run", "-d", "--name", container_name, image_tag, "sleep", "infinity"]
+            run_cmd = [
+                "docker",
+                "run",
+                "-d",
+                "--name",
+                container_name,
+                image_tag,
+                "sleep",
+                "infinity",
+            ]
             result = subprocess.run(run_cmd, text=True, capture_output=True)
             if result.returncode != 0:
                 logger.error(f"Failed to create temporary container: {result.stderr}")
@@ -361,3 +342,38 @@ class CaseUploader:
         except S3Error as e:
             logger.error(f"Failed to create MinIO bucket: {e}")
             raise RuntimeError(f"Failed to create MinIO bucket: {e}")
+
+    async def _cleanup_case_bucket(self, bucket_name: str):
+        """Remove case-specific MinIO bucket and all its contents."""
+        try:
+            if self._minio_client.bucket_exists(bucket_name):
+                # List and delete all objects in the bucket first
+                objects = self._minio_client.list_objects(bucket_name, recursive=True)
+                for obj in objects:
+                    self._minio_client.remove_object(bucket_name, obj.object_name)
+                    logger.debug(f"Removed object {obj.object_name} from bucket {bucket_name}")
+                
+                # Remove the empty bucket
+                self._minio_client.remove_bucket(bucket_name)
+                logger.info(f"Successfully cleaned up case bucket: {bucket_name}")
+            else:
+                logger.debug(f"Case bucket {bucket_name} does not exist, no cleanup needed")
+        except S3Error as e:
+            logger.warning(f"Failed to cleanup case bucket {bucket_name}: {e}")
+        except Exception as e:
+            logger.warning(f"Unexpected error during bucket cleanup {bucket_name}: {e}")
+
+    async def _cleanup_docker_image(self, image_tag: str):
+        """Remove Docker image from local Docker daemon."""
+        try:
+            result = subprocess.run(
+                ["docker", "rmi", "--force", image_tag],
+                text=True,
+                capture_output=True
+            )
+            if result.returncode == 0:
+                logger.info(f"Successfully removed Docker image: {image_tag}")
+            else:
+                logger.warning(f"Failed to remove Docker image {image_tag}: {result.stderr}")
+        except Exception as e:
+            logger.warning(f"Unexpected error removing Docker image {image_tag}: {e}")
