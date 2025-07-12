@@ -48,7 +48,7 @@ async def upload_case(
     profile: UploadFile = File(..., description="Profile notebook file (.ipynb)"),
     template: UploadFile = File(..., description="Solution template file"),
     case_uploader: CaseUploader = Depends(get_case_uploader),
-) -> str:
+) -> dict[str, str]:
     """Upload a case and process it: build Docker image, store in MinIO, record in DB."""
     try:
         case_id = await case_uploader.upload_case(
