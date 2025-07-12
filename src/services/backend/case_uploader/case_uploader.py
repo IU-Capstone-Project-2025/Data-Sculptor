@@ -172,102 +172,65 @@ class CaseUploader:
         await self._remove_requirements_from_image(image_tag)
         logger.debug("requirements.txt removed from image successfully")
 
-    async def _save_upload_file(self, upload_file: UploadFile, dest_path: str):
-        """Save uploaded file to temporary directory."""
-        with open(dest_path, "wb") as out_file:
-            content = await upload_file.read()
-            out_file.write(content)
-
-    async def _build_docker_image_with_repo2docker(
-        self, build_dir: str, image_tag: str
-    ):
-        """Build Docker image using repo2docker and stream output to logs."""
-        cmd = [
-            "jupyter-repo2docker",
-            "--no-run",
-            "--user-name",
-            "jovyan",  # jupyter-repo2docker does not allow run by root
-            "--user-id",
-            "1000",
-            "--image-name",
-            image_tag,
-            build_dir,
-        ]
-        logger.debug(f"Running command: {' '.join(cmd)}")
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-        )
-        # Stream output line by line
-        if process.stdout is not None:
-            for line in process.stdout:
-                logger.debug(line.rstrip())
-            process.stdout.close()
-        else:
-            logger.warning("No output from process.")
-
-        process.wait()
-        if process.returncode != 0:
-            logger.error("Failed to build Docker image, see logs above.")
-            raise RuntimeError(f"Failed to build Docker image, see logs above.")
-
-        # Remove requirements.txt from the built image
-        logger.debug(f"Removing requirements.txt from image {image_tag}...")
-        await self._remove_requirements_from_image(image_tag)
-        logger.debug("requirements.txt removed from image successfully")
-
     async def _remove_requirements_from_image(self, image_tag: str):
         """Remove requirements.txt from the built Docker image."""
+        container_name = f"temp-{image_tag}-{uuid.uuid4().hex[:8]}"
+        
         try:
-            # Create a temporary container to modify the image
-            container_name = f"temp-{image_tag}-{uuid.uuid4().hex[:8]}"
-
             # Run a temporary container in detached mode with sleep to keep it running
             run_cmd = ["docker", "run", "-d", "--name", container_name, image_tag, "sleep", "infinity"]
             result = subprocess.run(run_cmd, text=True, capture_output=True)
             if result.returncode != 0:
                 logger.error(f"Failed to create temporary container: {result.stderr}")
-                raise RuntimeError(
-                    f"Failed to create temporary container: {result.stderr}"
-                )
-
-            # Remove requirements.txt from the container
-            exec_cmd = [
-                "docker",
-                "exec",
-                container_name,
-                "rm",
-                "-f",
+                raise RuntimeError(f"Failed to create temporary container: {result.stderr}")
+            
+            # Try to remove requirements.txt from common locations
+            possible_paths = [
                 "/home/jovyan/requirements.txt",
+                "/app/requirements.txt", 
+                "/workspace/requirements.txt",
+                "/home/jovyan/work/requirements.txt"
             ]
-            result = subprocess.run(exec_cmd, text=True, capture_output=True)
-            if result.returncode != 0:
-                logger.error(f"Failed to remove requirements.txt: {result.stderr}")
-                # Continue anyway as the file might not exist
-
+            
+            removed = False
+            for path in possible_paths:
+                exec_cmd = ["docker", "exec", container_name, "test", "-f", path]
+                result = subprocess.run(exec_cmd, text=True, capture_output=True)
+                if result.returncode == 0:
+                    # File exists, remove it
+                    rm_cmd = ["docker", "exec", container_name, "rm", "-f", path]
+                    result = subprocess.run(rm_cmd, text=True, capture_output=True)
+                    if result.returncode == 0:
+                        logger.debug(f"Removed requirements.txt from {path}")
+                        removed = True
+                    else:
+                        logger.warning(f"Failed to remove {path}: {result.stderr}")
+            
+            if not removed:
+                logger.warning("requirements.txt not found in common locations")
+            
             # Commit the changes to create a new image
             commit_cmd = ["docker", "commit", container_name, image_tag]
             result = subprocess.run(commit_cmd, text=True, capture_output=True)
             if result.returncode != 0:
                 logger.error(f"Failed to commit changes: {result.stderr}")
                 raise RuntimeError(f"Failed to commit changes: {result.stderr}")
-
-            # Clean up the temporary container (stop and remove)
-            stop_cmd = ["docker", "stop", container_name]
-            subprocess.run(stop_cmd, text=True, capture_output=True)
-            rm_cmd = ["docker", "rm", container_name]
-            subprocess.run(rm_cmd, text=True, capture_output=True)
-
-            logger.debug(
-                f"Successfully removed requirements.txt from image {image_tag}"
-            )
-
+            
+            logger.debug(f"Successfully processed image {image_tag}")
+            
         except Exception as e:
-            logger.error(f"Error removing requirements.txt from image: {e}")
-            raise RuntimeError(f"Failed to remove requirements.txt from image: {e}")
+            logger.error(f"Error processing image {image_tag}: {e}")
+            raise RuntimeError(f"Failed to process image: {e}")
+        finally:
+            # Always clean up the temporary container
+            try:
+                stop_cmd = ["docker", "stop", container_name]
+                subprocess.run(stop_cmd, text=True, capture_output=True)
+                rm_cmd = ["docker", "rm", container_name]
+                subprocess.run(rm_cmd, text=True, capture_output=True)
+                logger.debug(f"Cleaned up temporary container: {container_name}")
+            except Exception as cleanup_error:
+                logger.warning(f"Failed to clean up container {container_name}: {cleanup_error}")
 
     async def _save_and_upload_docker_image(
         self, image_tag: str, case_id: str, bucket_name: str
