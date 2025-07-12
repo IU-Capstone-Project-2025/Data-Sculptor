@@ -66,8 +66,8 @@ class FeedbackRequest(BaseModel):
     section_index: int = Field(
         ..., ge=0, description="Identifier of section to validate."
     )
-    profile_index: UUID4 = Field(
-        ..., description="Identifier of the profile (case) to validate against."
+    case_id: UUID4 = Field(
+        ..., description="Identifier of the case to validate against."
     )
     use_deep_analysis: bool = Field(
         default=True, description="Whether to use deep analysis."
