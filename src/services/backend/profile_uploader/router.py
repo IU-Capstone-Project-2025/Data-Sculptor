@@ -92,9 +92,6 @@ async def upload_case(
 ) -> dict:
     """Upload a case and process it: build Docker image, store in MinIO, record in DB."""
     try:
-        # Ensure MinIO bucket exists
-        await case_uploader.ensure_minio_bucket_exists()
-        
         case_id = await case_uploader.upload_case(
             case_name=name,
             requirements=requirements,
