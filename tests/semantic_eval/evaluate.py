@@ -5,7 +5,7 @@ suitable for the metrics_processing.py script.
 Usage
 -----
 # New folder structure mode:
-python evaluate_feedback.py --cases_path ./test_cases --output_dir ./results
+python evaluate.py --input_dir ./test_cases --output_dir ./results
 """
 
 import argparse
