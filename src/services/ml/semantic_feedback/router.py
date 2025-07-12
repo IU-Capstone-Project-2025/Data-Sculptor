@@ -78,7 +78,7 @@ async def get_feedback(
 
         non_localized_feedback, localized_feedback = await generator.generate_feedback(
             user_code=body.current_code,
-            profile_id=body.profile_index,
+            case_id=body.case_id,
             section_index=body.section_index,
             global_line_offset=body.cell_code_offset,
         )
@@ -90,11 +90,11 @@ async def get_feedback(
 
     except ValueError:
         logger.error(
-            f"Profile {body.profile_index} or section {body.section_index} not found"
+            f"Case {body.case_id} or section {body.section_index} not found"
         )
         raise HTTPException(
             status_code=404,
-            detail=f"Profile {body.profile_index} or section {body.section_index} not found",
+            detail=f"Case {body.case_id} or section {body.section_index} not found",
         )
 
     except BadRequestError as openai_error:
