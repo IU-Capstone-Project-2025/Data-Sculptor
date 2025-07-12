@@ -8,24 +8,18 @@ from pathlib import Path
 import yaml
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
 from fastapi import Path as FastAPIPath  # name conflict with pathlib
-from typing import Optional
 
-from schemas import HealthCheckResponse, UploadResponse
-from dependencies import get_profile_service, get_case_uploader
-from profile_uploader import ProfileUploader, NotebookParseError
+from schemas import HealthCheckResponse
+from dependencies import get_case_uploader
+from profile_uploader import NotebookParseError
 from case_uploader import CaseUploader
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# Load OpenAPI spec relative to this file regardless of CWD
-try:
-    OPENAPI_SPEC_UPLOAD = yaml.safe_load(
-        (Path(__file__).parent / "docs" / "openapi" / "upload.yaml").read_text()
-    )
-except Exception as e:
-    logger.warning(f"Could not load OpenAPI spec: {e}")
-    OPENAPI_SPEC_UPLOAD = {}
+OPENAPI_SPEC_UPLOAD = yaml.safe_load(
+    (Path(__file__).parent / "docs" / "openapi" / "upload.yaml").read_text()
+)
 
 
 @router.get(
@@ -45,6 +39,7 @@ async def health_check() -> HealthCheckResponse:
     status_code=status.HTTP_201_CREATED,
     summary="Upload a case with requirements, dataset, profile, and template",
     tags=["Cases"],
+    openapi_extra=OPENAPI_SPEC_UPLOAD,
 )
 async def upload_case(
     name: str = FastAPIPath(..., description="Case name"),
@@ -56,9 +51,6 @@ async def upload_case(
 ) -> dict:
     """Upload a case and process it: build Docker image, store in MinIO, record in DB."""
     try:
-        # Ensure MinIO bucket exists
-        await case_uploader.ensure_minio_bucket_exists()
-
         case_id = await case_uploader.upload_case(
             case_name=name,
             requirements=requirements,
@@ -67,6 +59,12 @@ async def upload_case(
             template=template,
         )
 ***REMOVED*** {"status_code": 201, "case_id": case_id}
+    except ValueError as exc:
+        logger.warning("Validation error: %s", str(exc))
+        raise HTTPException(status_code=400, detail=str(exc))
+    except NotebookParseError as exc:
+        logger.warning("Notebook parsing error: %s", str(exc))
+        raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         logger.error("Error uploading case", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")

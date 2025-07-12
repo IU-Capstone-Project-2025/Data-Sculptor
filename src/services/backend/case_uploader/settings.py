@@ -18,9 +18,9 @@ class Settings(BaseSettings):
 
     Attributes:
         postgres_dsn: PostgreSQL connection string.
-        profile_upload_service_host: Host/interface to bind the HTTP server to.
-        profile_upload_service_port: TCP port exposed by the HTTP server.
-        profile_upload_service_n_workers: Number of *uvicorn* workers to spawn.
+        case_upload_service_host: Host/interface to bind the HTTP server to.
+        case_upload_service_port: TCP port exposed by the HTTP server.
+        case_upload_service_n_workers: Number of *uvicorn* workers to spawn.
     """
 
     # required
@@ -33,9 +33,9 @@ class Settings(BaseSettings):
     minio_bucket_name: str = "cases"
 
     # optional with sane defaults
-    profile_upload_service_host: str = "127.0.0.1"
-    profile_upload_service_port: int = 8001
-    profile_upload_service_n_workers: int = 1
+    case_upload_service_host: str = "127.0.0.1"
+    case_upload_service_port: int = 8001
+    case_upload_service_n_workers: int = 1
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"

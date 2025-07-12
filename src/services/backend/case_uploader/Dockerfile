@@ -14,13 +14,13 @@ RUN pip install --no-cache-dir -r requirements.txt && \
     pip install jupyter-repo2docker
 
 # copy the service source code
-COPY . /app/profile_uploader
+COPY . /app/case_uploader
 
 # ensure shared is on PYTHONPATH
 ENV PYTHONPATH="/app:${PYTHONPATH}"
 
 # set working dir to service package
-WORKDIR /app/profile_uploader
+WORKDIR /app/case_uploader
 
 # Run debug script first, then start the service
 CMD ["sh", "-c", "python api.py"] 
