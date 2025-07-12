@@ -253,11 +253,3 @@ class CaseUploader:
                 print(f"Case bucket already exists: {bucket_name}")
         except S3Error as e:
             raise RuntimeError(f"Failed to create case bucket {bucket_name}: {e}")
-
-    async def ensure_minio_bucket_exists(self):
-        """Ensure the main cases bucket exists (for backward compatibility)."""
-        try:
-            if not self._minio_client.bucket_exists("cases"):
-                self._minio_client.make_bucket("cases")
-        except S3Error as e:
-            raise RuntimeError(f"Failed to create MinIO bucket: {e}")
