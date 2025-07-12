@@ -39,7 +39,8 @@ def get_profile_service(
 def get_case_uploader(
     pg_pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
     minio_client: Annotated[Minio, Depends(get_minio_client)],
+    profile_uploader: Annotated[ProfileUploader, Depends(get_profile_service)],
 ) -> CaseUploader:
-    """Create a *CaseUploader* instance wired with *pg_pool* and *minio_client*."""
+    """Create a *CaseUploader* instance wired with *pg_pool*, *minio_client*, and *profile_uploader*."""
 
-    return CaseUploader(pg_pool, minio_client)
+    return CaseUploader(pg_pool, minio_client, profile_uploader)

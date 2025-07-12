@@ -9,11 +9,14 @@ from minio import Minio
 from minio.error import S3Error
 import sys
 
+from profile_uploader import ProfileUploader
+
 
 class CaseUploader:
-    def __init__(self, pg_pool: asyncpg.Pool, minio_client: Minio):
+    def __init__(self, pg_pool: asyncpg.Pool, minio_client: Minio, profile_uploader: ProfileUploader):
         self._pg_pool = pg_pool
         self._minio_client = minio_client
+        self._profile_uploader = profile_uploader
 
     async def upload_case(
         self,
@@ -58,6 +61,12 @@ class CaseUploader:
             print("Uploading profile to MinIO...")
             profile_url = await self._upload_file_to_minio(prof_path, f"profiles/{case_id}.ipynb")
             print(f"Profile uploaded to MinIO: {profile_url}")
+
+            # Parse and store profile structure in database
+            print("Parsing and storing profile structure...")
+            profile_content = await profile.read()
+            await self._profile_uploader.store_profile(profile_content, case_id)
+            print("Profile structure stored successfully")
 
             # Insert case record into database
             print("Inserting case record into database...")

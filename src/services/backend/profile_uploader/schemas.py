@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, UUID4
+from pydantic import BaseModel, Field
 
 
 class UploadResponse(BaseModel):
     """Response schema returned after a successful profile upload."""
 
-    profile_id: UUID4 = Field(..., description="Identifier of the persisted profile.")
+    case_id: str = Field(..., description="Identifier of the persisted case.")
 
 
 class HealthCheckResponse(BaseModel):
