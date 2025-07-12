@@ -192,4 +192,74 @@ def run_all_linters(py_path: str) -> list[dict[str, Any]]:
             }
         )
 
+    # -------------------------- vulture ------------------------------
+    try:
+        proc = subprocess.run(
+            ["vulture", py_path, "--min-confidence", "80"],
+            capture_output=True,
+            text=True,
+        )
+        if proc.returncode in (0, 1):  # 1 when issues found, 0 when none
+            for line in proc.stdout.splitlines():
+                if not line.strip():
+                    continue
+                # Expected format: path:line: message
+                parts = line.split(":", 2)
+                if len(parts) < 3:
+                    continue
+                line_num = int(parts[1]) - 1
+                message = parts[2].strip()
+                diagnostics.append(
+                    {
+                        "tool": "vulture",
+                        "type": "warning",
+                        "module": module_name,
+                        "obj": "",
+                        "line": line_num,
+                        "column": 0,
+                        "endLine": line_num,
+                        "endColumn": 0,
+                        "message": message,
+                        "symbol": "vulture-unused-code",
+                        "message-id": "vulture-unused",
+                        "severity": 2,
+                    }
+                )
+    except FileNotFoundError:
+        pass  # vulture not installed
+
+    # -------------------------- bandit ------------------------------
+    try:
+        proc = subprocess.run(
+            ["bandit", "-f", "json", "-q", py_path],
+            capture_output=True,
+            text=True,
+        )
+        if proc.returncode in (0, 1):
+            try:
+                bandit_report = json.loads(proc.stdout)
+            except json.JSONDecodeError:
+                bandit_report = {}
+            for issue in bandit_report.get("results", []):
+                sev = 1 if issue.get("issue_severity", "LOW") == "HIGH" else 2
+                line0 = max(0, issue.get("line_number", 1) - 1)
+                diagnostics.append(
+                    {
+                        "tool": "bandit",
+                        "type": sev_type.get(sev, "warning"),
+                        "module": module_name,
+                        "obj": "",
+                        "line": line0,
+                        "column": 0,
+                        "endLine": line0,
+                        "endColumn": 0,
+                        "message": issue.get("issue_text", ""),
+                        "symbol": issue.get("test_id", ""),
+                        "message-id": issue.get("test_id", ""),
+                        "severity": sev,
+                    }
+                )
+    except FileNotFoundError:
+        pass  # bandit not installed
+
     return diagnostics
