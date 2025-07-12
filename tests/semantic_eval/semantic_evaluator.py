@@ -13,15 +13,21 @@ from tqdm import tqdm
 
 from evaluation_client import EvaluationClient
 from settings import settings
-from router_client import SemanticFeedbackClient
-from schemas import (
-    FeedbackRequest,
-    TestCaseData,
-    ProfileSectionData,
-    SolutionSectionData,
-    EvaluationMetrics,
-    AggregatedMetrics,
-)
+from direct_feedback_client import DirectFeedbackClient, FeedbackRequest
+import importlib.util
+
+# Import local schemas module explicitly to avoid conflict with semantic feedback schemas
+_schemas_path = Path(__file__).parent / "schemas.py"
+_schemas_spec = importlib.util.spec_from_file_location("local_schemas", _schemas_path)
+_local_schemas = importlib.util.module_from_spec(_schemas_spec)
+_schemas_spec.loader.exec_module(_local_schemas)
+
+TestCaseData = _local_schemas.TestCaseData
+ParsedCaseData = _local_schemas.ParsedCaseData
+ProfileSectionData = _local_schemas.ProfileSectionData
+SolutionSectionData = _local_schemas.SolutionSectionData
+EvaluationMetrics = _local_schemas.EvaluationMetrics
+AggregatedMetrics = _local_schemas.AggregatedMetrics
 
 
 class NotebookParseError(RuntimeError):
@@ -39,7 +45,7 @@ class SemanticEvaluator:
     def __init__(self):
         """Initialize the semantic evaluator using global settings."""
         self.evaluation_client = EvaluationClient()
-        self.router_client = SemanticFeedbackClient()
+        self.direct_feedback_client = None  # Will be initialized with case data
 
     def calculate_metrics(
         self, raw_result, solution_section: SolutionSectionData
@@ -136,7 +142,6 @@ class SemanticEvaluator:
 
             cases.append(
                 {
-                    "case_id": case_dir.name,
                     "profile_path": str(profile_path),
                     "solution_path": str(solution_path),
                 }
@@ -313,10 +318,10 @@ class SemanticEvaluator:
         task_description: str,
         profile_section: ProfileSectionData,
         solution_section: SolutionSectionData,
-        profile_id: uuid.UUID,
+        case_id: uuid.UUID,
         section_index: int,
     ) -> EvaluationMetrics:
-        """Evaluate a profile section against a solution section via router feedback.
+        """Evaluate a profile section against a solution section via semantic feedback pipeline.
 
         Args:
             task_description: The overall task description.
@@ -331,12 +336,12 @@ class SemanticEvaluator:
         profile_desc = profile_section["description"]
         profile_code = profile_section["code"]
 
-        # Get feedback from router
-        router_response = self.router_client.get_feedback(
+        # Get feedback from direct feedback client
+        feedback_response = self.direct_feedback_client.get_feedback(
             FeedbackRequest(
                 current_code=solution_section["code"],
                 section_index=section_index,
-                profile_index=profile_id,
+                case_id=case_id,
                 cell_code_offset=0,
                 use_deep_analysis=True,
             )
@@ -348,7 +353,7 @@ class SemanticEvaluator:
             profile_section_description=profile_desc,
             profile_section_code=profile_code,
             solution_section=solution_section,
-            router_feedback=router_response.get_description_for_llm(),
+            feedback=feedback_response.get_description_for_llm(),
         )
 
         # Calculate final metrics from raw observations
@@ -369,11 +374,10 @@ class SemanticEvaluator:
         test_cases = self.parse_folder_structure(cases_path)
         print(f"Found {len(test_cases)} test cases to evaluate")
 
-        results = {}
+        # Parse all cases first to initialize DirectFeedbackClient
+        parsed_cases = {}
 
-        for test_case in tqdm(test_cases, desc="Evaluating test cases"):
-            case_id = test_case["case_id"]
-
+        for test_case in test_cases:
             try:
                 # Parse notebooks
                 task_desc, profile_sections = self.parse_profile_notebook(
@@ -384,19 +388,41 @@ class SemanticEvaluator:
                 )
 
                 # Generate profile ID from case name
-                # AICODE-TODO: Replace with id received from profile uploader
-                profile_id = uuid.uuid5(uuid.NAMESPACE_DNS, case_id)
+                case_id = str(uuid.uuid4())
 
+                # Store parsed data for evaluation
+                parsed_cases[case_id] = ParsedCaseData(
+                    task_desc=task_desc,
+                    profile_sections=profile_sections,
+                    solution_sections=solution_sections,
+                )
+
+            except Exception as exc:
+                print(f"Error parsing {case_id}: {exc}")
+                parsed_cases[case_id] = {"error": str(exc)}
+
+        # Initialize DirectFeedbackClient with all cases data
+        self.direct_feedback_client = DirectFeedbackClient(parsed_cases)
+
+        results = {}
+
+        for case_id in tqdm(parsed_cases.keys(), desc="Evaluating test cases"):
+            case_data = parsed_cases[case_id]
+
+            try:
                 # Evaluate each section pair
                 section_results = []
-                min_sections = min(len(profile_sections), len(solution_sections))
+                min_sections = min(
+                    len(case_data["profile_sections"]),
+                    len(case_data["solution_sections"]),
+                )
 
                 for i in range(min_sections):
                     section_result = self.evaluate_section(
-                        task_desc,
-                        profile_sections[i],
-                        solution_sections[i],
-                        profile_id,
+                        case_data["task_desc"],
+                        case_data["profile_sections"][i],
+                        case_data["solution_sections"][i],
+                        uuid.UUID(case_id),
                         i,
                     )
                     section_results.append(section_result)

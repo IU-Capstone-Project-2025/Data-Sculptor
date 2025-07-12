@@ -13,7 +13,7 @@ from schemas import SolutionSectionData
 
 class EvaluationClient:
     """Client for evaluating code sections using LLM with structured output.
-    
+
     This class encapsulates all LLM-related functionality for semantic evaluation,
     including retry logic and structured output parsing.
     """
@@ -21,11 +21,10 @@ class EvaluationClient:
     def __init__(self):
         """Initialize the evaluation client using global settings."""
         self.llm = ChatOpenAI(
-            api_key=settings.openai_api_key,
-            base_url=settings.openai_base_url,
-            model=settings.model_name,
-            temperature=settings.temperature,
-            max_tokens=settings.max_tokens,
+            api_key=settings.evaluator_llm_api_key,
+            base_url=settings.evaluator_llm_base_url,
+            model=settings.evaluator_llm_model,
+            temperature=0,
         )
 
         # Create structured output chain
@@ -43,7 +42,7 @@ class EvaluationClient:
         profile_section_description: str,
         profile_section_code: str,
         solution_section: SolutionSectionData,
-        router_feedback: str,
+        feedback: str,
     ) -> EvaluationRawResult:
         """Evaluate a profile section using LLM with retry logic.
 
@@ -65,6 +64,6 @@ class EvaluationClient:
             required_ml_terms=solution_section["required_ml_terms"],
             problems_to_detect=solution_section["problems_to_detect"],
             solution_code=solution_section["code"],
-            router_feedback=router_feedback,
+            feedback=feedback,
         )
         return self.structured_llm.invoke(formatted_prompt)
