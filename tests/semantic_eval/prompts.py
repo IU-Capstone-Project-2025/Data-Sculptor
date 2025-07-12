@@ -19,8 +19,8 @@ Required ML Terms: {required_ml_terms}
 Problems to Detect: {problems_to_detect}
 Solution Code: {solution_code}
 
-ROUTER FEEDBACK TO EVALUATE:
-{router_feedback}
+FEEDBACK TO EVALUATE:
+{feedback}
 
 Please analyze the ROUTER FEEDBACK and provide these counts/classifications:
 
