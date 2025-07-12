@@ -60,7 +60,7 @@ const buttonOnClick = async(panel: NotebookPanel): Promise<void> => {
         current_code: cleanCodeString,
         cell_code_offset: cellCodeOffset,
         section_index: sectionIdx,
-        profile_index: profileIdx,
+        case_id: profileIdx,
         use_deep_analysis: true,
     };
 

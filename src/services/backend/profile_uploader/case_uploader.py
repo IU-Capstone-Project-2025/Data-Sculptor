@@ -2,12 +2,10 @@ import tempfile
 import subprocess
 import uuid
 import os
-from pathlib import Path
 import asyncpg
 from fastapi import UploadFile
 from minio import Minio
 from minio.error import S3Error
-import sys
 
 from profile_uploader import ProfileUploader
 
@@ -62,16 +60,17 @@ class CaseUploader:
             profile_url = await self._upload_file_to_minio(prof_path, f"profiles/{case_id}.ipynb")
             print(f"Profile uploaded to MinIO: {profile_url}")
 
-            # Parse and store profile structure in database
-            print("Parsing and storing profile structure...")
-            profile_content = await profile.read()
-            await self._profile_uploader.store_profile(profile_content, case_id)
-            print("Profile structure stored successfully")
-
             # Insert case record into database
             print("Inserting case record into database...")
             await self._insert_case_record(case_id, case_name, profile_url, docker_image_url)
             print("Case record inserted successfully")
+            
+                        # Parse and store profile structure in database
+            print("Parsing and storing profile structure...")
+            with open(prof_path, "rb") as f:
+                profile_content = f.read()
+            await self._profile_uploader.store_profile(profile_content, case_id)
+            print("Profile structure stored successfully")
 
             print(f"Upload completed successfully for case_id: {case_id}")
             return case_id
