@@ -11,8 +11,8 @@ from profile_uploader import ProfileUploader
 
 
 class CaseUploader:
-    def __init__(self, pg_pool: asyncpg.Pool, minio_client: Minio, profile_uploader: ProfileUploader):
-        self._pg_pool = pg_pool
+    def __init__(self, conn: asyncpg.Connection, minio_client: Minio, profile_uploader: ProfileUploader):
+        self._conn = conn
         self._minio_client = minio_client
         self._profile_uploader = profile_uploader
 
@@ -161,14 +161,13 @@ class CaseUploader:
         """Insert case record into database."""
         try:
             print(f"Inserting case record: id={case_id}, name={case_name}")
-            async with self._pg_pool.acquire() as conn:
-                await conn.execute(
-                    """
-                    INSERT INTO cases(id, name, profile_url, docker_image_url, created_at)
-                    VALUES($1, $2, $3, $4, now())
-                    """,
-                    case_id, case_name, profile_url, docker_image_url
-                )
+            await self._conn.execute(
+                """
+                INSERT INTO cases(id, name, profile_url, docker_image_url, created_at)
+                VALUES($1, $2, $3, $4, now())
+                """,
+                case_id, case_name, profile_url, docker_image_url
+            )
             print(f"Successfully inserted case record for {case_id}")
         except Exception as e:
             print(f"Database insertion error: {e}")
