@@ -18,19 +18,29 @@ The semantic evaluation system analyzes pairs of Jupyter notebooks:
 
 ### Environment Variables
 
-The system uses the following configuration (all optional except `OPENAI_API_KEY`):
+The system uses the following configuration (all optional except `EVALUATOR_LLM_API_KEY`):
 
+#### Evaluator LLM Configuration (OpenRouter)
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OPENAI_API_KEY` | **Required** | Your OpenAI API key for OpenRouter |
-| `OPENAI_BASE_URL` | `https://openrouter.ai/api/v1` | OpenAI API base URL |
-| `MODEL_NAME` | `deepseek/deepseek-chat-v3-0324:free` | Model for evaluation |
-| `TEMPERATURE` | `0.1` | Model temperature (0.0-2.0) |
-| `MAX_TOKENS` | `1000` | Maximum tokens per response |
-| `DEFAULT_OUTPUT_DIR` | `results` | Default output directory |
-| `SEMANTIC_FEEDBACK_BASE_URL` | `http://localhost:8000` | Semantic feedback service URL |
-| `MAX_RETRIES` | `3` | Maximum API request retries |
-| `RETRY_DELAY` | `1.0` | Delay between retries (seconds) |
+| `EVALUATOR_LLM_API_KEY` | **Required** | OpenAI API key for OpenRouter evaluation |
+| `EVALUATOR_LLM_BASE_URL` | `https://openrouter.ai/api/v1` | Base URL for OpenAI API (OpenRouter endpoint) |
+| `EVALUATOR_LLM_MODEL` | `deepseek/deepseek-chat-v3-0324:free` | Model name to use for evaluation |
+
+#### Local LLM Configuration (Qwen)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LOCAL_LLM_BASE_URL` | `http://10.100.30.239:9362/v1` | Base URL for local LLM service |
+| `LOCAL_LLM_API_KEY` | `vllml` | API key for local LLM authentication |
+| `LOCAL_LLM_MODEL` | `Qwen/Qwen3-30B-A3B` | Model name for local LLM |
+| `LOCAL_ENABLE_THINKING` | `True` | Enable thinking mode for local LLM (boolean) |
+
+#### General Configuration
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DEFAULT_OUTPUT_DIR` | `results` | Default output directory for results |
+| `MAX_RETRIES` | `3` | Maximum number of API request retries (≥0) |
+| `RETRY_DELAY` | `1.0` | Delay between retries in seconds (≥0.0) |
 
 
 
