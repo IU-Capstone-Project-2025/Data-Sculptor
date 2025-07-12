@@ -11,23 +11,23 @@ class FeedbackRequest(BaseModel):
     Args:
         current_code: The code currently being analyzed.
         section_index: The index of the section in the notebook.
-        profile_index: The UUID of the profile.
+        case_id: The UUID of the case.
         cell_code_offset: The code offset within the cell (default 0).
         use_deep_analysis: Whether to use deep analysis (default True).
     """
 
     current_code: str
     section_index: int
-    profile_index: uuid.UUID
+    case_id: uuid.UUID
     cell_code_offset: int = 0
     use_deep_analysis: bool = True
 
 
-class RouterFeedbackResponse(BaseModel):
+class FeedbackResponse(BaseModel):
     """Complete router feedback response structure with validation."""
 
-    non_localized_feedback: list[str] = Field(
-        default_factory=list, description="List of non-localized feedback messages"
+    non_localized_feedback: str = Field(
+        default="", description="List of non-localized feedback messages"
     )
     localized_feedback: list[dict] = Field(
         default_factory=list,
@@ -44,20 +44,9 @@ class RouterFeedbackResponse(BaseModel):
 # TypedDict definitions for heterogeneous data structures
 
 
-class FeedbackRequestData(TypedDict):
-    """Structure for feedback request JSON data."""
-
-    current_code: str
-    section_index: int
-    profile_index: str
-    cell_code_offset: int
-    use_deep_analysis: bool
-
-
 class TestCaseData(TypedDict):
     """Structure for parsed test case information."""
 
-    case_id: str
     profile_path: str
     solution_path: str
 
@@ -135,3 +124,11 @@ class AggregatedMetrics(TypedDict):
     necessary_issues_recall: float
     no_case_profile_detail: Literal["1", "0"]
     consequence_language_ratio: float
+
+
+class ParsedCaseData(TypedDict):
+    """Structure for parsed case data."""
+
+    task_desc: str
+    profile_sections: list[ProfileSectionData]
+    solution_sections: list[SolutionSectionData]
