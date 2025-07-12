@@ -48,7 +48,7 @@ async def upload_case(
     profile: UploadFile = File(..., description="Profile notebook file (.ipynb)"),
     template: UploadFile = File(..., description="Solution template file"),
     case_uploader: CaseUploader = Depends(get_case_uploader),
-) -> dict:
+) -> str:
     """Upload a case and process it: build Docker image, store in MinIO, record in DB."""
     try:
         case_id = await case_uploader.upload_case(
@@ -58,7 +58,7 @@ async def upload_case(
             profile=profile,
             template=template,
         )
-***REMOVED*** {"status_code": 201, "case_id": case_id}
+***REMOVED*** {"case_id": case_id}
     except ValueError as exc:
         logger.warning("Validation error: %s", str(exc))
         raise HTTPException(status_code=400, detail=str(exc))
