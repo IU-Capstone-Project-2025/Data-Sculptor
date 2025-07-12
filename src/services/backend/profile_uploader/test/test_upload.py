@@ -38,12 +38,14 @@ async def test_case_upload():
     for name, file_path in files_to_upload.items():
         data.add_field(name, open(file_path, 'rb'), filename=file_path.name)
     
-    # Upload to the service
-    async with aiohttp.ClientSession() as session:
+    # Upload to the service with extended timeout
+    timeout = aiohttp.ClientTimeout(total=1800)  # 30 minutes timeout
+    async with aiohttp.ClientSession(timeout=timeout) as session:
         url = "http://localhost:51804/api/v1/upload_case/test-data-analysis"
         
         try:
             print(f"\n🚀 Uploading to: {url}")
+            print("⏳ This may take 10-20 minutes for Docker build and upload...")
             async with session.post(url, data=data) as response:
                 if response.status == 201:
                     result = await response.json()
@@ -54,13 +56,16 @@ async def test_case_upload():
                     error_text = await response.text()
                     print(f"❌ Case upload failed with status {response.status}")
                     print(f"Error: {error_text}")
+        except asyncio.TimeoutError:
+            print("❌ Upload timed out after 30 minutes")
         except Exception as e:
             print(f"❌ Error during upload: {e}")
 
 
 async def test_health_check():
     """Test the health check endpoint."""
-    async with aiohttp.ClientSession() as session:
+    timeout = aiohttp.ClientTimeout(total=30)  # 30 seconds for health check
+    async with aiohttp.ClientSession(timeout=timeout) as session:
         url = "http://localhost:51804/api/v1/health"
         
         try:
