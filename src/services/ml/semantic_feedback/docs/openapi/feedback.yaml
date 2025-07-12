@@ -13,7 +13,7 @@ requestBody:
         required:
           - current_code
           - section_index
-          - profile_index
+          - case_id
         properties:
           current_code:
             type: string
@@ -25,10 +25,10 @@ requestBody:
           section_index:
             type: integer
             description: Zero-based index of the profile section to validate.
-          profile_index:
+          case_id:
             type: string
             format: uuid
-            description: UUID of the reference profile (task case) to validate against.
+            description: UUID of the reference case to validate against.
           use_deep_analysis:
             type: boolean
             default: true
