@@ -1,0 +1,7 @@
+# PostgreSQL connection string
+progress_postgres_dsn=postgresql://user:password@postgres:5432/progress_db
+
+# Service networking
+progress_service_host=0.0.0.0
+progress_service_port=8002
+progress_service_n_workers=1 
