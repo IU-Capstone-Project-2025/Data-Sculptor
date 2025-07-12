@@ -1,0 +1,115 @@
+summary: Upload a case with requirements, dataset, profile, and template
+description: |
+  Uploads a complete case consisting of multiple files and processes them:
+  
+  **File Requirements:**
+  - `requirements`: Must be a `.txt` file containing Python dependencies
+  - `dataset`: Can be any file type (CSV, JSON, etc.)
+  - `profile`: Must be an `.ipynb` Jupyter notebook with specific structure
+  - `template`: Must be an `.ipynb` Jupyter notebook
+  
+  **Profile Notebook Structure:**
+  The profile notebook must contain:
+  1. A *first* markdown cell with the overall task description
+  2. Subsequent **pairs** of *markdown* + *code* cells representing sections
+  3. Markdown cells should contain ```json blocks for section descriptions
+  
+  **Processing Steps:**
+  1. Validates file extensions and profile structure
+  2. Builds a Docker image using repo2docker
+  3. Uploads files and Docker image to MinIO storage
+  4. Records case metadata in the database
+  5. Extracts and stores profile structure
+requestBody:
+  required: true
+  content:
+    multipart/form-data:
+      schema:
+        type: object
+        required:
+          - requirements
+          - dataset
+          - profile
+          - template
+        properties:
+          requirements:
+            type: string
+            format: binary
+            description: Requirements.txt file with Python dependencies
+          dataset:
+            type: string
+            format: binary
+            description: Dataset file (any format)
+          profile:
+            type: string
+            format: binary
+            description: Profile notebook (.ipynb) with task description and sections
+          template:
+            type: string
+            format: binary
+            description: Solution template notebook (.ipynb)
+responses:
+  "201":
+    description: Case successfully uploaded and processed.
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            status_code:
+              type: integer
+              example: 201
+            case_id:
+              type: string
+              format: uuid
+              description: Generated case identifier
+        examples:
+          success:
+            summary: Successful case upload
+            value:
+              status_code: 201
+              case_id: "5ca16dbe-4abe-4f75-956f-2e2d9cb04e24"
+  "400":
+    description: Validation error or malformed request.
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            detail:
+              type: string
+        examples:
+          invalid_extension:
+            summary: Invalid file extension
+            value:
+              detail: "profile file must have extension .ipynb, got '.txt'"
+          invalid_structure:
+            summary: Invalid profile structure
+            value:
+              detail: "First cell must be a markdown description"
+          missing_filename:
+            summary: Missing filename
+            value:
+              detail: "requirements file must have a filename"
+  "500":
+    description: Unexpected server error.
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            detail:
+              type: string
+              example: "Internal server error"
+components:
+  schemas:
+    CaseUploadResponse:
+      type: object
+      properties:
+        status_code:
+          type: integer
+          description: HTTP status code
+        case_id:
+          type: string
+          format: uuid
+          description: Generated case identifier 

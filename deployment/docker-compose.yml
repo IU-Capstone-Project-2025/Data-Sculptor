@@ -72,19 +72,6 @@ services:
     ports:
       - "${LSP_PORT_EXTERNAL}:8095"
 
-  # mediator:
-  #   build:
-  #     context: ../src/services/backend/mediator_jupyter_hub_llm_microservice
-  #     dockerfile: Dockerfile
-  #   container_name: "${COMPOSE_PROJECT_NAME}-mediator"
-  #   ports:
-  #     - "${MEDIATOR_PORT_EXTERNAL}:8001"
-  #   environment:
-  #     - PYTHONUNBUFFERED=1
-  #     - FEEDBACK_SERVICE_URL=http://${HOST_IP}:${FEEDBACK_PORT_EXTERNAL}
-  #   volumes:
-  #     - ../src/services/backend/mediator_jupyter_hub_llm_microservice:/app:rw
-
   feedback-service:
     build:
       context: ../src/services/ml
@@ -100,9 +87,12 @@ services:
       - FEEDBACK_SERVICE_HOST=${FEEDBACK_SERVICE_HOST}
       - FEEDBACK_SERVICE_PORT=${FEEDBACK_SERVICE_PORT}
       - FEEDBACK_SERVICE_N_WORKERS=${FEEDBACK_SERVICE_N_WORKERS}
-      - PROFILE_POSTGRES_DSN=postgresql://app:app@${HOST_IP}:${POSTGRES_PORT_EXTERNAL}/datasculptor
+      - PROFILE_POSTGRES_DSN=postgresql://app:app@postgres:5432/datasculptor
     volumes:
       - ../src/services/ml/semantic_feedback:/app/semantic_feedback:rw
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   adviser-service:
     build:
@@ -114,7 +104,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - ADVISER_REDIS_URL=redis://${HOST_IP}:${REDIS_PORT_EXTERNAL}/0
-      - ADVISER_POSTGRES_DSN=postgresql://app:app@${HOST_IP}:${POSTGRES_PORT_EXTERNAL}/datasculptor
+      - ADVISER_POSTGRES_DSN=postgresql://app:app@postgres:5432/datasculptor
       - LLM_BASE_URL=${LLM_BASE_URL}
       - LLM_API_KEY=${LLM_API_KEY}
       - LLM_MODEL=${LLM_MODEL}
@@ -131,25 +121,25 @@ services:
       postgres:
         condition: service_healthy
 
-  profile-uploader-service:
+  case-uploader-service:
     build:
-      context: ../src/services/backend/profile_uploader
+      context: ../src/services/backend/case_uploader
       dockerfile: Dockerfile
-    container_name: "${COMPOSE_PROJECT_NAME}-profile-uploader"
+    container_name: "${COMPOSE_PROJECT_NAME}-case-uploader-service"
     ports:
-      - "${PROFILE_UPLOAD_PORT_EXTERNAL}:${PROFILE_UPLOAD_SERVICE_PORT}"
+      - "${CASE_UPLOAD_PORT_EXTERNAL}:${CASE_UPLOAD_SERVICE_PORT}"
     environment:
       - PYTHONUNBUFFERED=1
-      - PROFILE_POSTGRES_DSN=postgresql://app:app@${HOST_IP}:${POSTGRES_PORT_EXTERNAL}/datasculptor
-      - PROFILE_UPLOAD_SERVICE_HOST=${PROFILE_UPLOAD_SERVICE_HOST}
-      - PROFILE_UPLOAD_SERVICE_PORT=${PROFILE_UPLOAD_SERVICE_PORT}
-      - PROFILE_UPLOAD_SERVICE_N_WORKERS=${PROFILE_UPLOAD_SERVICE_N_WORKERS}
+      - PROFILE_POSTGRES_DSN=postgresql://app:app@postgres:5432/datasculptor
+      - CASE_UPLOAD_SERVICE_HOST=${CASE_UPLOAD_SERVICE_HOST}
+      - CASE_UPLOAD_SERVICE_PORT=${CASE_UPLOAD_SERVICE_PORT}
+      - CASE_UPLOAD_SERVICE_N_WORKERS=${CASE_UPLOAD_SERVICE_N_WORKERS}
       - MINIO_ENDPOINT=${HOST_IP}:${MINIO_PORT_EXTERNAL}
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_BUCKET_NAME=cases
     volumes:
-      - ../src/services/backend/profile_uploader:/app/profile_uploader:ro
+      - ../src/services/backend/case_uploader:/app/case_uploader:ro
       - /var/run/docker.sock:/var/run/docker.sock:rw
     depends_on:
       postgres:
@@ -171,9 +161,9 @@ services:
       - ../resources/config/postgres/init_scripts:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U app -d datasculptor"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   redis:
     image: redis:7-alpine
