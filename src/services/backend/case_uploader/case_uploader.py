@@ -4,6 +4,7 @@ import uuid
 import os
 import logging
 import asyncpg
+from pathlib import Path
 from fastapi import UploadFile
 from minio import Minio
 from minio.error import S3Error
@@ -30,7 +31,8 @@ class CaseUploader:
         template: UploadFile,
     ):
         """
-        Handles the upload of a case: builds Docker image, saves image to MinIO, records in DB.
+        Handles the upload of a case: builds Docker image with environment from requirements,
+        includes dataset in container, saves everything to case-specific MinIO bucket, records in DB.
         """
         case_id = str(uuid.uuid4())
         logger.debug(f"Starting upload for case_id: {case_id}")
@@ -45,9 +47,15 @@ class CaseUploader:
         await self.ensure_minio_bucket_exists()
         
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Save files for repo2docker
-            req_path = f"{tmpdir}/requirements.txt"
-            data_path = f"{tmpdir}/dataset"
+            # Create case-specific directory structure
+            case_dir = f"{tmpdir}/case-{case_id}"
+            os.makedirs(case_dir, exist_ok=True)
+            
+            # Save requirements.txt for repo2docker to install environment
+            req_path = f"{case_dir}/requirements.txt"
+            # Preserve dataset file extension
+            dataset_ext = Path(dataset.filename).suffix if dataset.filename else ""
+            data_path = f"{case_dir}/dataset{dataset_ext}"
             prof_path = f"{tmpdir}/profile.ipynb"
             tmpl_path = f"{tmpdir}/template.ipynb"
 
@@ -61,7 +69,7 @@ class CaseUploader:
             # Build Docker image with repo2docker
             image_tag = f"case-{case_id}"
             logger.debug(f"Building Docker image with tag: {image_tag}")
-            await self._build_docker_image_with_repo2docker(tmpdir, image_tag)
+            await self._build_docker_image_with_repo2docker(case_dir, image_tag)
             logger.debug("Docker image built successfully")
 
             # Save Docker image to tar file and upload to MinIO
@@ -131,6 +139,69 @@ class CaseUploader:
         if process.returncode != 0:
             logger.error("Failed to build Docker image, see logs above.")
             raise RuntimeError(f"Failed to build Docker image, see logs above.")
+        
+        # Remove requirements.txt from the built image
+        logger.debug(f"Removing requirements.txt from image {image_tag}...")
+        await self._remove_requirements_from_image(image_tag)
+        logger.debug("requirements.txt removed from image successfully")
+
+    async def _remove_requirements_from_image(self, image_tag: str):
+        """Remove requirements.txt from the built Docker image."""
+        container_name = f"temp-{image_tag}-{uuid.uuid4().hex[:8]}"
+        
+        try:
+            # Run a temporary container
+            run_cmd = ["docker", "run", "--name", container_name, image_tag, "true"]
+            result = subprocess.run(run_cmd, text=True, capture_output=True)
+            if result.returncode != 0:
+                logger.error(f"Failed to create temporary container: {result.stderr}")
+                raise RuntimeError(f"Failed to create temporary container: {result.stderr}")
+            
+            # Try to remove requirements.txt from common locations
+            possible_paths = [
+                "/home/jovyan/requirements.txt",
+                "/app/requirements.txt", 
+                "/workspace/requirements.txt",
+                "/home/jovyan/work/requirements.txt"
+            ]
+            
+            removed = False
+            for path in possible_paths:
+                exec_cmd = ["docker", "exec", container_name, "test", "-f", path]
+                result = subprocess.run(exec_cmd, text=True, capture_output=True)
+                if result.returncode == 0:
+                    # File exists, remove it
+                    rm_cmd = ["docker", "exec", container_name, "rm", "-f", path]
+                    result = subprocess.run(rm_cmd, text=True, capture_output=True)
+                    if result.returncode == 0:
+                        logger.debug(f"Removed requirements.txt from {path}")
+                        removed = True
+                    else:
+                        logger.warning(f"Failed to remove {path}: {result.stderr}")
+            
+            if not removed:
+                logger.warning("Warning: requirements.txt not found in common locations")
+            
+            # Commit the changes to create a new image
+            commit_cmd = ["docker", "commit", container_name, image_tag]
+            result = subprocess.run(commit_cmd, text=True, capture_output=True)
+            if result.returncode != 0:
+                logger.error(f"Failed to commit changes: {result.stderr}")
+                raise RuntimeError(f"Failed to commit changes: {result.stderr}")
+            
+            logger.debug(f"Successfully processed image {image_tag}")
+            
+        except Exception as e:
+            logger.error(f"Error processing image {image_tag}: {e}")
+            raise RuntimeError(f"Failed to process image: {e}")
+        finally:
+            # Always clean up the temporary container
+            try:
+                rm_cmd = ["docker", "rm", "-f", container_name]
+                subprocess.run(rm_cmd, text=True, capture_output=True)
+                logger.debug(f"Cleaned up temporary container: {container_name}")
+            except Exception as cleanup_error:
+                logger.warning(f"Warning: Failed to clean up container {container_name}: {cleanup_error}")
 
     async def _save_and_upload_docker_image(self, image_tag: str, case_id: str) -> str:
         """Save Docker image to tar file and upload to MinIO."""
@@ -199,5 +270,8 @@ class CaseUploader:
         try:
             if not self._minio_client.bucket_exists("cases"):
                 self._minio_client.make_bucket("cases")
+                logger.debug("Created cases bucket")
+            else:
+                logger.debug("Cases bucket already exists")
         except S3Error as e:
-            raise RuntimeError(f"Failed to create MinIO bucket: {e}")
+            raise RuntimeError(f"Failed to create cases bucket: {e}")

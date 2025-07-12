@@ -21,30 +21,33 @@ services:
     env_file:
       - ../resources/config/jupyterhub/.env
     environment:
+      - DOMAIN=${DOMAIN}
       - DOCKER_HOST=unix:///var/run/docker.sock
       - JUPYTERHUB_USR_CONTAINERS_HOME=${JUPYTERHUB_USR_CONTAINERS_HOME}
       - CLIENT_ID=${KEYCLOAK_AUTH_CLIENT_ID}
       - CLIENT_SECRET=${KEYCLOAK_AUTH_CLIENT_SECRET}
+      - JUPYTERHUB_PORT_EXTERNAL=${JUPYTERHUB_PORT_EXTERNAL}
       - JUPYTERHUB_PORT_INTERNAL=${JUPYTERHUB_PORT_INTERNAL}
-      - JUPYTERHUB_DOMAIN_NAME=${JUPYTERHUB_DOMAIN}
-      - ADVISER_API_URL=http://${HOST_IP}:{ADVISER_PORT_EXTERNAL}/api/v1/chat
-      # - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL} # Медиатор не используется
+      - JUPYTERHUB_DOMAIN_NAME=${JUPYTERHUB_SUBDOMAIN}.${DOMAIN}
+      - ADVISER_API_URL=http://${HOST_IP}:${ADVISER_PORT_EXTERNAL}/api/v1/chat
+      - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
       - URL_STATIC_ANALYZER=http://${HOST_IP}:${ANALYZER_PORT_EXTERNAL}
       - URL_LSP_SERVER=http://${HOST_IP}:${LSP_PORT_EXTERNAL}
     command: >
       bash -c "chown -R developer:developer /home/developer && exec jupyterhub"
     depends_on:
       - keycloak
-    entrypoint: ["sh", "-c", "until nc -z keycloak.site 53010; do sleep 1; done && jupyterhub"]
+    entrypoint: ["sh", "-c", "until nc -z ${KC_SUBDOMAIN}.${DOMAIN} 53010; do sleep 1; done && jupyterhub"]
     networks:
       jupyter-network:
         aliases:
-          - jupyterhub.site
+          - "${JUPYTERHUB_SUBDOMAIN}.${DOMAIN}"
+
 
   # Assigns users to their containers based on usernamev
   nginx:
     image: nginx:alpine
-    container_name: "${COMPOSE_PROJECT_NAME}-jupyter-proxy"
+    container_name: jupyter-proxy
     ports:
       - "80:80"
     volumes:
@@ -87,7 +90,7 @@ services:
       - FEEDBACK_SERVICE_HOST=${FEEDBACK_SERVICE_HOST}
       - FEEDBACK_SERVICE_PORT=${FEEDBACK_SERVICE_PORT}
       - FEEDBACK_SERVICE_N_WORKERS=${FEEDBACK_SERVICE_N_WORKERS}
-      - PROFILE_POSTGRES_DSN=postgresql://app:app@postgres:5432/datasculptor
+      - PROFILE_POSTGRES_DSN=postgresql://app:app@${HOST_IP}:${POSTGRES_PORT_EXTERNAL}/datasculptor
     volumes:
       - ../src/services/ml/semantic_feedback:/app/semantic_feedback:rw
     depends_on:
@@ -104,7 +107,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - ADVISER_REDIS_URL=redis://${HOST_IP}:${REDIS_PORT_EXTERNAL}/0
-      - ADVISER_POSTGRES_DSN=postgresql://app:app@postgres:5432/datasculptor
+      - ADVISER_POSTGRES_DSN=postgresql://app:app@${HOST_IP}:${POSTGRES_PORT_EXTERNAL}/datasculptor
       - LLM_BASE_URL=${LLM_BASE_URL}
       - LLM_API_KEY=${LLM_API_KEY}
       - LLM_MODEL=${LLM_MODEL}
@@ -130,7 +133,7 @@ services:
       - "${CASE_UPLOAD_PORT_EXTERNAL}:${CASE_UPLOAD_SERVICE_PORT}"
     environment:
       - PYTHONUNBUFFERED=1
-      - PROFILE_POSTGRES_DSN=postgresql://app:app@postgres:5432/datasculptor
+      - PROFILE_POSTGRES_DSN=postgresql://app:app@${HOST_IP}:${POSTGRES_PORT_EXTERNAL}/datasculptor
       - CASE_UPLOAD_SERVICE_HOST=${CASE_UPLOAD_SERVICE_HOST}
       - CASE_UPLOAD_SERVICE_PORT=${CASE_UPLOAD_SERVICE_PORT}
       - CASE_UPLOAD_SERVICE_N_WORKERS=${CASE_UPLOAD_SERVICE_N_WORKERS}
@@ -196,7 +199,7 @@ services:
       KEYCLOAK_ADMIN_USER:  "${KEYCLOAK_ADMIN_USER}"
       KEYCLOAK_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}"
       KEYCLOAK_DB_PORT: "5432"
-      KC_HOSTNAME: "${KC_HOSTNAME}" 
+      KC_HOSTNAME: "${KC_SUBDOMAIN}.${DOMAIN}" 
       KC_HTTP_PORT: "53010"
       KC_HOSTNAME_PORT: "53010"
     depends_on:
@@ -206,7 +209,7 @@ services:
     networks:
       jupyter-network:
         aliases:
-          - "${KC_HOSTNAME}"
+          - "${KC_SUBDOMAIN}.${DOMAIN}"
   vault:
     image: hashicorp/vault:1.17
     container_name: "${COMPOSE_PROJECT_NAME}_vault"

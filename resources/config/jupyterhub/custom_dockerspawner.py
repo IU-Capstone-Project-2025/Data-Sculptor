@@ -31,12 +31,12 @@ class CustomDockerSpawner (DockerSpawner):
     async def start(self):
         img_name = self._load_image(id, self.user.token)
         self.image = img_name
-        return super().start()
+        return await super().start()
     
     async def stop(self, now=False):
-        return super().stop(True)
+        return await super().stop(True)
     async def poll(self):
-        return super().poll()
+        return await super().poll()
 
     def _load_image(self, id, token) -> str:
         img_path = self._get_image_from_db(id, token)

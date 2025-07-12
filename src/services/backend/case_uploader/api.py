@@ -52,6 +52,8 @@ async def startup() -> None:
         host=settings.case_upload_service_host,
         port=settings.case_upload_service_port,
         workers=settings.case_upload_service_n_workers,
+        timeout_keep_alive=300,  # 5 minutes keep-alive
+        timeout_graceful_shutdown=300,  # 5 minutes graceful shutdown
     )
     server = uvicorn.Server(config)
     await server.serve()
