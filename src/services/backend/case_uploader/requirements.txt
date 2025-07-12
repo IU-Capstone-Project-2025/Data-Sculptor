@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-dotenv
+nbformat
+asyncpg
+python-multipart
+minio
+jupyter-repo2docker 

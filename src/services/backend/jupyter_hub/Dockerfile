@@ -12,7 +12,7 @@ RUN apt-get update && \
     rm -rf /usr/lib/node_modules /etc/apt/sources.list.d/nodesource.list && \
     apt-get autoremove -y && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
+    apt-get install -y nodejs netcat && \
     node -v && npm -v && \
     npm install -g npm@latest
 
@@ -28,7 +28,7 @@ WORKDIR /srv/jupyterhub_build
 RUN pip install jupyterhub dockerspawner oauthenticator
 
 RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir "jupyterlab>=4.2" "jupyter-ai[all]" && \
+    pip install --no-cache-dir "jupyterlab>=4.2" "jupyter-ai[all]" "oauthenticator" "dockerspawner" && \
     jupyter server extension enable jupyter_ai --sys-prefix
 
 # jupyterlab extensions
@@ -40,6 +40,10 @@ RUN echo "export const API_ENDPOINT = '${FEEDBACK_SERVICE_URL}';" > /extensions/
 RUN cd /extensions/buttons && npm install && npm run build && jupyter labextension install --minimize=False .
 
 # # real time analysisconfiguration #WARNING: Now it is Fast api service
+
+# runtime configuration
+WORKDIR /srv/jupyterhub
+
 RUN mkdir -p /etc/jupyter/jupyter_server_config.d
 RUN mkdir -p /lsp
 COPY src/services/backend/lsp_server/lsp.py /lsp/lsp.py
