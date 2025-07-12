@@ -56,9 +56,6 @@ responses:
         schema:
           type: object
           properties:
-            status_code:
-              type: integer
-              example: 201
             case_id:
               type: string
               format: uuid
@@ -67,7 +64,6 @@ responses:
           success:
             summary: Successful case upload
             value:
-              status_code: 201
               case_id: "5ca16dbe-4abe-4f75-956f-2e2d9cb04e24"
   "400":
     description: Validation error or malformed request.
