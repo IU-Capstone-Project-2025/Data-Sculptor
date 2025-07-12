@@ -8,9 +8,12 @@ import sys
 
 load_dotenv()
 
-endpoint = os.getenv("MINIO_ENDPOINT")
-access_key = os.getenv("MINIO_ACCESS_KEY")
-secret_key = os.getenv("MINIO_SECRET_KEY")
+host = os.getenv("HOST_IP")
+minio_port = os.getenv("MINIO_PORT_EXTERNAL")
+
+endpoint = f"{host}:{minio_port}"
+access_key = os.getenv("MINIO_ROOT_USER")
+secret_key = os.getenv("MINIO_ROOT_PASSWORD")
 client = Minio(endpoint, access_key=access_key, secret_key=secret_key)
 
 logging.basicConfig(
@@ -26,11 +29,13 @@ class CustomDockerSpawner (DockerSpawner):
     """
     In Parent start method, first checks image from config, then checks image from db.
     So REMOVE image from config!
-    TODO: ОТКУДА БЕРЕМ ID И ТОКЕН?
+    TODO:?
     """
     async def start(self):
-        img_name = self._load_image(id, self.user.token)
-        self.image = img_name
+        case_id = await self._get_case_id()
+        path = self._get_image_from_db(case_id)
+        response = self._load_image(path)
+        self.image = self._get_image_name(response)
 ***REMOVED*** await super().start()
     
     async def stop(self, now=False):
@@ -38,8 +43,19 @@ class CustomDockerSpawner (DockerSpawner):
     async def poll(self):
 ***REMOVED*** await super().poll()
 
-    def _load_image(self, id, token) -> str:
-        img_path = self._get_image_from_db(id, token)
+
+    async def _get_case_id(self) -> str:
+        auth = self.user.auth_state
+        if not auth:
+            logging.error("No authentication state found for user.")
+            raise RuntimeError("No authentication state found for user.")
+        case_id = auth.get("case_id")
+        if not case_id:
+            logging.error("No case_id found in authentication state.")
+            raise RuntimeError("No case_id found in authentication state.")
+        logging.info(f"Case ID retrieved: {case_id}")
+***REMOVED*** case_id
+    def _load_image(self, img_path) -> str:
         try:
             
             res = subprocess.run( ["docker", "load", "-i", img_path],
@@ -50,8 +66,7 @@ class CustomDockerSpawner (DockerSpawner):
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to load Docker image: {e}")
         logging.info(f"Image {id} loaded successfully.")
-        img_name = self._get_image_name(res.stdout)
-***REMOVED*** img_name
+***REMOVED*** res.stdout
     
     def _get_image_name(self, output: str) -> str:
         for line in output.splitlines():
@@ -61,8 +76,8 @@ class CustomDockerSpawner (DockerSpawner):
         raise ValueError("Image name not found in output.")
                 
         
-    def _get_image_from_db(self, id, token) -> str:
-        response = client.get_object(token, id)
+    def _get_image_from_db(self, case_id) -> str:
+        response = client.get_object(f"{case_id}", "image")
         path = f"/tmp/img_{id}.tar"
         try:
             with open(path, "wb") as img:
@@ -72,3 +87,4 @@ class CustomDockerSpawner (DockerSpawner):
             response.close()
             response.release_conn()
 ***REMOVED*** path
+    
