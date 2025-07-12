@@ -21,8 +21,7 @@ create table if not exists messages (
 create table if not exists cases (
     id uuid primary key default uuid_generate_v4(),
     name text not null,
-    profile_url text not null,
-    docker_image_url text not null,
+    bucket_url text not null,
     created_at timestamptz default now()
 );
 
