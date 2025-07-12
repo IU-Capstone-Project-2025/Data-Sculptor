@@ -49,9 +49,9 @@ async def startup() -> None:
 
     config = uvicorn.Config(
         app,
-        host=settings.profile_upload_service_host,
-        port=settings.profile_upload_service_port,
-        workers=settings.profile_upload_service_n_workers,
+        host=settings.case_upload_service_host,
+        port=settings.case_upload_service_port,
+        workers=settings.case_upload_service_n_workers,
     )
     server = uvicorn.Server(config)
     await server.serve()

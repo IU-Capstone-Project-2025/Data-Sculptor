@@ -9,6 +9,7 @@ from minio import Minio
 
 from profile_uploader import ProfileUploader
 from case_uploader import CaseUploader
+from validation import FileValidator
 from settings import settings
 
 
@@ -42,11 +43,17 @@ def get_profile_service(
     return ProfileUploader(conn)
 
 
+def get_file_validator() -> FileValidator:
+    """Create a *FileValidator* instance."""
+    return FileValidator()
+
+
 def get_case_uploader(
     conn: Annotated[asyncpg.Connection, Depends(get_pg_transaction_connection)],
     minio_client: Annotated[Minio, Depends(get_minio_client)],
-    profile_uploader: Annotated[ProfileUploader, Depends(get_profile_service)],
+    case_uploader: Annotated[ProfileUploader, Depends(get_profile_service)],
+    validator: Annotated[FileValidator, Depends(get_file_validator)],
 ) -> CaseUploader:
-    """Create a *CaseUploader* instance wired with a transactional connection, *minio_client*, and *profile_uploader*."""
+    """Create a *CaseUploader* instance wired with a transactional connection, *minio_client*, and *case_uploader*."""
 
-    return CaseUploader(conn, minio_client, profile_uploader)
+    return CaseUploader(conn, minio_client, case_uploader, validator)
