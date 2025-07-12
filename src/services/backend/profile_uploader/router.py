@@ -7,7 +7,7 @@ from pathlib import Path
 
 import yaml
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
-from fastapi import Path as FastAPIPath # name conflict with pathlib
+from fastapi import Path as FastAPIPath  # name conflict with pathlib
 from typing import Optional
 
 from schemas import HealthCheckResponse, UploadResponse
@@ -40,42 +40,6 @@ async def health_check() -> HealthCheckResponse:
     return HealthCheckResponse(status="ok")
 
 
-# @router.post(
-    # "/upload",
-    # response_model=UploadResponse,
-    # status_code=status.HTTP_201_CREATED,
-    # summary="Upload profile notebook",
-    # tags=["Profiles"],
-    # openapi_extra=OPENAPI_SPEC_UPLOAD,
-# )
-# async def upload_profile(
-    # profile_file: UploadFile = File(..., description="Notebook file (.ipynb)"),
-    # service: ProfileUploader = Depends(get_profile_service),
-# ) -> UploadResponse:
-    # """Persist a notebook profile and return the generated *profile_id*."""
-
-    # if not profile_file.filename or not profile_file.filename.endswith(".ipynb"):
-        # raise HTTPException(
-            # status_code=status.HTTP_400_BAD_REQUEST,
-            # detail="profile_file must be a .ipynb notebook",
-        # )
-
-    # content = await profile_file.read()
-    # if not content:
-        # raise HTTPException(status_code=400, detail="Empty file uploaded")
-
-    # try:
-        # profile_id = await service.store_profile(content)
-    # except NotebookParseError as parse_err:
-        # logger.error("Invalid notebook uploaded", exc_info=True)
-        # raise HTTPException(status_code=400, detail=str(parse_err)) from parse_err
-    # except Exception as exc:
-        # logger.error("Unexpected error while storing profile", exc_info=True)
-        # raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-    # return UploadResponse(profile_id=profile_id)
-
-
 @router.post(
     "/upload_case/{name}",
     status_code=status.HTTP_201_CREATED,
@@ -94,7 +58,7 @@ async def upload_case(
     try:
         # Ensure MinIO bucket exists
         await case_uploader.ensure_minio_bucket_exists()
-        
+
         case_id = await case_uploader.upload_case(
             case_name=name,
             requirements=requirements,
