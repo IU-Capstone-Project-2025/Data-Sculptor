@@ -1,5 +1,7 @@
 from dockerspawner import DockerSpawner
+from custom_dockerspawner import CustomDockerSpawner
 from oauthenticator.generic import GenericOAuthenticator
+from custom_spawn_handler import CustomSpawnHandler #WARNING: HAS MONKEY PATCH
 from tornado.web import HTTPError
 #from jupyter_helper_classes import MyDockerSpawner
 import logging
@@ -79,8 +81,9 @@ c.GenericOAuthenticator.allow_all = True
 c.GenericOAuthenticator.post_auth_hook = post_auth_hook
 c.GenericOAuthenticator.refresh_pre_spawn = True
 
-c.JupyterHub.spawner_class = DockerSpawner
-c.DockerSpawner.image = 'jupyter/base-notebook'
+c.JupyterHub.spawner_class = CustomDockerSpawner
+# нужно убрать, тк спавнер по умолчанию всегда отдает приоритет образу из конфига
+# c.DockerSpawner.image = 'jupyter/base-notebook'
 c.DockerSpawner.remove = False
 c.DockerSpawner.network_name = 'jupyter-network'
 c.DockerSpawner.use_internal_ip = True
@@ -125,3 +128,4 @@ c.JupyterHub.tornado_settings = {
         'Access-Control-Allow-Credentials': 'true',
     }
 }
+
