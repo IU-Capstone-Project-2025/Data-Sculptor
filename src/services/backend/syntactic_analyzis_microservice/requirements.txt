@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-vulture
+vulture>=2.9,<3
 bandit
 pydantic
 python-multipart
