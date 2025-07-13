@@ -40,7 +40,7 @@ class CustomDockerSpawner (DockerSpawner):
             self.template_path = await asyncio.to_thread(self._get_template, case_id)
             response = await asyncio.to_thread(self._load_image, img_path)
             self.image = await asyncio.to_thread(self._get_image_name, response)
-            self.volumes = {self.template_path: f"/home/jovyan/template_solution.ipynb"}
+            self.volumes = {self.template_path: f"/home/jovyan/template.ipynb"}
     ***REMOVED*** await super().start()
         except Exception as e:
             logging.error(f"Error during start: {e}")
