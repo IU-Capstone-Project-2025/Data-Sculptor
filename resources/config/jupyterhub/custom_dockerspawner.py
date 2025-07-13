@@ -77,9 +77,16 @@ class CustomDockerSpawner (DockerSpawner):
         raise ValueError("Image name not found in output.")
                 
         
+<<<<<<< Updated upstream
     def _get_image_from_db(self, case_id) -> str:
         response = client.get_object(f"{case_id}", "image")
         path = f"/tmp/img_{id}.tar"
+=======
+    def _get_data_from_db(self, key, bucket) -> (str, str):
+        response = client.get_object(token, id)
+        response = client.get_object()
+        img_path = f"/tmp/img_{id}.tar"
+>>>>>>> Stashed changes
         try:
             with open(path, "wb") as img:
                 for chunk in response.stream(32 * 1024):
