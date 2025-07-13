@@ -360,7 +360,8 @@ class CaseUploader:
                 # List and delete all objects in the bucket first
                 objects = self._minio_client.list_objects(bucket_name, recursive=True)
                 for obj in objects:
-                    self._minio_client.remove_object(bucket_name, obj.object_name)
+                    if obj.object_name:
+                        self._minio_client.remove_object(bucket_name, obj.object_name)
                     logger.debug(f"Removed object {obj.object_name} from bucket {bucket_name}")
                 
                 # Remove the empty bucket
