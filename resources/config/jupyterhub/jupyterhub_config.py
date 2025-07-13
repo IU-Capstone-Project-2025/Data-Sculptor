@@ -100,12 +100,12 @@ c.JupyterHub.redirect_to_server = False
 c.JupyterHub.log_level = 'DEBUG'
 c.ConfigurableHTTPProxy.debug = True
 
-with open("/srv/jupyterhub/jupyterhub_cookie_secret", "r") as f:
-    secret_str = f.read().strip()
-    logging.info(f"READING COOKIE KEY {secret_str}")
+# with open("/srv/jupyterhub/jupyterhub_cookie_secret", "r") as f:
+#     secret_str = f.read().strip()
+#     logging.info(f"READING COOKIE KEY {secret_str}")
 
-key = base64.urlsafe_b64decode(secret_str.encode())
-c.CryptKeeper.keys = [key]
+# key = base64.urlsafe_b64decode(secret_str.encode())
+# c.CryptKeeper.keys = [key]
 
 c.JupyterHub.cookie_domain = f'.{DOMAIN}'
 c.JupyterHub.trusted_downstream_ips = ['0.0.0.0/0']
@@ -115,9 +115,9 @@ c.JupyterHub.trusted_downstream_ips = ['0.0.0.0/0']
 #    "SameSite": "None"
 #}
 
-c.DockerSpawner.environment = {
-    'JUPYTERHUB_CRYPT_KEY': secret_str
-}
+# c.DockerSpawner.environment = {
+#     'JUPYTERHUB_CRYPT_KEY': secret_str
+# }
 
 c.JupyterHub.tornado_settings = {
     'headers': {
