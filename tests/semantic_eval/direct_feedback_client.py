@@ -1,8 +1,7 @@
 """Direct feedback client for semantic evaluation without API calls.
 
 This script imports and uses the FeedbackGenerator from the main codebase
-while also accessing local test utilities, replacing HTTP-based router client
-with direct function calls to eliminate network overhead.
+while also accessing local test utilities.
 
 IMPORTANT: Importing this module will shadow all local models with names:
     - prompts
@@ -174,7 +173,9 @@ class DirectFeedbackClient:
 
             return FeedbackResponse(
                 non_localized_feedback=non_localized_feedback,
-                localized_feedback=localized_feedback,
+                localized_feedback=[
+                    warning.model_dump() for warning in localized_feedback
+                ],
             )
 
         finally:
