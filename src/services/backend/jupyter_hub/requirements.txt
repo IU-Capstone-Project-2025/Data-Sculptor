@@ -9,3 +9,6 @@ python-dotenv
 requests
 ipython
 pygls
+dockerspawner
+minio
+docker
