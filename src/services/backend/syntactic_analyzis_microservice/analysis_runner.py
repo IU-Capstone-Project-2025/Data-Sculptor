@@ -158,7 +158,7 @@ def run_all_linters(py_path: str | os.PathLike[str]) -> list[dict[str, Any]]:
         print("pylint not installed", file=sys.stderr)
 
     try:
-        proc = subprocess.run(["vulture", "--json", str(py_path)], capture_output=True, text=True)
+        proc = subprocess.run(["vulture", str(py_path)], capture_output=True, text=True)
         if proc.returncode in (0, 3):
             items = _safe_json_loads(proc.stdout)
             if isinstance(items, list) and items:
