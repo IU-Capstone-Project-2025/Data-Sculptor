@@ -3,43 +3,63 @@
 from __future__ import annotations
 
 
-ROUTER_FEEDBACK_EVALUATION_PROMPT = """You are an expert evaluator of AI-generated feedback for machine learning coding tasks.
+FEEDBACK_EVALUATION_PROMPT = """
+You are an expert evaluator analyzing AI-generated feedback for machine learning coding tasks.
 
-Your task is to analyze router feedback and provide specific counts and classifications. Do NOT calculate ratios or percentages - only count what you observe.
+Your goal is to assess the quality and accuracy of the provided feedback by identifying specific issues and calculating metrics.
 
-TASK DESCRIPTION:
-{task_description}
+# DEFINITIONS
+**ML TERM**: An exact word, plural form, or lemmatized variant from the *Required ML Terms* list provided below.
+**TRUE POSITIVE**: An issue that appears in both the feedback AND the *Problems to Detect* list.
+**FALSE POSITIVE**: An issue mentioned in the feedback that is NOT in the *Problems to Detect* list.
+**FALSE NEGATIVE**: An issue from *Problems to Detect* that is missing from the feedback.
+**CONSEQUENCE-FOCUSED LANGUAGE**: Phrasing that emphasizes impact or risk (e.g., "may cause overfitting", "could lead to poor generalization") WITHOUT suggesting an explicit fix or solution.
+**PROFILE DETAIL**: Any variable name, code structure, or implementation detail taken from the profile code. Note: If an entity appears in the user's solution code, it is NOT considered a profile detail.
 
-PROFILE SECTION (Reference):
-Description: {profile_section_description}
-Code: {profile_section_code}
+# YOUR TASK
+Analyze the provided feedback and generate:
+1. **Lists of Issues**:
+   - `false_positives_issues`: Issues mentioned in feedback but NOT in problems_to_detect
+   - `false_negatives_issues`: Issues from problems_to_detect that are missing from feedback
+   - `non_consequence_language_issues`: Issues not using consequence-focused language
+2. **Counts/Metrics**:
+   - `ml_terms_found_count`: Number of required ML terms found in the feedback
+   - `true_positives_issue_count`: Number of correctly identified required issues
+   - `false_positives_issues_count`: Number of false positive issues
+   - `consequence_language_issues_count`: Number of issues using consequence-focused language
+   - `is_profile_detail_mentioned`: Boolean indicating if any profile details were mentioned
 
-SOLUTION SECTION (Evaluation Target):
-Required ML Terms: {required_ml_terms}
-Problems to Detect: {problems_to_detect}
-Solution Code: {solution_code}
+# EVALUATION PROCESS
+1. First, identify all ML terms from the Required ML Terms list that appear in the feedback
+2. Compare issues mentioned in the feedback against the Problems to Detect list
+3. Check each issue's phrasing to determine if it uses consequence-focused language
+4. Scan for any profile-specific details that shouldn't be revealed
+5. Count and categorize all findings according to the definitions above
 
-FEEDBACK TO EVALUATE:
+# INPUT SECTIONS
+
+## FEEDBACK TO EVALUATE
 {feedback}
 
-Please analyze the ROUTER FEEDBACK and provide these counts/classifications:
+## CONTEXT INFORMATION
 
-1. ML TERMS: Count how many of the required ML terms from the list above are mentioned in the router feedback.
+### Task Description
+{task_description}
 
-2. ISSUE DETECTION: For each issue mentioned in the router feedback, classify it as:
-   - TRUE POSITIVE: Issue is correctly identified AND is in the "Problems to Detect" list
-   - FALSE POSITIVE: Issue is mentioned but NOT in the "Problems to Detect" list  
-   - FALSE NEGATIVE: Required issue from "Problems to Detect" list that router feedback failed to mention
+### Profile Section (Reference Only - Do NOT reveal details from this section)
+**Description**: {profile_section_description}
+**Code**: {profile_section_code}
 
-3. PROFILE DETAILS: Check if router feedback mentions ANY specific details from the PROFILE SECTION code such as:
-   - Variable names (e.g., "df", "model", "X_train")
-   - Code structure details (e.g., "the for loop", "the if statement")
-   - Implementation specifics from profile code
-   Answer: True if ANY profile details are mentioned, False if none are mentioned.
+### Solution Section (Evaluation Target)
+**Required ML Terms**: {required_ml_terms}
+**Problems to Detect**: {problems_to_detect}
+**Solution Code**: {solution_code}
 
-4. CONSEQUENCE LANGUAGE: For each issue mentioned in router feedback, classify the language as:
-   - CONSEQUENCE-FOCUSED: Describes problems, impacts, or what could go wrong
-   - SOLUTION-FOCUSED: Suggests fixes, implementations, or specific code changes
-   Count only the consequence-focused issues.
+# OUTPUT REQUIREMENTS
 
-Provide only the raw counts and classifications - no calculations."""
+Provide your analysis with the following structure:
+- Clear lists for each type of issue found
+- Accurate counts for all metrics
+- Boolean value for profile detail detection
+- Focus on precise matching and categorization based on the definitions provided
+"""
