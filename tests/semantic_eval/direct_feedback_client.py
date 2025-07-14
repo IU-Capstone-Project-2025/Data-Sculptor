@@ -1,8 +1,7 @@
 """Direct feedback client for semantic evaluation without API calls.
 
 This script imports and uses the FeedbackGenerator from the main codebase
-while also accessing local test utilities, replacing HTTP-based router client
-with direct function calls to eliminate network overhead.
+while also accessing local test utilities.
 
 IMPORTANT: Importing this module will shadow all local models with names:
     - prompts
