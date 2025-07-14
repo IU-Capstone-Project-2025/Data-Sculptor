@@ -214,6 +214,8 @@ services:
       jupyter-network:
         aliases:
           - "${KC_SUBDOMAIN}.${DOMAIN}"
+
+  ### IN DEVELOPMENT ###
   vault:
     image: hashicorp/vault:latest
     container_name: "${COMPOSE_PROJECT_NAME}_vault"

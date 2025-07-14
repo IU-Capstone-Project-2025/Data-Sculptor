@@ -24,7 +24,7 @@ class FeedbackRequest(BaseModel):
 
 
 class FeedbackResponse(BaseModel):
-    """Complete router feedback response structure with validation."""
+    """Complete semantic feedback response structure with validation."""
 
     non_localized_feedback: str = Field(
         default="", description="List of non-localized feedback messages"
@@ -36,7 +36,7 @@ class FeedbackResponse(BaseModel):
 
     def get_description_for_llm(self) -> str:
         """Get description for LLM."""
-***REMOVED*** "-\n".join(self.non_localized_feedback) + "-\n".join(
+***REMOVED*** self.non_localized_feedback + "-\n".join(
             [warning["message"] for warning in self.localized_feedback]
         )
 
@@ -67,45 +67,6 @@ class SolutionSectionData(TypedDict):
     problems_to_detect: list[str]
 
 
-class LocalizedFeedbackItem(TypedDict):
-    """Structure for individual localized feedback items."""
-
-    range: dict[str, Any]
-    severity: int
-    code: str
-    source: str
-    message: str
-
-
-class EvaluationResult(TypedDict):
-    """Structure for evaluation results compatible with metrics processing."""
-
-    router_feedback: dict[str, Any]
-
-
-class AcceptanceCriteriaData(TypedDict):
-    """Structure for acceptance criteria in evaluation results."""
-
-    sections_evaluated: str
-
-
-class QualityAttributesData(TypedDict):
-    """Structure for quality attributes in evaluation results."""
-
-    ml_term_ratio: float
-    necessary_issues_precision: float
-    necessary_issues_recall: float
-    no_case_profile_detail: str
-    consequence_language_ratio: float
-
-
-class RouterFeedbackData(TypedDict):
-    """Structure for router feedback section in results."""
-
-    acceptance_criteria: AcceptanceCriteriaData
-    quality_attributes: QualityAttributesData | dict[str, str]  # dict for error cases
-
-
 class EvaluationMetrics(TypedDict):
     """Calculated metrics from raw LLM observations."""
 
@@ -124,6 +85,22 @@ class AggregatedMetrics(TypedDict):
     necessary_issues_recall: float
     no_case_profile_detail: Literal["1", "0"]
     consequence_language_ratio: float
+
+
+class SectionIssuesData(TypedDict):
+    """Structure for raw issues data extracted from LLM evaluation per section."""
+
+    false_positives_issues: list[str]
+    false_negatives_issues: list[str]
+    non_consequence_language_issues: list[str]
+    ml_terms_not_found: list[str]
+    feedback_text: str
+
+
+class CaseIssuesData(TypedDict):
+    """Structure for issues data per test case containing all sections."""
+
+    sections: list[SectionIssuesData]
 
 
 class ParsedCaseData(TypedDict):
