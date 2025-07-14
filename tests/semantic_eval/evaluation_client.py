@@ -51,7 +51,7 @@ class EvaluationClient:
             profile_section_description: Description from profile section.
             profile_section_code: Code from profile section.
             solution_section: Solution data with required terms and problems.
-            feedback: Feedback from router service.
+            feedback: Feedback from feedback service.
 
         Returns:
             Structured LLM evaluation result with raw counts and classifications.

@@ -318,7 +318,7 @@ def generate_report(input_directory, output_directory=None, generate_pdf=False, 
         except Exception as e:
             print(f"⚠ Error: {file} - {e}")
     print(f"✓ Loaded {len(data)} files")
-    pipeline_stages = ['router_feedback']
+    pipeline_stages = ['semantic_feedback']
     os.makedirs(output_directory, exist_ok=True)
     if generate_pdf:
         global pdf_output_directory
