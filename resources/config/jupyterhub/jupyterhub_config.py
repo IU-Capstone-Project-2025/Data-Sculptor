@@ -1,4 +1,9 @@
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from dockerspawner import DockerSpawner
+from custom_spawn_handler import CustomSpawnHandler
+from custom_dockerspawner import CustomDockerSpawner
 from oauthenticator.generic import GenericOAuthenticator
 from tornado.web import HTTPError
 #from jupyter_helper_classes import MyDockerSpawner
@@ -18,7 +23,6 @@ JH_PORT_INT = os.getenv("JUPYTERHUB_PORT_INTERNAL")
 
 logging.info(f"starting on {JH_DOMAIN}:{JH_PORT_INT}")
 c = get_config()
-
 logging.info(f"Secret of {os.getenv('CLIENT_ID')} is {os.getenv('CLIENT_SECRET')}")
 
 # Setup Generic authenticator yoo
@@ -74,14 +78,17 @@ async def post_auth_hook(authenticator, handler, auth_state):
 
     return auth_state
 
+def pass_auth_state_to_spawner(spawner, auth_state):
+    spawner.auth_state = auth_state
+c.Spawner.auth_state_hook = pass_auth_state_to_spawner
 
 c.GenericOAuthenticator.allow_all = True
 c.GenericOAuthenticator.post_auth_hook = post_auth_hook
 c.GenericOAuthenticator.refresh_pre_spawn = True
 
-c.JupyterHub.spawner_class = DockerSpawner
-c.DockerSpawner.image = 'jupyter/base-notebook'
-c.DockerSpawner.remove = False
+c.JupyterHub.spawner_class = CustomDockerSpawner
+# c.DockerSpawner.image = 'jupyter/base-notebook'
+c.DockerSpawner.remove = True
 c.DockerSpawner.network_name = 'jupyter-network'
 c.DockerSpawner.use_internal_ip = True
 c.DockerSpawner.name_template = 'jupyter-{username}'
@@ -100,12 +107,12 @@ c.JupyterHub.redirect_to_server = False
 c.JupyterHub.log_level = 'DEBUG'
 c.ConfigurableHTTPProxy.debug = True
 
-with open("/srv/jupyterhub/jupyterhub_cookie_secret", "r") as f:
-    secret_str = f.read().strip()
-    logging.info(f"READING COOKIE KEY {secret_str}")
+# with open("/srv/jupyterhub/jupyterhub_cookie_secret", "r") as f:
+#     secret_str = f.read().strip()
+#     logging.info(f"READING COOKIE KEY {secret_str}")
 
-key = base64.urlsafe_b64decode(secret_str.encode())
-c.CryptKeeper.keys = [key]
+# key = base64.urlsafe_b64decode(secret_str.encode())
+# c.CryptKeeper.keys = [key]
 
 c.JupyterHub.cookie_domain = f'.{DOMAIN}'
 c.JupyterHub.trusted_downstream_ips = ['0.0.0.0/0']
@@ -115,9 +122,9 @@ c.JupyterHub.trusted_downstream_ips = ['0.0.0.0/0']
 #    "SameSite": "None"
 #}
 
-c.DockerSpawner.environment = {
-    'JUPYTERHUB_CRYPT_KEY': secret_str
-}
+# c.DockerSpawner.environment = {
+#     'JUPYTERHUB_CRYPT_KEY': secret_str
+# }
 
 c.JupyterHub.tornado_settings = {
     'headers': {
@@ -125,3 +132,10 @@ c.JupyterHub.tornado_settings = {
         'Access-Control-Allow-Credentials': 'true',
     }
 }
+c.DockerSpawner.volumes = {
+    '/var/run/docker.sock': {
+        'bind': '/var/run/docker.sock',
+        'mode': 'rw'
+    }
+}
+
