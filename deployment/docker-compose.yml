@@ -12,23 +12,27 @@ services:
       - "${JUPYTERHUB_PORT_EXTERNAL}:${JUPYTERHUB_PORT_INTERNAL}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock # This is used to create User containers
+      - /tmp/:/tmp/
       - ../resources/config/jupyterhub/jupyter_ai_confi.py:/etc/jupyter/jupyter_server_config.d/jupyter_ai_config.py:ro
       - ../resources/config/jupyterhub:/srv/jupyterhub:rw
       - ../src/services/backend/jupyter_hub_adapter_microservice/sendCode.py:/home/developer/sendCode.py:rw
       - ../src/services/backend/lsp_server/lsp.py:/home/developer/lsp.py:rw
       - ../src/services/backend/jupyter_hub/jupyter-lsp-jupyter-server.json:/etc/jupyter/jupyter_server_config.d/jupyter-lsp-jupyter-server.json:rw
       - ../resources/data/jupyterhub:/home/developer:rw
-    env_file:
-      - ../resources/config/jupyterhub/.env
     environment:
       - DOMAIN=${DOMAIN}
-      - DOCKER_HOST=unix:///var/run/docker.sock
-      - JUPYTERHUB_USR_CONTAINERS_HOME=${JUPYTERHUB_USR_CONTAINERS_HOME}
-      - CLIENT_ID=${KEYCLOAK_AUTH_CLIENT_ID}
-      - CLIENT_SECRET=${KEYCLOAK_AUTH_CLIENT_SECRET}
+      - JUPYTERHUB_CRYPT_KEY=IQyHLHuh+mB9FRDsiaBFB7RHBfL1YYn0jfV2dM0lVOY=
       - JUPYTERHUB_PORT_EXTERNAL=${JUPYTERHUB_PORT_EXTERNAL}
       - JUPYTERHUB_PORT_INTERNAL=${JUPYTERHUB_PORT_INTERNAL}
       - JUPYTERHUB_DOMAIN_NAME=${JUPYTERHUB_SUBDOMAIN}.${DOMAIN}
+      #- JUPYTERHUB_USR_CONTAINERS_HOME=${JUPYTERHUB_USR_CONTAINERS_HOME}
+      - OAUTH_CALLBACK_URL=http://${JUPYTERHUB_SUBDOMAIN}.${DOMAIN}:${JUPYTERHUB_PORT_EXTERNAL}/hub/oauth_callback
+      - AUTH_URL=http://${KC_SUBDOMAIN}.${DOMAIN}:${KEYCLOAK_HTTP_PORT}/realms/App-Users/protocol/openid-connect/auth
+      - TOKEN_URL=http://${KC_SUBDOMAIN}.${DOMAIN}:${KEYCLOAK_HTTP_PORT}/realms/App-Users/protocol/openid-connect/token
+      - USERDATA_URL=http://${KC_SUBDOMAIN}.${DOMAIN}:${KEYCLOAK_HTTP_PORT}/realms/App-Users/protocol/openid-connect/userinfo
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - CLIENT_ID=${KEYCLOAK_AUTH_CLIENT_ID}
+      - CLIENT_SECRET=${KEYCLOAK_AUTH_CLIENT_SECRET}
       - ADVISER_API_URL=http://${HOST_IP}:${ADVISER_PORT_EXTERNAL}/api/v1/chat
       - LLM_VALIDATOR_URL=http://${HOST_IP}:${MEDIATOR_PORT_EXTERNAL}
       - URL_STATIC_ANALYZER=http://${HOST_IP}:${ANALYZER_PORT_EXTERNAL}
@@ -211,15 +215,15 @@ services:
         aliases:
           - "${KC_SUBDOMAIN}.${DOMAIN}"
   vault:
-    image: hashicorp/vault:1.17
+    image: hashicorp/vault:latest
     container_name: "${COMPOSE_PROJECT_NAME}_vault"
     cap_add:
       - IPC_LOCK
     environment:
-      VAULT_DEV_ROOT_TOKEN_ID: myroot  # Root token for dev mode
-      VAULT_ADDR: "http://${HOST_IP}:${VAULT_HTTP_PORT}"
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_DEV_ROOT_TOKEN_ID}  # Root token for dev mode
+      VAULT_ADDR: "http://127.0.0.1:${VAULT_HTTP_PORT_INTERNAL}"
     ports:
-      - "${VAULT_HTTP_PORT}:8200"
+      - "${VAULT_HTTP_PORT_EXTERNAL}:${VAULT_HTTP_PORT_INTERNAL}"
     command: server -dev  # temp dev mode
     volumes:
       - vault-data:/vault/file
@@ -228,6 +232,22 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+
+  # vault-init:
+  #   image: hashicorp/vault:latest
+  #   container_name: "${COMPOSE_PROJECT_NAME}_vault_init"
+  #   depends_on:
+  #     vault:
+  #       condition: service_healthy
+  #   volumes:
+  #     - ./vault/vault-init.sh:/vault-init.sh
+  #   environment:
+  #     VAULT_ADDR: "http://vault:${VAULT_HTTP_PORT}"
+  #     VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN_ID}
+  #   command: ["sh", "-c", "sleep 3 && /vault-init.sh"]
+  #   networks:
+  #     - internal
+
 
   minio:
     image: minio/minio:latest
@@ -259,3 +279,4 @@ networks:
   jupyter-network:
     name: jupyter-network
     driver: bridge
+
