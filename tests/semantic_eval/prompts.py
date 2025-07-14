@@ -19,6 +19,7 @@ Your goal is to assess the quality and accuracy of the provided feedback by iden
 # YOUR TASK
 Analyze the provided feedback and generate:
 1. **Lists of Issues**:
+   - `ml_terms_not_found`: ML terms from the Required ML Terms list that are not found in the feedback
    - `false_positives_issues`: Issues mentioned in feedback but NOT in problems_to_detect
    - `false_negatives_issues`: Issues from problems_to_detect that are missing from feedback
    - `non_consequence_language_issues`: Issues not using consequence-focused language

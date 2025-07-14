@@ -132,6 +132,8 @@ class SectionIssuesData(TypedDict):
     false_positives_issues: list[str]
     false_negatives_issues: list[str]
     non_consequence_language_issues: list[str]
+    ml_terms_not_found: list[str]
+    feedback_text: str
 
 
 class CaseIssuesData(TypedDict):
