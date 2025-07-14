@@ -455,7 +455,7 @@ class SemanticEvaluator:
                 if section_results:
                     aggregated = self._aggregate_section_results(section_results)
                     results[case_id] = {
-                        "router_feedback": {
+                        "semantic_feedback": {
                             "acceptance_criteria": {
                                 "sections_evaluated": "Yes"
                                 if section_results
@@ -471,7 +471,7 @@ class SemanticEvaluator:
             except Exception as exc:
                 print(f"Error evaluating {case_id}: {exc}")
                 results[case_id] = {
-                    "router_feedback": {
+                    "semantic_feedback": {
                         "acceptance_criteria": {"sections_evaluated": "No"},
                         "quality_attributes": {"error": str(exc)},
                     }
