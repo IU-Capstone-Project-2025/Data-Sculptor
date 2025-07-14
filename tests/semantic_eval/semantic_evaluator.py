@@ -376,6 +376,8 @@ class SemanticEvaluator:
             false_positives_issues=raw_result.false_positives_issues,
             false_negatives_issues=raw_result.false_negatives_issues,
             non_consequence_language_issues=raw_result.non_consequence_language_issues,
+            ml_terms_not_found=raw_result.ml_terms_not_found,
+            feedback_text=feedback_response.get_description_for_llm(),
         )
 
         return calculated_metrics, issues_data
