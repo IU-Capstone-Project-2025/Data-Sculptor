@@ -174,7 +174,9 @@ class DirectFeedbackClient:
 
     ***REMOVED*** FeedbackResponse(
                 non_localized_feedback=non_localized_feedback,
-                localized_feedback=localized_feedback,
+                localized_feedback=[
+                    warning.model_dump() for warning in localized_feedback
+                ],
             )
 
         finally:
