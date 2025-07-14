@@ -28,6 +28,8 @@ ProfileSectionData = _local_schemas.ProfileSectionData
 SolutionSectionData = _local_schemas.SolutionSectionData
 EvaluationMetrics = _local_schemas.EvaluationMetrics
 AggregatedMetrics = _local_schemas.AggregatedMetrics
+SectionIssuesData = _local_schemas.SectionIssuesData
+CaseIssuesData = _local_schemas.CaseIssuesData
 
 
 class NotebookParseError(RuntimeError):
@@ -330,7 +332,7 @@ class SemanticEvaluator:
         solution_section: SolutionSectionData,
         case_id: uuid.UUID,
         section_index: int,
-    ) -> EvaluationMetrics:
+    ) -> tuple[EvaluationMetrics, SectionIssuesData]:
         """Evaluate a profile section against a solution section via semantic feedback pipeline.
 
         Args:
@@ -341,7 +343,7 @@ class SemanticEvaluator:
             section_index: Index of the section being evaluated.
 
         Returns:
-            Dictionary with calculated evaluation metrics.
+            Tuple of (calculated evaluation metrics, raw issues data).
         """
         profile_desc = profile_section["description"]
         profile_code = profile_section["code"]
@@ -369,7 +371,14 @@ class SemanticEvaluator:
         # Calculate final metrics from raw observations
         calculated_metrics = self.calculate_metrics(raw_result, solution_section)
 
-        return calculated_metrics
+        # Extract raw issues data
+        issues_data = SectionIssuesData(
+            false_positives_issues=raw_result.false_positives_issues,
+            false_negatives_issues=raw_result.false_negatives_issues,
+            non_consequence_language_issues=raw_result.non_consequence_language_issues,
+        )
+
+        return calculated_metrics, issues_data
 
     def evaluate(self, cases_path: str, output_dir: str | None = None) -> None:
         """Evaluate all cases in a folder structure.
@@ -415,6 +424,7 @@ class SemanticEvaluator:
         self.direct_feedback_client = DirectFeedbackClient(parsed_cases)
 
         results = {}
+        issues_results = {}
 
         for case_id in tqdm(parsed_cases.keys(), desc="Evaluating test cases"):
             case_data = parsed_cases[case_id]
@@ -422,13 +432,14 @@ class SemanticEvaluator:
             try:
                 # Evaluate each section pair
                 section_results = []
+                section_issues = []
                 min_sections = min(
                     len(case_data["profile_sections"]),
                     len(case_data["solution_sections"]),
                 )
 
                 for i in range(min_sections):
-                    section_result = self.evaluate_section(
+                    section_result, issues_data = self.evaluate_section(
                         case_data["task_desc"],
                         case_data["profile_sections"][i],
                         case_data["solution_sections"][i],
@@ -436,6 +447,7 @@ class SemanticEvaluator:
                         i,
                     )
                     section_results.append(section_result)
+                    section_issues.append(issues_data)
 
                 # Aggregate results for this case
                 if section_results:
@@ -450,6 +462,9 @@ class SemanticEvaluator:
                             "quality_attributes": aggregated,
                         }
                     }
+                    
+                    # Store issues data for this case
+                    issues_results[case_id] = CaseIssuesData(sections=section_issues)
 
             except Exception as exc:
                 print(f"Error evaluating {case_id}: {exc}")
@@ -466,7 +481,13 @@ class SemanticEvaluator:
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(results, f, ensure_ascii=False, indent=2)
 
+        # Save issues data
+        issues_output_path = os.path.join(output_dir, "evaluation_issues.json")
+        with open(issues_output_path, "w", encoding="utf-8") as f:
+            json.dump(issues_results, f, ensure_ascii=False, indent=2)
+
         print(f"Evaluation complete. Results saved to: {output_path}")
+        print(f"Issues data saved to: {issues_output_path}")
 
     def _aggregate_section_results(
         self, section_results: list[EvaluationMetrics]
