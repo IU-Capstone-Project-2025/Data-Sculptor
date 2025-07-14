@@ -62,35 +62,45 @@ class SemanticEvaluator:
         # Get known totals from solution data
         total_required_terms = len(solution_section["required_ml_terms"])
         total_required_issues = len(solution_section["problems_to_detect"])
-        total_issues_mentioned = raw_result.true_positives + raw_result.false_positives
+        total_issues_mentioned = (
+            raw_result.true_positives_issue_count
+            + raw_result.false_positives_issues_count
+        )
 
         # Calculate ML term ratio
         ml_term_ratio = (
-            raw_result.ml_terms_found / total_required_terms
+            raw_result.ml_terms_found_count / total_required_terms
             if total_required_terms > 0
             else 0
         )
 
         # Calculate precision and recall for issues
         precision = (
-            raw_result.true_positives
-            / (raw_result.true_positives + raw_result.false_positives)
-            if (raw_result.true_positives + raw_result.false_positives) > 0
+            raw_result.true_positives_issue_count
+            / (
+                raw_result.true_positives_issue_count
+                + raw_result.false_positives_issues_count
+            )
+            if (
+                raw_result.true_positives_issue_count
+                + raw_result.false_positives_issues_count
+            )
+            > 0
             else 0
         )
 
         recall = (
-            raw_result.true_positives / total_required_issues
+            raw_result.true_positives_issue_count / total_required_issues
             if total_required_issues > 0
             else 0
         )
 
         # Profile detail detection (1 = good, 0 = bad)
-        no_case_profile_detail = 0 if raw_result.mentions_profile_details else 1
+        no_case_profile_detail = "0" if raw_result.is_profile_detail_mentioned else "1"
 
         # Consequence language ratio
         consequence_language_ratio = (
-            raw_result.consequence_language_issues / total_issues_mentioned
+            raw_result.consequence_language_issues_count / total_issues_mentioned
             if total_issues_mentioned > 0
             else 0
         )
@@ -469,14 +479,6 @@ class SemanticEvaluator:
         Returns:
             Aggregated metrics dictionary in required format.
         """
-        if not section_results:
-            return AggregatedMetrics(
-                ml_term_ratio=0.0,
-                necessary_issues_precision=0.0,
-                necessary_issues_recall=0.0,
-                no_case_profile_detail="0",
-                consequence_language_ratio=0.0,
-            )
 
         # Parse percentage values and calculate averages
         ml_term_ratios = []
@@ -498,7 +500,7 @@ class SemanticEvaluator:
         )
         avg_precision = sum(precisions) / len(precisions) if precisions else 0.0
         avg_recall = sum(recalls) / len(recalls) if recalls else 0.0
-        min_profile_detail = str(min(profile_details)) if profile_details else "0"
+        min_profile_detail = min(profile_details)
         avg_consequence_ratio = (
             sum(consequence_ratios) / len(consequence_ratios)
             if consequence_ratios
