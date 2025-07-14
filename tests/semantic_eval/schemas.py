@@ -126,6 +126,20 @@ class AggregatedMetrics(TypedDict):
     consequence_language_ratio: float
 
 
+class SectionIssuesData(TypedDict):
+    """Structure for raw issues data extracted from LLM evaluation per section."""
+
+    false_positives_issues: list[str]
+    false_negatives_issues: list[str]
+    non_consequence_language_issues: list[str]
+
+
+class CaseIssuesData(TypedDict):
+    """Structure for issues data per test case containing all sections."""
+
+    sections: list[SectionIssuesData]
+
+
 class ParsedCaseData(TypedDict):
     """Structure for parsed case data."""
 
