@@ -10,20 +10,21 @@ export async function getNotebookCode(panel: NotebookPanel): Promise<any> {
   // 1. Get current notebook content with proper typing
   const notebookContent = await context.model.toJSON() as nbformat.INotebookContent;
  
-  // 2. Get first cell content
-  if (notebookContent.cells.length === 0 || notebookContent.cells[0].cell_type !== 'code') {
-    throw new Error('First cell is not a code cell');
+  // 2. Find first code cell
+  const firstCodeCell = notebookContent.cells.find(cell => cell.cell_type === 'code');
+  
+  if (!firstCodeCell) {
+    throw new Error('No code cell found in notebook');
   }
 
-  const firstCell = notebookContent.cells[0];
-  console.log(firstCell);
+  console.log(firstCodeCell);
   let codeString = '';
  
   // Handle both string and array formats for cell source
-  if (Array.isArray(firstCell.source)) {
-    codeString = firstCell.source.join('\n');
+  if (Array.isArray(firstCodeCell.source)) {
+    codeString = firstCodeCell.source.join('\n');
   } else {
-    codeString = firstCell.source;
+    codeString = firstCodeCell.source;
   }
 
   codeString = codeString.replace(/\\n/g, '\n')  // Replace double-escaped \\n with single \n
@@ -54,11 +55,18 @@ export async function writeNotebookWithLSP(panel: NotebookPanel, lsp: any): Prom
     const modifiedCode = transformedLines.join('\n');
     console.log(modifiedCode);
     
-    const firstCell = notebookContent.cells[0];
-    if (Array.isArray(firstCell.source)) {
-      firstCell.source = modifiedCode.split('\n');
+    // Find the first code cell index
+    const firstCodeCellIndex = notebookContent.cells.findIndex(cell => cell.cell_type === 'code');
+    
+    if (firstCodeCellIndex === -1) {
+      throw new Error('No code cell found in notebook');
+    }
+    
+    const firstCodeCell = notebookContent.cells[firstCodeCellIndex];
+    if (Array.isArray(firstCodeCell.source)) {
+      firstCodeCell.source = modifiedCode.split('\n');
     } else {
-      firstCell.source = modifiedCode;
+      firstCodeCell.source = modifiedCode;
     }
     
     model.fromJSON(notebookContent);

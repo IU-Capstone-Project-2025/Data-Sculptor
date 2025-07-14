@@ -28,6 +28,8 @@ ProfileSectionData = _local_schemas.ProfileSectionData
 SolutionSectionData = _local_schemas.SolutionSectionData
 EvaluationMetrics = _local_schemas.EvaluationMetrics
 AggregatedMetrics = _local_schemas.AggregatedMetrics
+SectionIssuesData = _local_schemas.SectionIssuesData
+CaseIssuesData = _local_schemas.CaseIssuesData
 
 
 class NotebookParseError(RuntimeError):
@@ -62,35 +64,45 @@ class SemanticEvaluator:
         # Get known totals from solution data
         total_required_terms = len(solution_section["required_ml_terms"])
         total_required_issues = len(solution_section["problems_to_detect"])
-        total_issues_mentioned = raw_result.true_positives + raw_result.false_positives
+        total_issues_mentioned = (
+            raw_result.true_positives_issue_count
+            + raw_result.false_positives_issues_count
+        )
 
         # Calculate ML term ratio
         ml_term_ratio = (
-            raw_result.ml_terms_found / total_required_terms
+            raw_result.ml_terms_found_count / total_required_terms
             if total_required_terms > 0
             else 0
         )
 
         # Calculate precision and recall for issues
         precision = (
-            raw_result.true_positives
-            / (raw_result.true_positives + raw_result.false_positives)
-            if (raw_result.true_positives + raw_result.false_positives) > 0
+            raw_result.true_positives_issue_count
+            / (
+                raw_result.true_positives_issue_count
+                + raw_result.false_positives_issues_count
+            )
+            if (
+                raw_result.true_positives_issue_count
+                + raw_result.false_positives_issues_count
+            )
+            > 0
             else 0
         )
 
         recall = (
-            raw_result.true_positives / total_required_issues
+            raw_result.true_positives_issue_count / total_required_issues
             if total_required_issues > 0
             else 0
         )
 
         # Profile detail detection (1 = good, 0 = bad)
-        no_case_profile_detail = 0 if raw_result.mentions_profile_details else 1
+        no_case_profile_detail = "0" if raw_result.is_profile_detail_mentioned else "1"
 
         # Consequence language ratio
         consequence_language_ratio = (
-            raw_result.consequence_language_issues / total_issues_mentioned
+            raw_result.consequence_language_issues_count / total_issues_mentioned
             if total_issues_mentioned > 0
             else 0
         )
@@ -320,7 +332,7 @@ class SemanticEvaluator:
         solution_section: SolutionSectionData,
         case_id: uuid.UUID,
         section_index: int,
-    ) -> EvaluationMetrics:
+    ) -> tuple[EvaluationMetrics, SectionIssuesData]:
         """Evaluate a profile section against a solution section via semantic feedback pipeline.
 
         Args:
@@ -331,7 +343,7 @@ class SemanticEvaluator:
             section_index: Index of the section being evaluated.
 
         Returns:
-            Dictionary with calculated evaluation metrics.
+            Tuple of (calculated evaluation metrics, raw issues data).
         """
         profile_desc = profile_section["description"]
         profile_code = profile_section["code"]
@@ -359,7 +371,16 @@ class SemanticEvaluator:
         # Calculate final metrics from raw observations
         calculated_metrics = self.calculate_metrics(raw_result, solution_section)
 
-        return calculated_metrics
+        # Extract raw issues data
+        issues_data = SectionIssuesData(
+            false_positives_issues=raw_result.false_positives_issues,
+            false_negatives_issues=raw_result.false_negatives_issues,
+            non_consequence_language_issues=raw_result.non_consequence_language_issues,
+            ml_terms_not_found=raw_result.ml_terms_not_found,
+            feedback_text=feedback_response.get_description_for_llm(),
+        )
+
+        return calculated_metrics, issues_data
 
     def evaluate(self, cases_path: str, output_dir: str | None = None) -> None:
         """Evaluate all cases in a folder structure.
@@ -405,6 +426,7 @@ class SemanticEvaluator:
         self.direct_feedback_client = DirectFeedbackClient(parsed_cases)
 
         results = {}
+        issues_results = {}
 
         for case_id in tqdm(parsed_cases.keys(), desc="Evaluating test cases"):
             case_data = parsed_cases[case_id]
@@ -412,13 +434,14 @@ class SemanticEvaluator:
             try:
                 # Evaluate each section pair
                 section_results = []
+                section_issues = []
                 min_sections = min(
                     len(case_data["profile_sections"]),
                     len(case_data["solution_sections"]),
                 )
 
                 for i in range(min_sections):
-                    section_result = self.evaluate_section(
+                    section_result, issues_data = self.evaluate_section(
                         case_data["task_desc"],
                         case_data["profile_sections"][i],
                         case_data["solution_sections"][i],
@@ -426,12 +449,13 @@ class SemanticEvaluator:
                         i,
                     )
                     section_results.append(section_result)
+                    section_issues.append(issues_data)
 
                 # Aggregate results for this case
                 if section_results:
                     aggregated = self._aggregate_section_results(section_results)
                     results[case_id] = {
-                        "router_feedback": {
+                        "semantic_feedback": {
                             "acceptance_criteria": {
                                 "sections_evaluated": "Yes"
                                 if section_results
@@ -440,11 +464,14 @@ class SemanticEvaluator:
                             "quality_attributes": aggregated,
                         }
                     }
+                    
+                    # Store issues data for this case
+                    issues_results[case_id] = CaseIssuesData(sections=section_issues)
 
             except Exception as exc:
                 print(f"Error evaluating {case_id}: {exc}")
                 results[case_id] = {
-                    "router_feedback": {
+                    "semantic_feedback": {
                         "acceptance_criteria": {"sections_evaluated": "No"},
                         "quality_attributes": {"error": str(exc)},
                     }
@@ -456,7 +483,13 @@ class SemanticEvaluator:
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(results, f, ensure_ascii=False, indent=2)
 
+        # Save issues data
+        issues_output_path = os.path.join(output_dir, "evaluation_issues.json")
+        with open(issues_output_path, "w", encoding="utf-8") as f:
+            json.dump(issues_results, f, ensure_ascii=False, indent=2)
+
         print(f"Evaluation complete. Results saved to: {output_path}")
+        print(f"Issues data saved to: {issues_output_path}")
 
     def _aggregate_section_results(
         self, section_results: list[EvaluationMetrics]
@@ -469,14 +502,6 @@ class SemanticEvaluator:
         Returns:
             Aggregated metrics dictionary in required format.
         """
-        if not section_results:
-            return AggregatedMetrics(
-                ml_term_ratio=0.0,
-                necessary_issues_precision=0.0,
-                necessary_issues_recall=0.0,
-                no_case_profile_detail="0",
-                consequence_language_ratio=0.0,
-            )
 
         # Parse percentage values and calculate averages
         ml_term_ratios = []
@@ -498,7 +523,7 @@ class SemanticEvaluator:
         )
         avg_precision = sum(precisions) / len(precisions) if precisions else 0.0
         avg_recall = sum(recalls) / len(recalls) if recalls else 0.0
-        min_profile_detail = str(min(profile_details)) if profile_details else "0"
+        min_profile_detail = min(profile_details)
         avg_consequence_ratio = (
             sum(consequence_ratios) / len(consequence_ratios)
             if consequence_ratios

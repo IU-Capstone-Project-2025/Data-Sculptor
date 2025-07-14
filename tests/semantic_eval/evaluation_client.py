@@ -7,7 +7,7 @@ from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_t
 
 from llm_schemas import EvaluationRawResult
 from settings import settings
-from prompts import ROUTER_FEEDBACK_EVALUATION_PROMPT
+from prompts import FEEDBACK_EVALUATION_PROMPT
 from schemas import SolutionSectionData
 
 
@@ -51,13 +51,13 @@ class EvaluationClient:
             profile_section_description: Description from profile section.
             profile_section_code: Code from profile section.
             solution_section: Solution data with required terms and problems.
-            feedback: Feedback from router service.
+            feedback: Feedback from feedback service.
 
         Returns:
             Structured LLM evaluation result with raw counts and classifications.
         """
         # Format the prompt with provided arguments
-        formatted_prompt = ROUTER_FEEDBACK_EVALUATION_PROMPT.format(
+        formatted_prompt = FEEDBACK_EVALUATION_PROMPT.format(
             task_description=task_description,
             profile_section_description=profile_section_description,
             profile_section_code=profile_section_code,
