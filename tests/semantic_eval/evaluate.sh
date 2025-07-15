@@ -12,18 +12,24 @@ log() { printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
 
 ###############################################################################
 # Signal-handling state
-CHILD_GRP=""          # process-group ID of the active Python job, if any
+# `CHILD_TARGET` stores the identifier we have to send signals to:
+#   * "-<PGID>" when we successfully started the Python process in a new
+#     process-group via `setsid` (Linux or macOS with `setsid` present).
+#   * "<PID>"  (just the child’s PID) when `setsid` is unavailable (older
+#     macOS versions).  In that case we lose the ability to signal the whole
+#     process-group, but still terminate the main process correctly.
+CHILD_TARGET=""   # signal target of the active Python job, if any
 
 ###############################################################################
 # Cleanup on exit / interrupt
 cleanup() {
     log "Cleaning up …"
 
-    # Forward the interrupt to the running Python job (if still alive)
-    if [[ -n "$CHILD_GRP" ]] && kill -0 "-$CHILD_GRP" 2>/dev/null; then
-        log "Forwarding SIGINT to child process-group $CHILD_GRP"
-        kill -INT "-$CHILD_GRP" 2>/dev/null || true
-        wait "-$CHILD_GRP" 2>/dev/null || true
+    # Forward the interrupt to the running Python job / group (if still alive)
+    if [[ -n "$CHILD_TARGET" ]] && kill -0 "$CHILD_TARGET" 2>/dev/null; then
+        log "Forwarding SIGINT to child ($CHILD_TARGET)"
+        kill -INT "$CHILD_TARGET" 2>/dev/null || true
+        wait "$CHILD_TARGET" 2>/dev/null || true
     fi
 
     # Deactivate Conda if this script activated it
@@ -41,10 +47,21 @@ trap cleanup EXIT
 ###############################################################################
 # Helper: run a Python command in its own process-group
 run_python() {
-    setsid python "$@" &      # new session → leader PID == PGID
-    CHILD_GRP=$!              # remember its group
-    wait "$CHILD_GRP"         # propagate exit-status to this function
-    CHILD_GRP=""              # clear once finished
+    if command -v setsid >/dev/null 2>&1; then
+        # systems with `setsid` (most Linux distros, newer macOS)
+        setsid python "$@" &
+        local child_pid=$!
+        CHILD_TARGET="-$child_pid"   # negative PGID → whole group
+    else
+        # fallback for macOS where `setsid` is unavailable
+        python "$@" &
+        local child_pid=$!
+        CHILD_TARGET="$child_pid"    # only the main process
+    fi
+
+    # Propagate the child's exit status back to the caller
+    wait "$child_pid"
+    CHILD_TARGET=""
 }
 
 ###############################################################################

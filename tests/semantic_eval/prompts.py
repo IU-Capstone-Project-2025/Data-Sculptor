@@ -19,19 +19,19 @@ Analyze the provided feedback and generate:
    - `long_issues_found`: Issues mentioned in feedback that are described verbosely rather than concisely
    - `false_positives_issues`: Issues mentioned in feedback but NOT in problems_to_detect
    - `false_negatives_issues`: Issues from problems_to_detect that are missing from feedback
-   - `profile_detail_mentioned`: Issues mentioned in feedback that are case profile details (variable names, code fragments) which appear ONLY in profile code and NOT in user's solution code
+   - `profile_detail_mentioned`: Entities mentioned in feedback that are profile code details (variable/function/class names, code fragments) which appear ONLY in profile code and NOT in user's solution code
    - `non_consequence_language_issues`: Issues not using consequence-focused language
 2. **Counts/Metrics**:
    - `brief_issues_count`: Number of issues described concisely with appropriate ML terminology
    - `true_positives_issue_count`: Number of correctly identified required issues
    - `false_positives_issues_count`: Number of false positive issues
    - `consequence_language_issues_count`: Number of issues using consequence-focused language
-   - `is_profile_detail_mentioned`: Boolean indicating if any profile-only details were mentioned (excludes details that appear in both profile and solution code)
+   - `is_profile_detail_mentioned`: Boolean indicating if any profile-only code details were mentioned (excludes details that appear in both profile and solution code)
 # EVALUATION PROCESS
 1. First, identify all issues mentioned in the feedback and assess whether each is described briefly or verbosely
 2. Compare issues mentioned in the feedback against the Problems to Detect list
 3. Check each issue's phrasing to determine if it uses consequence-focused language
-4. When checking for profile details: Compare any mentioned details against BOTH the profile code and solution code. Only count as leaked if the detail appears EXCLUSIVELY in the profile code
+4. When checking for profile details: Compare any mentioned code details against BOTH the profile code and solution code. Only count as leaked if the code detail appears EXCLUSIVELY in the profile code and feedback
 5. Count brief issue descriptions and categorize all findings according to the definitions above
 # INPUT SECTIONS
 ## FEEDBACK TO EVALUATE
