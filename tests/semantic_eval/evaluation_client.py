@@ -61,7 +61,6 @@ class EvaluationClient:
             task_description=task_description,
             profile_section_description=profile_section_description,
             profile_section_code=profile_section_code,
-            required_ml_terms=solution_section["required_ml_terms"],
             problems_to_detect=solution_section["problems_to_detect"],
             solution_code=solution_section["code"],
             feedback=feedback,

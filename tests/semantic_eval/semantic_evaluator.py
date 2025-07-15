@@ -62,17 +62,16 @@ class SemanticEvaluator:
             Dictionary with calculated metrics in required format.
         """
         # Get known totals from solution data
-        total_required_terms = len(solution_section["required_ml_terms"])
         total_required_issues = len(solution_section["problems_to_detect"])
         total_issues_mentioned = (
             raw_result.true_positives_issue_count
             + raw_result.false_positives_issues_count
         )
 
-        # Calculate ML term ratio
-        ml_term_ratio = (
-            raw_result.ml_terms_found_count / total_required_terms
-            if total_required_terms > 0
+        # Calculate brief issue ratio
+        brief_issue_ratio = (
+            raw_result.brief_issues_count / total_issues_mentioned
+            if total_issues_mentioned > 0
             else 0
         )
 
@@ -108,7 +107,7 @@ class SemanticEvaluator:
         )
 
 ***REMOVED*** EvaluationMetrics(
-            ml_term_ratio=ml_term_ratio,
+            brief_issue_ratio=brief_issue_ratio,
             necessary_issues_precision=precision,
             necessary_issues_recall=recall,
             no_case_profile_detail=no_case_profile_detail,
@@ -246,7 +245,7 @@ class SemanticEvaluator:
 
         Expected structure:
         - Alternating markdown cells (with JSON) and code cells
-        - JSON format: {"required_ml_terms": [...], "problems_to_detect": [...]}
+        - JSON format: {"problems_to_detect": [...]}
 
         Args:
             notebook_path: Path to the solution notebook.
@@ -313,7 +312,6 @@ class SemanticEvaluator:
                 SolutionSectionData(
                     json_data=json_data,
                     code=code_content,
-                    required_ml_terms=json_data.get("required_ml_terms", []),
                     problems_to_detect=json_data.get("problems_to_detect", []),
                 )
             )
@@ -373,10 +371,11 @@ class SemanticEvaluator:
 
         # Extract raw issues data
         issues_data = SectionIssuesData(
+            long_issues_found=raw_result.long_issues_found,
             false_positives_issues=raw_result.false_positives_issues,
             false_negatives_issues=raw_result.false_negatives_issues,
+            profile_detail_mentioned=raw_result.profile_detail_mentioned,
             non_consequence_language_issues=raw_result.non_consequence_language_issues,
-            ml_terms_not_found=raw_result.ml_terms_not_found,
             feedback_text=feedback_response.get_description_for_llm(),
         )
 
@@ -464,7 +463,7 @@ class SemanticEvaluator:
                             "quality_attributes": aggregated,
                         }
                     }
-                    
+
                     # Store issues data for this case
                     issues_results[case_id] = CaseIssuesData(sections=section_issues)
 
@@ -504,22 +503,24 @@ class SemanticEvaluator:
         """
 
         # Parse percentage values and calculate averages
-        ml_term_ratios = []
+        brief_issue_ratios = []
         precisions = []
         recalls = []
         profile_details = []
         consequence_ratios = []
 
         for result in section_results:
-            ml_term_ratios.append(result["ml_term_ratio"])
+            brief_issue_ratios.append(result["brief_issue_ratio"])
             precisions.append(result["necessary_issues_precision"])
             recalls.append(result["necessary_issues_recall"])
             profile_details.append(result["no_case_profile_detail"])
             consequence_ratios.append(result["consequence_language_ratio"])
 
         # Calculate aggregated metrics
-        avg_ml_term_ratio = (
-            sum(ml_term_ratios) / len(ml_term_ratios) if ml_term_ratios else 0.0
+        avg_brief_issue_ratio = (
+            sum(brief_issue_ratios) / len(brief_issue_ratios)
+            if brief_issue_ratios
+            else 0.0
         )
         avg_precision = sum(precisions) / len(precisions) if precisions else 0.0
         avg_recall = sum(recalls) / len(recalls) if recalls else 0.0
@@ -531,7 +532,7 @@ class SemanticEvaluator:
         )
 
 ***REMOVED*** AggregatedMetrics(
-            ml_term_ratio=avg_ml_term_ratio,
+            brief_issue_ratio=avg_brief_issue_ratio,
             necessary_issues_precision=avg_precision,
             necessary_issues_recall=avg_recall,
             no_case_profile_detail=min_profile_detail,
