@@ -17,9 +17,10 @@ minio_port = os.getenv("MINIO_PORT_EXTERNAL")
 endpoint = f"{host}:{minio_port}"
 access_key = os.getenv("MINIO_ROOT_USER")
 secret_key = os.getenv("MINIO_ROOT_PASSWORD")
-client = Minio(
-    "31.56.227.36:52298", access_key="minioadmin", secret_key="minioadmin", secure=False
-)
+# client = Minio(
+#     "31.56.227.36:52298", access_key="minioadmin", secret_key="minioadmin", secure=False
+# )
+client = Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=False)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
