@@ -21,6 +21,10 @@ services:
       - ../resources/data/jupyterhub:/home/developer:rw
     environment:
       - DOMAIN=${DOMAIN}
+      - HOST_IP=${HOST_IP}
+      - MINIO_PORT_EXTERNAL=${MINIO_PORT_EXTERNAL}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
       - JUPYTERHUB_CRYPT_KEY=IQyHLHuh+mB9FRDsiaBFB7RHBfL1YYn0jfV2dM0lVOY=
       - JUPYTERHUB_PORT_EXTERNAL=${JUPYTERHUB_PORT_EXTERNAL}
       - JUPYTERHUB_PORT_INTERNAL=${JUPYTERHUB_PORT_INTERNAL}
@@ -258,8 +262,8 @@ services:
       - "${MINIO_PORT_EXTERNAL}:9000"
       - "${MINIO_CONSOLE_PORT_EXTERNAL}:9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD}"
     volumes:
       - ../resources/data/minio:/data:rw
     command: server /data --console-address ":9001"
