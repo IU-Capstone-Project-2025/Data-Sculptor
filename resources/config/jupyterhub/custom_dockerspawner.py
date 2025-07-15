@@ -17,9 +17,7 @@ minio_port = os.getenv("MINIO_PORT_EXTERNAL")
 endpoint = f"{host}:{minio_port}"
 access_key = os.getenv("MINIO_ROOT_USER")
 secret_key = os.getenv("MINIO_ROOT_PASSWORD")
-client = Minio(
-    "31.56.227.36:52298", access_key="minioadmin", secret_key="minioadmin", secure=False
-)
+client = Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=False)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
@@ -40,7 +38,12 @@ class CustomDockerSpawner(DockerSpawner):
     async def start(self):
         img_path: str | None = None
         try:
-            self.case_id = "1"
+            self.case_id = self.user_options.get("case_id")
+            if self.case_id:
+                logging.info("GOT CASE ID")
+            else:
+                self.case_id  = "1"
+                logging.info("NO CASE ID PROVIDED. SET UP TO DEFAULT = 1")
 
             logging.info("Getting image from DB")
             img_path = await asyncio.to_thread(self._get_image, self.case_id)
