@@ -12,18 +12,44 @@ log() { printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
 
 ###############################################################################
 # Signal-handling state
-CHILD_GRP=""          # process-group ID of the active Python job, if any
+# `CHILD_SIG_TARGET` holds the identifier we must send signals to:
+#   * "-<PGID>" when the child was started in its own process-group via `setsid`.
+#   * "<PID>"   (positive) when `setsid` is unavailable and the child runs in
+#     the same group as the script.
+#
+# We also track `CHILD_PID` separately because `wait` only accepts *PIDs*,
+# not negative PGIDs.  Mixing the two caused broken Ctrl-C handling before.
+CHILD_PID=""         # PID of the active Python job, if any
+CHILD_SIG_TARGET=""  # Target (PID or -PGID) for signal forwarding
 
 ###############################################################################
 # Cleanup on exit / interrupt
 cleanup() {
     log "Cleaning up …"
 
-    # Forward the interrupt to the running Python job (if still alive)
-    if [[ -n "$CHILD_GRP" ]] && kill -0 "-$CHILD_GRP" 2>/dev/null; then
-        log "Forwarding SIGINT to child process-group $CHILD_GRP"
-        kill -INT "-$CHILD_GRP" 2>/dev/null || true
-        wait "-$CHILD_GRP" 2>/dev/null || true
+    # Forward the interrupt (and, if necessary, escalate) to the running
+    # Python job / group so that the pipeline reliably stops.
+    if [[ -n "$CHILD_PID" ]] && kill -0 "$CHILD_PID" 2>/dev/null; then
+        log "Forwarding SIGINT to child ($CHILD_SIG_TARGET)"
+        kill -INT "$CHILD_SIG_TARGET" 2>/dev/null || true
+
+        # Give the child a moment to exit gracefully.
+        sleep 1
+
+        # If it is still alive, escalate to SIGTERM and finally SIGKILL.
+        if kill -0 "$CHILD_PID" 2>/dev/null; then
+            log "Child still running — sending SIGTERM…"
+            kill -TERM "$CHILD_SIG_TARGET" 2>/dev/null || true
+            sleep 1
+        fi
+
+        if kill -0 "$CHILD_PID" 2>/dev/null; then
+            log "Child stubborn — sending SIGKILL!"
+            kill -KILL "$CHILD_SIG_TARGET" 2>/dev/null || true
+        fi
+
+        # Reap the child; use PID (positive) because `wait` dislikes -PGID.
+        wait "$CHILD_PID" 2>/dev/null || true
     fi
 
     # Deactivate Conda if this script activated it
@@ -41,10 +67,25 @@ trap cleanup EXIT
 ###############################################################################
 # Helper: run a Python command in its own process-group
 run_python() {
-    setsid python "$@" &      # new session → leader PID == PGID
-    CHILD_GRP=$!              # remember its group
-    wait "$CHILD_GRP"         # propagate exit-status to this function
-    CHILD_GRP=""              # clear once finished
+    if command -v setsid >/dev/null 2>&1; then
+        # Systems with `setsid` (most Linux distros, newer macOS)
+        setsid python "$@" &
+        CHILD_PID=$!
+        CHILD_SIG_TARGET="-$CHILD_PID"   # negative PGID → whole group
+    else
+        # Fallback for macOS where `setsid` is unavailable
+        python "$@" &
+        CHILD_PID=$!
+        CHILD_SIG_TARGET="$CHILD_PID"    # only the main process
+    fi
+
+    # Propagate the child's exit status back to the caller.  `wait` accepts
+    # only PIDs, so we use `CHILD_PID` (positive) here.
+    wait "$CHILD_PID"
+
+    # Clear tracking variables once the child has finished.
+    CHILD_PID=""
+    CHILD_SIG_TARGET=""
 }
 
 ###############################################################################
