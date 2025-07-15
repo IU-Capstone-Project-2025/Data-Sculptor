@@ -265,9 +265,10 @@ def process_stage(
                 f.write(f"No {criteria_type} found for this stage.\n\n")
                 continue
             headers = ["Samples/Criteria"] + list(all_criteria)
-            table_data = []
+            sample_table_data = []
             criterion_values = {c: [] for c in all_criteria}
 
+            # Build sample data table (one row per sample)
             for sample_id, sample_data in samples:
                 row_values = [sample_id]
                 for criterion in all_criteria:
@@ -278,7 +279,19 @@ def process_stage(
                         f"{value:.2%}" if isinstance(value, float) else value
                     )
                     criterion_values[criterion].append(value)
-                table_data.append(row_values)
+                sample_table_data.append(row_values)
+
+            # Write sample data table
+            f.write("**Sample Data Table**\n\n")
+            sample_table = tabulate(
+                sample_table_data,
+                headers=headers,
+                tablefmt="pipe",
+                stralign="left",
+                disable_numparse=True,
+            )
+            f.write(sample_table + "\n\n")
+
             print(f"    ⋯ Analyzing {len(all_criteria)} criteria")
             means = []
             stds = []
@@ -300,27 +313,27 @@ def process_stage(
                 ci_means.append(ci_mean)
                 ci_stds.append(ci_std)
                 pred_intervals.append(pred_interval)
+            # Build and write aggregated data table
             if means:
-                table_data.extend(
-                    [
-                        ["Mean"] + [f"{m:.2%}" for m in means],
-                        ["Standard Deviation"] + [f"{s:.2%}" for s in stds],
-                        ["CI for mean"]
-                        + [f"({c[0]:.2%}, {c[1]:.2%})" for c in ci_means],
-                        ["CI for standard deviation"]
-                        + [f"({c[0]:.2%}, {c[1]:.2%})" for c in ci_stds],
-                        ["Prediction interval"]
-                        + [f"({p[0]:.2%}, {p[1]:.2%})" for p in pred_intervals],
-                    ]
-                )
-                table = tabulate(
-                    table_data,
+                agg_table_data = [
+                    ["Mean"] + [f"{m:.2%}" for m in means],
+                    ["Standard Deviation"] + [f"{s:.2%}" for s in stds],
+                    ["CI for mean"]
+                    + [f"({c[0]:.2%}, {c[1]:.2%})" for c in ci_means],
+                    ["CI for standard deviation"]
+                    + [f"({c[0]:.2%}, {c[1]:.2%})" for c in ci_stds],
+                    ["Prediction interval"]
+                    + [f"({p[0]:.2%}, {p[1]:.2%})" for p in pred_intervals],
+                ]
+                f.write("**Aggregated Statistics Table**\n\n")
+                agg_table = tabulate(
+                    agg_table_data,
                     headers=headers,
                     tablefmt="pipe",
                     stralign="left",
                     disable_numparse=True,
                 )
-                f.write(table + "\n\n")
+                f.write(agg_table + "\n\n")
         end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         f.write(f"End Time: {end_time}\n")
     print("✓ Stage completed")
