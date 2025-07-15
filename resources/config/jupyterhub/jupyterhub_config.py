@@ -108,7 +108,7 @@ c.DockerSpawner.name_template = 'jupyter-{username}'
 c.DockerSpawner.debug = True
 c.DockerSpawner.docker_host = 'unix:///var/run/docker.sock'
 c.DockerSpawner.subdomain = '{username}'
-
+c.Spawner.start_timeout = 300
 # Subdomain proxy
 c.JupyterHub.bind_url = f'{PROTO}://0.0.0.0:{JH_PORT_INT}'
 c.JupyterHub.hub_connect_ip = JH_DOMAIN

@@ -6,7 +6,6 @@ import subprocess
 import logging
 import sys
 import asyncio
-import docker
 
 load_dotenv()
 import re
@@ -58,8 +57,8 @@ class CustomDockerSpawner(DockerSpawner):
             logging.info(f"Feedback path: {self.feedback_path}")
 
             logging.info("loading image to local docker repoitory")
-            response = await asyncio.to_thread(self._load_image, img_path)
-            self.image = await asyncio.to_thread(self._get_image_name, response)
+            self.image = await asyncio.to_thread(self._load_image, img_path)
+            # self.image = await asyncio.to_thread(self._get_image_name, response)
             logging.info(f"Getting image name: {self.image}")
 
 
@@ -154,18 +153,27 @@ class CustomDockerSpawner(DockerSpawner):
         return case_id
 
     def _load_image(self, img_path: str):
-        """
-        Загружает Docker-образ из тар-файла и возвращает список
-        Docker-питоновских Image-объектов.
-        """
-        client = docker.from_env()
-        with open(img_path, "rb") as f:
-            images = client.images.load(f.read())
-        logging.info(
-            f"Tarball {img_path} загружен в Docker, получено образов: {len(images)}"
-        )
-        return images
-
+        # client = docker.from_env()
+        # with open(img_path, "rb") as f:
+        #     images = client.images.load(f.read())
+        # logging.info(
+        #     f"Tarball {img_path} загружен в Docker, получено образов: {len(images)}"
+        # )
+        try:
+            output = subprocess.check_output(
+                ["docker","load","-i",img_path],
+                stderr=subprocess.STDOUT,
+                text=True
+            )
+        except Exception as e:
+            logging.error(f"Could not load image to local repoitory: {e}")
+            raise
+        match = re.search(r"Loaded image:\s+(.+)", output)
+        if match:
+            image_name = match.group(1).strip()
+            return image_name
+        else:
+            raise RuntimeError(f"Could not parse docker image name from output: {output}")
     def _get_image_name(self, images) -> str:
         """
         Берёт первый объект Image и пытается вернуть его тег.
