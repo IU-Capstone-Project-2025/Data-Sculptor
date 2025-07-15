@@ -24,7 +24,8 @@ class CustomSpawnHandler(SpawnHandler):
             auth["case_id"] = case_id
             await self.current_user.save_auth_state(auth)
             logging.info(f"Set case_id {case_id} for user {self.current_user.username}")
-
+        else:
+            logging.info(f"NO CASE ID WAS PROVIDED")
     # get/post не трогаем: наследуются как есть
 
 

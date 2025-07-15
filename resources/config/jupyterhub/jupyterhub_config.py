@@ -87,6 +87,8 @@ c.GenericOAuthenticator.post_auth_hook = post_auth_hook
 c.GenericOAuthenticator.refresh_pre_spawn = True
 
 c.JupyterHub.spawner_class = CustomDockerSpawner
+
+# otherwise this image will overlap to case image!
 # c.DockerSpawner.image = 'jupyter/base-notebook'
 c.DockerSpawner.remove = True
 c.DockerSpawner.network_name = 'jupyter-network'
