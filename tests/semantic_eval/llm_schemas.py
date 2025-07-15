@@ -9,8 +9,8 @@ class EvaluationRawResult(BaseModel):
     """Raw observations from LLM evaluation - no calculations."""
 
     # Observability
-    ml_terms_not_found: list[str] = Field(
-        description="List of ML terms from the Required ML Terms list that are not found in the feedback"
+    long_issues_found: list[str] = Field(
+        description="List of issues mentioned in feedback that are described verbosely rather than concisely"
     )
     false_positives_issues: list[str] = Field(
         description="List of issues mentioned in feedback that are NOT in problems_to_detect"
@@ -18,13 +18,17 @@ class EvaluationRawResult(BaseModel):
     false_negatives_issues: list[str] = Field(
         description="List of issues mentioned in problems_to_detect that feedback failed to mention"
     )
+    profile_detail_mentioned: list[str] = Field(
+        description="List of issues mentioned in feedback that are case profile details (variable names, code fragments)"
+    )
     non_consequence_language_issues: list[str] = Field(
         description="List of issues mentioned in feedback that are not described using consequence language rather than solution suggestions"
     )
 
     # Metrics
-    ml_terms_found_count: int = Field(
-        ge=0, description="Count of required ML terms found in feedback"
+    brief_issues_count: int = Field(
+        ge=0,
+        description="Count of issues described concisely with appropriate ML terminology",
     )
     true_positives_issue_count: int = Field(
         ge=0, description="Count of required issues correctly identified by feedback"
