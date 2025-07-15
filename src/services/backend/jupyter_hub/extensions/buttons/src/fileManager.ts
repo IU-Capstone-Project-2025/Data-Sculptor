@@ -121,13 +121,18 @@ export async function applyLSPFeedback(lines: string[], lsp: any): Promise<strin
 }
 
 // 2. FILE SAVER FUNCTION
-export async function saveFeedbackFile(notebookPath: string, content: string) {
+export async function saveFeedbackFile(notebookPath: string, content: string, fileName?: string) {
   try {
-    // Create filename with timestamp
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const fileName = `markdown_feedback_${timestamp}.md`;
+    // Use provided fileName or fallback to timestamped name
+    let finalFileName: string;
+    if (fileName) {
+      finalFileName = fileName;
+    } else {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      finalFileName = `markdown_feedback_${timestamp}.md`;
+    }
     const directory = PathExt.dirname(notebookPath);
-    const filePath = PathExt.join(directory, fileName);
+    const filePath = PathExt.join(directory, finalFileName);
 
     // Get server settings with authentication
     const serverSettings = ServerConnection.makeSettings();
@@ -140,7 +145,7 @@ export async function saveFeedbackFile(notebookPath: string, content: string) {
       content: content
     };
 
-    // Send PUT request
+    // Send PUT request (will overwrite if file exists)
     const response = await ServerConnection.makeRequest(url, {
       method: 'PUT',
       body: JSON.stringify(model),
