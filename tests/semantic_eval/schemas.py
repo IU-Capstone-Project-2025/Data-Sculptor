@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Literal, TypedDict
+from typing import Any, TypedDict
 from pydantic import BaseModel, Field
 
 
@@ -77,16 +77,6 @@ class EvaluationMetrics(TypedDict):
     consequence_language_ratio: float
 
 
-class AggregatedMetrics(TypedDict):
-    """Aggregated metrics from multiple sections."""
-
-    brief_issue_ratio: float
-    necessary_issues_precision: float
-    necessary_issues_recall: float
-    no_case_profile_detail: Literal["1", "0"]
-    consequence_language_ratio: float
-
-
 class SectionIssuesData(TypedDict):
     """Structure for raw issues data extracted from LLM evaluation per section."""
 
@@ -96,12 +86,6 @@ class SectionIssuesData(TypedDict):
     profile_detail_mentioned: list[str]
     non_consequence_language_issues: list[str]
     feedback_text: str
-
-
-class CaseIssuesData(TypedDict):
-    """Structure for issues data per test case containing all sections."""
-
-    sections: dict[int, SectionIssuesData]
 
 
 class ParsedCaseData(TypedDict):
