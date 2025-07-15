@@ -152,10 +152,11 @@ class SemanticEvaluator:
                 raise FileNotFoundError(f"Missing solution.ipynb in {case_dir}")
 
             cases.append(
-                {
-                    "profile_path": str(profile_path),
-                    "solution_path": str(solution_path),
-                }
+                TestCaseData(
+                    case_name=case_dir.name,
+                    profile_path=str(profile_path),
+                    solution_path=str(solution_path),
+                )
             )
 
         return cases
@@ -407,19 +408,16 @@ class SemanticEvaluator:
                     test_case["solution_path"]
                 )
 
-                # Generate profile ID from case name
-                case_id = str(uuid.uuid4())
-
                 # Store parsed data for evaluation
-                parsed_cases[case_id] = ParsedCaseData(
+                parsed_cases[test_case["case_name"]] = ParsedCaseData(
+                    case_id=uuid.uuid4(),  # Generate case ID
                     task_desc=task_desc,
                     profile_sections=profile_sections,
                     solution_sections=solution_sections,
                 )
 
             except Exception as exc:
-                print(f"Error parsing {case_id}: {exc}")
-                parsed_cases[case_id] = {"error": str(exc)}
+                print(f"Error parsing {test_case['case_name']}: {exc} skipping")
 
         # Initialize DirectFeedbackClient with all cases data
         self.direct_feedback_client = DirectFeedbackClient(parsed_cases)
@@ -427,9 +425,9 @@ class SemanticEvaluator:
         results = {}
         issues_results = {}
 
-        for case_id in tqdm(parsed_cases.keys(), desc="Evaluating test cases"):
-            case_data = parsed_cases[case_id]
-
+        for case_name, case_data in tqdm(
+            parsed_cases.items(), desc="Evaluating test cases"
+        ):
             try:
                 # Evaluate each section pair
                 section_results = []
@@ -444,7 +442,7 @@ class SemanticEvaluator:
                         case_data["task_desc"],
                         case_data["profile_sections"][i],
                         case_data["solution_sections"][i],
-                        uuid.UUID(case_id),
+                        case_data["case_id"],
                         i,
                     )
                     section_results.append(section_result)
@@ -453,7 +451,7 @@ class SemanticEvaluator:
                 # Aggregate results for this case
                 if section_results:
                     aggregated = self._aggregate_section_results(section_results)
-                    results[case_id] = {
+                    results[case_name] = {
                         "semantic_feedback": {
                             "acceptance_criteria": {
                                 "sections_evaluated": "Yes"
@@ -465,11 +463,16 @@ class SemanticEvaluator:
                     }
 
                     # Store issues data for this case
-                    issues_results[case_id] = CaseIssuesData(sections=section_issues)
+                    issues_results[case_name] = CaseIssuesData(
+                        sections={
+                            i: section_issue
+                            for i, section_issue in enumerate(section_issues)
+                        }
+                    )
 
             except Exception as exc:
-                print(f"Error evaluating {case_id}: {exc}")
-                results[case_id] = {
+                print(f"Error evaluating {case_name}: {exc}")
+                results[case_name] = {
                     "semantic_feedback": {
                         "acceptance_criteria": {"sections_evaluated": "No"},
                         "quality_attributes": {"error": str(exc)},

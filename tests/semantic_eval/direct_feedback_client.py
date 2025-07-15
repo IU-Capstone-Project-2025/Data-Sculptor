@@ -98,7 +98,9 @@ class MockProfileContextGateway:
                     }
                 }
         """
-        self.cases_data = cases_data
+        self.cases_data = {
+            str(case_data["case_id"]): case_data for case_data in cases_data.values()
+        }
 
     async def get_section(
         self, case_id: uuid.UUID, section_index: int
