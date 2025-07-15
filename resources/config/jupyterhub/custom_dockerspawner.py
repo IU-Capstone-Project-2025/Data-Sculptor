@@ -31,43 +31,84 @@ class CustomDockerSpawner(DockerSpawner):
     """
     In Parent start method, first checks image from config, then checks image from db.
     So REMOVE image from config!
-    TODO:?
+    TODO: убрать захардкоженные креды minio, case_id
     """
 
     template_path = None
-
+    feedback_path = None
+    case_id= None
     async def start(self):
         img_path: str | None = None
         try:
-            case_id = "1"
+            self.case_id = "1"
+
             logging.info("Getting image from DB")
-            img_path = await asyncio.to_thread(self._get_image, case_id)
+            img_path = await asyncio.to_thread(self._get_image, self.case_id)
             logging.info(f"Image path: {img_path}")
+
             logging.info("Getting template")
-            self.template_path = await asyncio.to_thread(self._get_template, case_id)
+            self.template_path = await asyncio.to_thread(self._get_template, self.case_id)
             logging.info(f"Template path: {self.template_path}")
+
+            logging.info("Getting feedback")
+            self.feedback_path = await asyncio.to_thread(self._get_feedback, self.case_id)
+            logging.info(f"Feedback path: {self.feedback_path}")
+
             logging.info("loading image to local docker repoitory")
             response = await asyncio.to_thread(self._load_image, img_path)
             self.image = await asyncio.to_thread(self._get_image_name, response)
             logging.info(f"Getting image name: {self.image}")
-            host_path = self.template_path
-            os.chmod(host_path, 0o777)
-            # полный путь к файлу, например /tmp/template_42_1.ipynb
-            container_path = "/home/jovyan/task.ipynb"  # или любой другой желаемый файл
 
-            self.volumes = {host_path: {"bind": container_path, "mode": "rw"}}
 
+            template_host_path = self.template_path
+            feedback_host_path = self.feedback_path
+
+            os.chmod(template_host_path, 0o777)
+            os.chmod(feedback_host_path, 0o777)
+
+            template_container_path = "/home/jovyan/task.ipynb"
+            feedback_container_path =  "/home/jovyan/feedback.md"
+            self.volumes = {template_host_path: {"bind": template_container_path, "mode": "rw"}, 
+                            feedback_host_path: {"bind":feedback_container_path, "mode":"rw"}}
+            os.remove(img_path)
             return await super().start()
         except Exception as e:
             logging.error(f"Error during start: {e}")
             raise e
 
-
+    def _clear(self):
+        if self.template_path and os.path.exists(self.template_path):
+            os.remove(self.template_path)
+        if self.feedback_path and os.path.exists (self.feedback_path):
+            os.remove(self.feedback_path)
+        
     def _save_progress(self):
+        self._save_feedback_progess()
+        self._save_template_progress()
+
+    def _save_feedback_progess(self):
+        # Need since during poll corresponding field could be bot set up
+        if not self.feedback_path:
+            logging.info("Noting to save - feedback_path is empty")
+            return
+        bucket = f"progress-{self.user.id}-{self.case_id}"
+        key = "feedback"
+        try:
+            if not client.bucket_exists(bucket):
+                client.make_bucket(bucket)
+            client.fput_object(bucket, key, self.feedback_path)
+            logging.info("Feedback was saved!")
+        except Exception as e:
+            logging.info(f"Failed to save feedback: {e}")
+        # finally:
+        #     if os.path.exists(self.feedback_path):
+        #         os.remove(self.feedback_path)
+
+    def _save_template_progress(self):
         if not self.template_path:
             logging.info("Nothing to save — template_path is None")
             return
-        bucket = f"progress-{self.user.id}"
+        bucket = f"progress-{self.user.id}-{self.case_id}"
         key = "template"
         try:
             if not client.bucket_exists(bucket):
@@ -76,9 +117,9 @@ class CustomDockerSpawner(DockerSpawner):
             logging.info("Progress was saved!")
         except Exception as e:
             logging.error(f"Failed to save progress: {e}")
-        finally:
-            if os.path.exists(self.template_path):
-                os.remove(self.template_path)
+        # finally:
+            # if os.path.exists(self.template_path):
+            #     os.remove(self.template_path)
 
     async def stop(self, now=False):
         try:
@@ -86,6 +127,7 @@ class CustomDockerSpawner(DockerSpawner):
         except Exception as e:
             logging.error(f"Error saving progress: {e}")
         finally:
+            self._clear() # async?
             return await super().stop(now)
 
     async def poll(self):
@@ -138,17 +180,44 @@ class CustomDockerSpawner(DockerSpawner):
         img_path = self._get_data_from_db(f"case-{case_id}", "image", img_path)
         return img_path
 
+
+    def _get_feedback(self, case_id):
+
+        feedback_path = f"/tmp/feedback_{self.user.id}_{case_id}"
+        if client.bucket_exists(f"progress-{self.user.id}-{case_id}"):
+            try:
+                feedback_path = self._get_data_from_db(
+                    f"progress-{self.user.id}-{case_id}", "feedback", feedback_path
+                )
+                logging.info("Fetched saved feedback!")
+            except Exception as e:
+                logging.info("No saved feedback in DB!")
+                logging.info("Creating base feedback file")
+                with open (feedback_path, 'w') as f:
+                    f.write("""
+                    Your feedback is empty. Push button to generate it !
+                    """)
+                return feedback_path
+        else:
+
+            logging.info("Creating base feedback file")
+            with open (feedback_path, 'w') as f:
+                f.write("""
+                Your feedback is empty. Push button to generate it !
+                """)
+        return feedback_path
+
     def _get_template(self, case_id):
         template_path = f"/tmp/template_{self.user.id}_{case_id}.ipynb"
-        if client.bucket_exists(f"progress-{self.user.id}"):
+        if client.bucket_exists(f"progress-{self.user.id}-{case_id}"):
             try:
 
                 template_path = self._get_data_from_db(
-                    f"progress-{self.user.id}", "template", template_path
+                    f"progress-{self.user.id}-{case_id}", "template", template_path
                 )
-                logging.info("Fetched saved progress!")
+                logging.info("Fetched saved template progress!")
             except Exception as e:
-                logging.info("No saved progess in BD")
+                logging.info("No saved progess in BD!")
                 return self._get_data_from_db(
                     f"case-{case_id}", "template", template_path
                 )
