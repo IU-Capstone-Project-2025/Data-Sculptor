@@ -45,7 +45,7 @@ services:
       bash -c "chown -R developer:developer /home/developer && exec jupyterhub"
     depends_on:
       - keycloak
-    entrypoint: ["sh", "-c", "until nc -z ${KC_SUBDOMAIN}.${DOMAIN} 53010; do sleep 1; done && jupyterhub"]
+    entrypoint: ["sh", "-c", "until nc -z ${KC_SUBDOMAIN}.${DOMAIN} ${KEYCLOAK_HTTP_PORT}; do sleep 1; done && jupyterhub"]
     networks:
       jupyter-network:
         aliases:
@@ -193,7 +193,7 @@ services:
     build:
       context: ../src/services/backend/keycloak
       dockerfile: Dockerfile
-    container_name: "${COMPOSE_PROJECT_NAME}_keycloak"
+    container_name: "${COMPOSE_PROJECT_NAME}-keycloak"
     ports: 
       - "${KEYCLOAK_HTTP_PORT}:53010"
       - "${KEYCLOAK_HTTPS_PORT}:8443"
@@ -210,8 +210,6 @@ services:
       KC_HOSTNAME: "${KC_SUBDOMAIN}.${DOMAIN}" 
       KC_HTTP_PORT: "53010"
       KC_HOSTNAME_PORT: "53010"
-    depends_on:
-      - postgres
     restart: unless-stopped
     command: start-dev
     networks:
@@ -238,22 +236,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-
-  # vault-init:
-  #   image: hashicorp/vault:latest
-  #   container_name: "${COMPOSE_PROJECT_NAME}_vault_init"
-  #   depends_on:
-  #     vault:
-  #       condition: service_healthy
-  #   volumes:
-  #     - ./vault/vault-init.sh:/vault-init.sh
-  #   environment:
-  #     VAULT_ADDR: "http://vault:${VAULT_HTTP_PORT}"
-  #     VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN_ID}
-  #   command: ["sh", "-c", "sleep 3 && /vault-init.sh"]
-  #   networks:
-  #     - internal
-
 
   minio:
     image: minio/minio:latest
