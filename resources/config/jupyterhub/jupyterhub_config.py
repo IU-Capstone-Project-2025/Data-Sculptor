@@ -78,9 +78,20 @@ async def post_auth_hook(authenticator, handler, auth_state):
 
     return auth_state
 
-def pass_auth_state_to_spawner(spawner, auth_state):
-    spawner.auth_state = auth_state
-c.Spawner.auth_state_hook = pass_auth_state_to_spawner
+# it works, but case_id cant capture
+# def pass_auth_state_to_spawner(spawner, auth_state):
+#     spawner.auth_state = auth_state
+# c.Spawner.auth_state_hook = pass_auth_state_to_spawner
+
+def pre_spawn(spawner):
+    case_id = spawner.user_options.get("case_id")
+    if case_id:
+        logging.info("GOT CASE ID")
+        spawner.environment["CASE_ID"] = case_id
+        spawner.log.info(f"Injected CASE_ID={case_id} into env")
+    else:
+        logging.info("NO CASE ID PROVIDED")
+c.Spawner.pre_spawn_hook = pre_spawn
 
 c.GenericOAuthenticator.allow_all = True
 c.GenericOAuthenticator.post_auth_hook = post_auth_hook
