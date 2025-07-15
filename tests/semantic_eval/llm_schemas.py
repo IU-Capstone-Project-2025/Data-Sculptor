@@ -19,7 +19,7 @@ class EvaluationRawResult(BaseModel):
         description="List of issues mentioned in problems_to_detect that feedback failed to mention"
     )
     profile_detail_mentioned: list[str] = Field(
-        description="List of issues mentioned in feedback that are case profile details (variable names, code fragments)"
+        description="List of code details mentioned in feedback like variable/function/class names, code fragments"
     )
     non_consequence_language_issues: list[str] = Field(
         description="List of issues mentioned in feedback that are not described using consequence language rather than solution suggestions"
@@ -38,7 +38,7 @@ class EvaluationRawResult(BaseModel):
         description="Count of issues mentioned in feedback that are NOT in problems_to_detect",
     )
     is_profile_detail_mentioned: bool = Field(
-        description="Whether feedback mentions case profile details (variable names, code fragments)"
+        description="Whether feedback mentions code details like variable/function/class names or code fragments"
     )
     consequence_language_issues_count: int = Field(
         ge=0,
