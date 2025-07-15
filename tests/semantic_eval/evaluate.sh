@@ -96,7 +96,7 @@ log "=========================================="
 log "Processing metrics…"
 log "=========================================="
 run_python "$SEMANTIC_EVAL_DIR/metrics_processing.py" \
-           --input_dir  "$OUTPUT_DIR"                 \
+           --input_file "$OUTPUT_DIR/evaluation_results.json" \
            --output_dir "$OUTPUT_DIR"
 
 ###############################################################################
