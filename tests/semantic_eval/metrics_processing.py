@@ -126,13 +126,19 @@ def compute_intervals_zoib(
     interior_counts = ((sample > zo_eps) & (sample < 1 - zo_eps)).sum(axis=1)
     need_fit = np.where(interior_counts > 1)[0]
 
+    a_b = np.full(B, np.nan, dtype=float)
+    b_b = np.full(B, np.nan, dtype=float)
     for idx in need_fit:
-        a_b, b_b = fit_beta_mle(
+        a_b[idx], b_b[idx] = fit_beta_mle(
             sample[idx, (sample[idx] > zo_eps) & (sample[idx] < 1 - zo_eps)],
             beta_eps,
         )
-        beta_mean_b[idx] = a_b / (a_b + b_b)
-        beta_var_b[idx] = a_b * b_b / ((a_b + b_b) ** 2 * (a_b + b_b + 1))
+        beta_mean_b[idx] = a_b[idx] / (a_b[idx] + b_b[idx])
+        beta_var_b[idx] = (
+            a_b[idx]
+            * b_b[idx]
+            / ((a_b[idx] + b_b[idx]) ** 2 * (a_b[idx] + b_b[idx] + 1))
+        )
 
     # fallback to Bernoulli where no interior obs
     bern_mean = pi1_b
@@ -152,11 +158,24 @@ def compute_intervals_zoib(
 
     sd_b = np.sqrt(var_b)
 
-    # ----- 3. one-step-ahead predictions --------------------------
-    r = rng.random(B)
-    preds = np.where(
-        r < pi0_b, 0, np.where(r < pi0_b + pi1_b, 1, rng.beta(a_hat, b_hat, B))
-    )
+    # ----- 3. one-step-ahead predictions -----------------------------
+    r = rng.random(B)  # one U(0,1) per bootstrap row
+    mask0 = r < pi0_b
+    mask1 = (r >= pi0_b) & (r < pi0_b + pi1_b)
+    maskbeta = ~(mask0 | mask1)  # interior‐Beta rows
+
+    # build result vector
+    preds = np.empty(B, dtype=float)
+    preds[mask0] = 0.0
+    preds[mask1] = 1.0
+
+    # rows that really have interior observations
+    valid_beta = maskbeta & (~np.isnan(a_b))
+    preds[valid_beta] = rng.beta(a_b[valid_beta], b_b[valid_beta])  # broadcast draw
+
+    # rows with *no* interior data fall back to the global fit
+    missing_beta = maskbeta & np.isnan(a_b)
+    preds[missing_beta] = rng.beta(a_hat, b_hat, missing_beta.sum())
 
     # ----- 4. percentiles -----------------------------------------
     q = (100 * alpha / 2, 100 * (1 - alpha / 2))
@@ -318,8 +337,7 @@ def process_stage(
                 agg_table_data = [
                     ["Mean"] + [f"{m:.2%}" for m in means],
                     ["Standard Deviation"] + [f"{s:.2%}" for s in stds],
-                    ["CI for mean"]
-                    + [f"({c[0]:.2%}, {c[1]:.2%})" for c in ci_means],
+                    ["CI for mean"] + [f"({c[0]:.2%}, {c[1]:.2%})" for c in ci_means],
                     ["CI for standard deviation"]
                     + [f"({c[0]:.2%}, {c[1]:.2%})" for c in ci_stds],
                     ["Prediction interval"]
