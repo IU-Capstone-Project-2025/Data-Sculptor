@@ -233,8 +233,8 @@ def process_stage(
     start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(stage_file, "w", encoding="utf-8") as f:
         f.write("### Pipeline Stage Report Structure\n\n")
-        f.write(f'Pipeline **"{stage}"** stage test report\n')
-        f.write(f"Start Time: {start_time}\n")
+        f.write(f'Pipeline **"{stage}"** stage test report\n\n')
+        f.write(f"Start Time: {start_time}\n\n")
         f.write(f"Processed samples: {input_file}\n\n")
         # Build a flat list of samples: (sample_id, sample_data) where sample_data contains stage info
         samples = []
