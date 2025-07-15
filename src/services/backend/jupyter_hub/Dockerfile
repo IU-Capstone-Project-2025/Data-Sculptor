@@ -16,6 +16,19 @@ RUN apt-get update && \
     node -v && npm -v && \
     npm install -g npm@latest
 
+RUN apt-get update && apt-get install -y \
+    curl ca-certificates gnupg lsb-release
+
+# Add Docker repo (for Ubuntu!)
+RUN install -m 0755 -d /etc/apt/keyrings && \
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
+    chmod a+r /etc/apt/keyrings/docker.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+    https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
+    > /etc/apt/sources.list.d/docker.list
+
+RUN apt-get update && apt-get install -y docker-ce-cli
+
 # custom providers
 COPY src/common/llm_custom_providers /llm_custom_providers
 RUN pip install /llm_custom_providers
