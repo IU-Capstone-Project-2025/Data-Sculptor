@@ -68,7 +68,7 @@ class CustomDockerSpawner(DockerSpawner):
             os.chmod(template_host_path, 0o777)
             os.chmod(feedback_host_path, 0o777)
 
-            template_container_path = "/home/jovyan/task.ipynb"
+            template_container_path = "/home/jovyan/template.ipynb"
             feedback_container_path =  "/home/jovyan/feedback.md"
             self.volumes = {template_host_path: {"bind": template_container_path, "mode": "rw"}, 
                             feedback_host_path: {"bind":feedback_container_path, "mode":"rw"}}
