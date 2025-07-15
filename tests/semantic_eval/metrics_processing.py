@@ -1,218 +1,239 @@
-import os
-import json
-import numpy as np
-import logging
-from datetime import datetime
-from tabulate import tabulate
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from scipy.stats import beta
-from scipy.optimize import minimize
-from tqdm import tqdm
+from __future__ import annotations
+
 import hashlib
-import joblib
-from joblib import Parallel, delayed
-import multiprocessing
-import time
+import json
+import logging
+import os
+from datetime import datetime
+from typing import Any, Optional
 
-def _generate_pdf(markdown_text, filename, means, stds, ci_means, ci_stds, pred_intervals):
-    doc = SimpleDocTemplate(filename, pagesize=letter)
-    styles = getSampleStyleSheet()
-    flowables = []
-    title_style = styles['Heading1']
-    heading2_style = styles['Heading2']
-    normal_style = styles['Normal']
-    table_header_style = ParagraphStyle(
-        'TableHeader', 
-        parent=styles['Normal'],
-        fontSize=10,
-        fontName='Helvetica-Bold',
-        alignment=1,
-        textColor=colors.white,
-        backColor=colors.darkblue
-    )
-    table_cell_style = ParagraphStyle(
-        'TableCell',
-        parent=styles['Normal'],
-        fontSize=9,
-        leading=11,
-        alignment=0
-    )
-    stats_cell_style = ParagraphStyle(
-        'StatsCell',
-        parent=styles['Normal'],
-        fontSize=9,
-        fontName='Helvetica-Bold',
-        leading=11,
-        alignment=1
-    )
-    lines = markdown_text.split('\n')
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-        if line.startswith('###'):
-            flowables.append(Paragraph(line[4:], title_style))
-            flowables.append(Spacer(1, 12))
-        elif line.startswith('##'):
-            flowables.append(Paragraph(line[3:], heading2_style))
-            flowables.append(Spacer(1, 10))
-        elif line.startswith('#'):
-            flowables.append(Paragraph(line[2:], heading2_style))
-            flowables.append(Spacer(1, 10))
-        elif '**' in line:
-            line = line.replace('**', '<b>', 1)
-            line = line.replace('**', '</b>', 1)
-            flowables.append(Paragraph(line, normal_style))
-            flowables.append(Spacer(1, 6))
-        elif line.startswith('|') and i+1 < len(lines) and lines[i+1].startswith('|'):
-            table_lines = []
-            while i < len(lines) and lines[i].startswith('|'):
-                table_lines.append(lines[i])
-                i += 1
-            i -= 1
-            table_data = []
-            for t_idx, t_line in enumerate(table_lines):
-                if '----' in t_line or all(c in '|:-' for c in t_line):
-                    continue
-                cells = t_line.strip().split('|')
-                cells = [cell.strip() for cell in cells if cell]
-                row_data = []
-                for c_idx, cell in enumerate(cells):
-                    if t_idx == 0:
-                        p = Paragraph(cell, table_header_style)
-                    elif c_idx == 0 or any(stats_term in cell.lower() for stats_term in ['mean', 'deviation', 'ci for', 'prediction']):
-                        p = Paragraph(cell, stats_cell_style)
-                    else:
-                        p = Paragraph(cell, table_cell_style)
-                    row_data.append(p)
-                table_data.append(row_data)
-            if table_data:
-                col_widths = [doc.width / len(table_data[0])] * len(table_data[0])
-                if len(col_widths) > 1:
-                    col_widths[0] = doc.width * 0.25
-                    remaining_width = doc.width * 0.75
-                    for j in range(1, len(col_widths)):
-                        col_widths[j] = remaining_width / (len(col_widths) - 1)
-                table = Table(table_data, colWidths=col_widths)
-                table_style = TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                    ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('BOTTOMPADDING', (0, 0), (-1, 0), 7),
-                    ('TOPPADDING', (0, 0), (-1, 0), 7),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('FONTSIZE', (0, 0), (-1, -1), 9),
-                    ('BACKGROUND', (0, -5), (-1, -1), colors.lightgrey),
-                    ('FONTNAME', (0, -5), (0, -1), 'Helvetica-Bold'),
-                ])
-                table.setStyle(table_style)
-                flowables.append(table)
-                flowables.append(Spacer(1, 15))
-        else:
-            if line.strip():
-                flowables.append(Paragraph(line, normal_style))
-                flowables.append(Spacer(1, 6))
-        i += 1
-    doc.build(flowables)
+import numpy as np
+from numpy.random import default_rng
+from scipy.optimize import minimize
+from scipy.stats import beta
+from tabulate import tabulate
+from tqdm import tqdm
 
-def preprocess_data(data, eps=0.01):
-    data = np.clip(data, eps, 1 - eps)
-    return data
 
-def fit_beta_mle(data):
-    def neg_log_likelihood(params):
-        a, b = params
-        if a <= 0 or b <= 0:
-            return np.inf
-        return -np.sum(beta.logpdf(data, a, b))
-    m = np.mean(data)
-    v = np.var(data, ddof=0)
-    if v == 0 or v >= m*(1-m):
-        a0, b0 = 1, 1
+def fit_beta_mle(
+    x: np.ndarray | list[float],
+    eps: float = 1e-10,
+    starts: tuple[tuple[float, float], ...] = ((1, 1), (0.5, 0.5)),
+) -> tuple[float, float]:
+    """Fit beta distribution parameters using maximum likelihood estimation.
+
+    Args:
+        x: Input data array to fit beta distribution to.
+        eps: Small epsilon value for numerical stability.
+        starts: Initial parameter guesses for optimization.
+
+    Returns:
+        Tuple of (alpha, beta) parameters for the fitted beta distribution.
+    """
+    x = np.clip(np.asarray(x, float), eps, 1 - eps)
+    m, v = x.mean(), x.var(ddof=0)
+    starts = [(m * (m * (1 - m) / v - 1), (1 - m) * (m * (1 - m) / v - 1))] + list(
+        starts
+    )
+    # Try to fit the beta distribution with the given starts via MLE
+    for a0, b0 in starts:
+        res = minimize(
+            lambda p: -beta.logpdf(x, *p).sum(),
+            (max(a0, eps), max(b0, eps)),
+            bounds=[(eps, None)] * 2,
+            method="L-BFGS-B",
+        )
+        if res.success:
+            return res.x
+    # fallback to MoM if applicable and 1;1 otherwise
+    logging.warning("Failed to fit beta distribution with MLE, falling back to MoM")
+    if v == 0 or v >= m * (1 - m):
+        return (1, 1)
     else:
-        a0 = m * (m*(1 - m)/v - 1)
-        b0 = (1 - m) * (m*(1 - m)/v - 1)
-    result = minimize(neg_log_likelihood, [a0, b0], method='L-BFGS-B', bounds=[(1e-6, None), (1e-6, None)])
-    return result.x if result.success else [a0, b0]
+        return (m * (m * (1 - m) / v - 1), (1 - m) * (m * (1 - m) / v - 1))
 
-def compute_intervals(data, alpha=0.05, B=10000, eps=0.01):
-    data_bytes = data.tobytes()
-    hash_digest = hashlib.sha256(data_bytes).digest()
-    seed = int.from_bytes(hash_digest[:4], byteorder='big') % (2**32)
-    np.random.seed(seed)
-    data = preprocess_data(data, eps)
-    a_hat, b_hat = fit_beta_mle(data)
-    mu_boot = []
-    sigma_boot = []
-    pred_boot = []
-    for _ in tqdm(range(B), desc="Bootstrap", bar_format="{l_bar}{bar:20}| {n_fmt}/{total_fmt}"):
-        sample = beta.rvs(a_hat, b_hat, size=len(data))
-        sample = preprocess_data(sample, eps)
-        try:
-            a_b, b_b = fit_beta_mle(sample)
-            mu_b = a_b / (a_b + b_b)
-            sigma_b = np.sqrt((a_b * b_b) / ((a_b + b_b)**2 * (a_b + b_b + 1)))
-            pred_b = beta.rvs(a_b, b_b)
-            mu_boot.append(mu_b)
-            sigma_boot.append(sigma_b)
-            pred_boot.append(pred_b)
-        except:
-            continue
-    if not mu_boot:
-        return (0, 0), (0, 0), (0, 0)
-    alpha_interval = [100*alpha/2, 100*(1-alpha/2)]
-    ci_mean = np.percentile(mu_boot, alpha_interval)
-    ci_sd = np.percentile(sigma_boot, alpha_interval)
-    ci_pred = np.percentile(pred_boot, alpha_interval)
-    return ci_mean, ci_sd, ci_pred
 
-def calculate_statistics_for_criterion(criterion_name, criterion_values):
+def compute_intervals_zoib(
+    data: np.ndarray | list[float],
+    alpha: float = 0.05,
+    B: int = 10_000,
+    zo_eps: float = 1e-6,
+    beta_eps: float = 1e-10,
+    seed: int | None = None,
+) -> tuple[tuple[float, float], tuple[float, float], tuple[float, float]]:
+    """Compute confidence intervals for zero/one-inflated Beta model.
+
+    Args:
+        data: Input data array.
+        alpha: Significance level for confidence intervals.
+        B: Number of bootstrap samples.
+        zo_eps: Epsilon for zero/one point masses.
+        beta_eps: Epsilon for beta distribution fitting.
+        seed: Random seed for reproducibility.
+
+    Returns:
+        Tuple containing (mean_CI, std_CI, prediction_interval) where each
+        is a tuple of (lower_bound, upper_bound).
+    """
+    y = np.asarray(data, float)
+    rng = default_rng(
+        seed or int.from_bytes(hashlib.sha256(y.tobytes()).digest()[:4], "big")
+    )
+    n = y.size
+
+    # empirical point masses
+    pi0 = np.mean(y <= zo_eps)
+    pi1 = np.mean(y >= 1 - zo_eps)
+    inside = y[(y > zo_eps) & (y < 1 - zo_eps)]
+
+    # ---- fast paths for degenerate cases -------------------------
+    if inside.size == 0:
+        if pi0 == 1:  # all zeros
+            return (0.0, 0.0), (0.0, 0.0), (0.0, 0.0)
+        if pi1 == 1:  # all ones
+            return (1.0, 1.0), (0.0, 0.0), (1.0, 1.0)
+
+        # pure Bernoulli mixture
+        means = rng.binomial(n, pi1, size=B) / n
+        sds = np.sqrt(means * (1 - means))
+        preds = rng.binomial(1, pi1, size=B)
+
+        q = (100 * alpha / 2, 100 * (1 - alpha / 2))
+        return tuple(np.percentile(arr, q) for arr in (means, sds, preds))
+
+    # ---- interior Beta fitted once -------------------------------
+    a_hat, b_hat = fit_beta_mle(inside, beta_eps)
+
+    # ----- 1. draw mixture samples for ALL bootstraps in one go ---
+    u = rng.random((B, n))
+    z0 = u < pi0
+    z1 = (u >= pi0) & (u < pi0 + pi1)
+    zc = ~(z0 | z1)
+
+    sample = np.empty((B, n))
+    sample[z0] = 0.0
+    sample[z1] = 1.0
+    sample[zc] = rng.beta(a_hat, b_hat, zc.sum())
+
+    # ----- 2. mixture means & variances ---------------------------
+    pi0_b = z0.mean(axis=1)
+    pi1_b = z1.mean(axis=1)
+
+    # Beta-component moments (only where interior obs exist)
+    beta_mean_b = np.full(B, np.nan)
+    beta_var_b = np.zeros(B)
+
+    interior_counts = ((sample > zo_eps) & (sample < 1 - zo_eps)).sum(axis=1)
+    need_fit = np.where(interior_counts > 1)[0]
+
+    for idx in need_fit:
+        a_b, b_b = fit_beta_mle(
+            sample[idx, (sample[idx] > zo_eps) & (sample[idx] < 1 - zo_eps)],
+            beta_eps,
+        )
+        beta_mean_b[idx] = a_b / (a_b + b_b)
+        beta_var_b[idx] = a_b * b_b / ((a_b + b_b) ** 2 * (a_b + b_b + 1))
+
+    # fallback to Bernoulli where no interior obs
+    bern_mean = pi1_b
+    bern_var = pi1_b * (1 - pi1_b)
+
+    mu_b = np.where(
+        np.isnan(beta_mean_b), bern_mean, pi1_b + (1 - pi0_b - pi1_b) * beta_mean_b
+    )
+
+    var_b = np.where(
+        np.isnan(beta_mean_b),
+        bern_var,
+        pi0_b * (0 - mu_b) ** 2
+        + pi1_b * (1 - mu_b) ** 2
+        + (1 - pi0_b - pi1_b) * beta_var_b,
+    )
+
+    sd_b = np.sqrt(var_b)
+
+    # ----- 3. one-step-ahead predictions --------------------------
+    r = rng.random(B)
+    preds = np.where(
+        r < pi0_b, 0, np.where(r < pi0_b + pi1_b, 1, rng.beta(a_hat, b_hat, B))
+    )
+
+    # ----- 4. percentiles -----------------------------------------
+    q = (100 * alpha / 2, 100 * (1 - alpha / 2))
+    ci_mean = tuple(np.percentile(mu_b, q))
+    ci_sd = tuple(np.percentile(sd_b, q))
+    pi_pred = tuple(np.percentile(preds, q))
+    return ci_mean, ci_sd, pi_pred
+
+
+def calculate_statistics_for_criterion(
+    criterion_values: list[Any],
+) -> Optional[
+    tuple[float, float, tuple[float, float], tuple[float, float], tuple[float, float]]
+]:
+    """Calculate statistics for a given criterion.
+
+    Args:
+        criterion_values: List of values for the criterion.
+
+    Returns:
+        Tuple containing (mean, std, ci_mean, ci_std, pred_interval) or None if
+        computation fails.
+    """
     numeric_values = []
     for v in criterion_values:
         if isinstance(v, str):
-            if v.endswith('%'):
+            if v.endswith("%"):
                 try:
-                    numeric_values.append(float(v.strip('%'))/100)
+                    numeric_values.append(float(v.strip("%")) / 100)
                 except ValueError:
                     continue
             elif v == "Yes":
                 numeric_values.append(1.0)
             elif v == "No":
                 numeric_values.append(0.0)
-            elif v.replace('.', '', 1).isdigit():
+            elif v.replace(".", "", 1).isdigit():
                 try:
                     numeric_values.append(float(v))
                 except ValueError:
                     continue
             else:
-                continue  
+                continue
         elif isinstance(v, (int, float)):
             numeric_values.append(float(v))
     if not numeric_values:
-        return 0, 0, (0,0), (0,0), (0,0)
+        return 0, 0, (0, 0), (0, 0), (0, 0)
     data = np.array(numeric_values)
     mean = np.mean(data)
     std = np.std(data, ddof=1) if len(data) > 1 else 0
     try:
-        ci_mean, ci_std, pred_interval = compute_intervals(data)
+        ci_mean, ci_std, pred_interval = compute_intervals_zoib(data)
     except Exception as e:
         logging.warning(f"Failed to compute intervals: {e}")
         return None
     return mean, std, ci_mean, ci_std, pred_interval
 
-def process_stage(stage, data, input_directory, output_directory, generate_pdf=False):
+
+def process_stage(
+    stage: str, data: dict[str, Any], input_directory: str, output_directory: str
+) -> str:
+    """Process a single pipeline stage and generate markdown report.
+
+    Args:
+        stage: Name of the pipeline stage to process.
+        data: Dictionary containing loaded JSON data.
+        input_directory: Directory containing input JSON files.
+        output_directory: Directory to save generated reports.
+
+    Returns:
+        Path to the generated stage report file.
+    """
     print(f"\n▶ Stage: {stage}")
     stage_file = os.path.join(output_directory, f"report_{stage.lower()}.md")
     start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(stage_file, "w", encoding="utf-8") as f:
-        f.write(f"### Pipeline Stage Report Structure\n\n")
-        f.write(f"Pipeline **\"{stage}\"** stage test report\n")
+        f.write("### Pipeline Stage Report Structure\n\n")
+        f.write(f'Pipeline **"{stage}"** stage test report\n')
         f.write(f"Start Time: {start_time}\n")
         f.write(f"Processed samples: {input_directory}\n\n")
         # Build a flat list of samples: (sample_id, sample_data) where sample_data contains stage info
@@ -227,20 +248,20 @@ def process_stage(stage, data, input_directory, output_directory, generate_pdf=F
                 # Fallback to old behaviour: whole file as one sample
                 samples.append((file_name, file_data))
 
-        criteria_types = ['acceptance_criteria', 'quality_attributes']
+        criteria_types = ["acceptance_criteria", "quality_attributes"]
         for criteria_type in criteria_types:
             print(f"  ► Processing: {criteria_type}")
-            if criteria_type == 'acceptance_criteria':
-                f.write(f"\n\n### Acceptance Criteria Evaluation\n\n") 
+            if criteria_type == "acceptance_criteria":
+                f.write("\n\n### Acceptance Criteria Evaluation\n\n")
             else:
-                f.write(f"\n\n### Quality Attributes Evaluation\n\n") 
+                f.write("\n\n### Quality Attributes Evaluation\n\n")
             all_criteria = set()
-            
-            for _sample_id, sample_data in samples:
+
+            for sample_id, sample_data in samples:
                 if stage in sample_data and criteria_type in sample_data[stage]:
                     all_criteria.update(sample_data[stage][criteria_type].keys())
             if not all_criteria:
-                print(f"    ✖ No criteria found")
+                print("    ✖ No criteria found")
                 f.write(f"No {criteria_type} found for this stage.\n\n")
                 continue
             headers = ["Samples/Criteria"] + list(all_criteria)
@@ -262,9 +283,13 @@ def process_stage(stage, data, input_directory, output_directory, generate_pdf=F
             ci_means = []
             ci_stds = []
             pred_intervals = []
-            for criterion in tqdm(all_criteria, desc="    ⋯ Progress", bar_format="{l_bar}{bar:20}| {n_fmt}/{total_fmt}"):
-                mean, std, ci_mean, ci_std, pred_interval = calculate_statistics_for_criterion(
-                    criterion, criterion_values[criterion]
+            for criterion in tqdm(
+                all_criteria,
+                desc="    ⋯ Analyzing criteria",
+                bar_format="{l_bar}{bar:20}| {n_fmt}/{total_fmt}",
+            ):
+                mean, std, ci_mean, ci_std, pred_interval = (
+                    calculate_statistics_for_criterion(criterion_values[criterion])
                 )
                 if ci_mean is None:
                     continue
@@ -274,43 +299,52 @@ def process_stage(stage, data, input_directory, output_directory, generate_pdf=F
                 ci_stds.append(ci_std)
                 pred_intervals.append(pred_interval)
             if means:
-                table_data.extend([
-                    ['Mean'] + [f'{m:.2%}' for m in means],
-                    ['Standard Deviation'] + [f'{s:.2%}' for s in stds],
-                    ['CI for mean'] + [f'({c[0]:.2%}, {c[1]:.2%})' for c in ci_means],
-                    ['CI for standard deviation'] + [f'({c[0]:.2%}, {c[1]:.2%})' for c in ci_stds],
-                    ['Prediction interval'] + [f'({p[0]:.2%}, {p[1]:.2%})' for p in pred_intervals]
-                ])
-                table = tabulate(table_data, headers=headers, tablefmt='pipe', stralign='left', disable_numparse=True)
+                table_data.extend(
+                    [
+                        ["Mean"] + [f"{m:.2%}" for m in means],
+                        ["Standard Deviation"] + [f"{s:.2%}" for s in stds],
+                        ["CI for mean"]
+                        + [f"({c[0]:.2%}, {c[1]:.2%})" for c in ci_means],
+                        ["CI for standard deviation"]
+                        + [f"({c[0]:.2%}, {c[1]:.2%})" for c in ci_stds],
+                        ["Prediction interval"]
+                        + [f"({p[0]:.2%}, {p[1]:.2%})" for p in pred_intervals],
+                    ]
+                )
+                table = tabulate(
+                    table_data,
+                    headers=headers,
+                    tablefmt="pipe",
+                    stralign="left",
+                    disable_numparse=True,
+                )
                 f.write(table + "\n\n")
         end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         f.write(f"End Time: {end_time}\n")
-    if generate_pdf:
-        print(f"  ► Generating PDF")
-        with open(stage_file, "r", encoding="utf-8") as f:
-            markdown_content = f.read()
-        pdf_file = os.path.join(pdf_output_directory, f"report_{stage.lower()}.pdf")
-        _generate_pdf(markdown_content, pdf_file, means, stds, ci_means, ci_stds, pred_intervals)
-        print(f"    ✓ PDF saved")
-    print(f"  ✓ Stage completed")
+    print("✓ Stage completed")
     return stage_file
 
-def generate_report(input_directory, output_directory=None, generate_pdf=False, json_filename=None):
-    print(f"\n📊 Report Generation ({'single file' if json_filename else 'all files'})")
-    print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    # If no explicit output directory, use the same as input
+
+def generate_report(input_directory: str, output_directory: str | None = None) -> None:
+    """Generate comprehensive reports from JSON metrics files.
+
+    Args:
+        input_directory: Directory containing JSON files with metrics.
+        output_directory: Directory to save generated reports. If None, uses input_directory.
+    """
+    print("\n📊 Report Generation")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     if output_directory is None:
         output_directory = input_directory
 
     data = {}
     json_files = [f for f in os.listdir(input_directory) if f.endswith(".json")]
-    # If a specific JSON file is requested, filter the list
-    if json_filename:
-        if json_filename not in json_files:
-            raise FileNotFoundError(f"JSON file '{json_filename}' not found in {input_directory}")
-        json_files = [json_filename]
     print(f"⋯ Loading {len(json_files)} JSON files")
-    for file in tqdm(json_files, desc="⋯ Progress", bar_format="{l_bar}{bar:20}| {n_fmt}/{total_fmt}"):
+    for file in tqdm(
+        json_files,
+        desc="⋯ Loading JSON files",
+        bar_format="{l_bar}{bar:20}| {n_fmt}/{total_fmt}",
+    ):
         try:
             file_path = os.path.join(input_directory, file)
             with open(file_path, "r", encoding="utf-8") as f:
@@ -318,23 +352,20 @@ def generate_report(input_directory, output_directory=None, generate_pdf=False, 
         except Exception as e:
             print(f"⚠ Error: {file} - {e}")
     print(f"✓ Loaded {len(data)} files")
-    pipeline_stages = ['semantic_feedback']
+    pipeline_stages = ["semantic_feedback"]
     os.makedirs(output_directory, exist_ok=True)
-    if generate_pdf:
-        global pdf_output_directory
-        pdf_output_directory = os.path.join(output_directory, "pdf")
-        os.makedirs(pdf_output_directory, exist_ok=True)
     print(f"\n⋯ Processing {len(pipeline_stages)} pipeline stages")
-    for stage in tqdm(pipeline_stages, desc="⋯ Progress", bar_format="{l_bar}{bar:20}| {n_fmt}/{total_fmt}"):
+    for stage in tqdm(
+        pipeline_stages,
+        desc="⋯ Processing stages",
+        bar_format="{l_bar}{bar:20}| {n_fmt}/{total_fmt}",
+    ):
         try:
-            process_stage(stage, data, input_directory, output_directory, generate_pdf)
+            process_stage(stage, data, input_directory, output_directory)
         except Exception as e:
             print(f"⚠ Error: stage {stage} - {e}")
     print(f"\n✅ Reports generated in: {output_directory}")
-    if generate_pdf:
-        print(f"✅ PDFs saved in: {pdf_output_directory}")
 
-# --------------------------- Command-line interface ---------------------------
 
 if __name__ == "__main__":
     import argparse
@@ -354,23 +385,10 @@ if __name__ == "__main__":
         default=None,
         help="Directory where the generated reports will be saved (default: same as input dir)",
     )
-    parser.add_argument(
-        "--json_file",
-        "-f",
-        default=None,
-        help="Process only a specific JSON file inside the input directory",
-    )
-    parser.add_argument(
-        "--pdf",
-        action="store_true",
-        help="Also create nicely formatted PDF versions of the markdown reports",
-    )
 
     args = parser.parse_args()
 
     generate_report(
         input_directory=args.input_dir,
         output_directory=args.output_dir,
-        generate_pdf=args.pdf,
-        json_filename=args.json_file,
     )
