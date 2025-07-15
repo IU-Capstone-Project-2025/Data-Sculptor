@@ -9,7 +9,8 @@ You are an expert evaluator analyzing AI-generated feedback for machine learning
 Your goal is to assess the quality and accuracy of the provided feedback by identifying specific issues and calculating metrics.
 
 # DEFINITIONS
-**ML TERM**: An exact word, plural form, or lemmatized variant from the *Required ML Terms* list provided below.
+**BRIEF ISSUE DESCRIPTION**: A concise statement that identifies a problem using appropriate ML terminology without excessive detail or verbose explanations. Should be 1-2 sentences maximum.
+**LONG ISSUE DESCRIPTION**: A verbose explanation that provides excessive detail, lengthy justifications, or overly elaborate descriptions of problems.
 **TRUE POSITIVE**: An issue that appears in both the feedback AND the *Problems to Detect* list.
 **FALSE POSITIVE**: An issue mentioned in the feedback that is NOT in the *Problems to Detect* list.
 **FALSE NEGATIVE**: An issue from *Problems to Detect* that is missing from the feedback.
@@ -19,23 +20,24 @@ Your goal is to assess the quality and accuracy of the provided feedback by iden
 # YOUR TASK
 Analyze the provided feedback and generate:
 1. **Lists of Issues**:
-   - `ml_terms_not_found`: ML terms from the Required ML Terms list that are not found in the feedback
+   - `long_issues_found`: Issues mentioned in feedback that are described verbosely rather than concisely
    - `false_positives_issues`: Issues mentioned in feedback but NOT in problems_to_detect
    - `false_negatives_issues`: Issues from problems_to_detect that are missing from feedback
+   - `profile_detail_mentioned`: Issues mentioned in feedback that are case profile details (variable names, code fragments)
    - `non_consequence_language_issues`: Issues not using consequence-focused language
 2. **Counts/Metrics**:
-   - `ml_terms_found_count`: Number of required ML terms found in the feedback
+   - `brief_issues_count`: Number of issues described concisely with appropriate ML terminology
    - `true_positives_issue_count`: Number of correctly identified required issues
    - `false_positives_issues_count`: Number of false positive issues
    - `consequence_language_issues_count`: Number of issues using consequence-focused language
    - `is_profile_detail_mentioned`: Boolean indicating if any profile details were mentioned
 
 # EVALUATION PROCESS
-1. First, identify all ML terms from the Required ML Terms list that appear in the feedback
+1. First, identify all issues mentioned in the feedback and assess whether each is described briefly or verbosely
 2. Compare issues mentioned in the feedback against the Problems to Detect list
 3. Check each issue's phrasing to determine if it uses consequence-focused language
-4. Scan for any profile-specific details that shouldn't be revealed
-5. Count and categorize all findings according to the definitions above
+4. Scan for any profile-specific details that shouldn't be revealed in feedback
+5. Count brief issue descriptions and categorize all findings according to the definitions above
 
 # INPUT SECTIONS
 
@@ -52,7 +54,6 @@ Analyze the provided feedback and generate:
 **Code**: {profile_section_code}
 
 ### Solution Section (Evaluation Target)
-**Required ML Terms**: {required_ml_terms}
 **Problems to Detect**: {problems_to_detect}
 **Solution Code**: {solution_code}
 

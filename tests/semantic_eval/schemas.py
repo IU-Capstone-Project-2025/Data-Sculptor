@@ -59,18 +59,17 @@ class ProfileSectionData(TypedDict):
 
 
 class SolutionSectionData(TypedDict):
-    """Structure for solution notebook sections with ML evaluation data."""
+    """Structure for solution notebook sections with evaluation data."""
 
     json_data: dict[str, Any]
     code: str
-    required_ml_terms: list[str]
     problems_to_detect: list[str]
 
 
 class EvaluationMetrics(TypedDict):
     """Calculated metrics from raw LLM observations."""
 
-    ml_term_ratio: float
+    brief_issue_ratio: float
     necessary_issues_precision: float
     necessary_issues_recall: float
     no_case_profile_detail: int  # 0 if profile details mentioned, 1 if not mentioned
@@ -80,7 +79,7 @@ class EvaluationMetrics(TypedDict):
 class AggregatedMetrics(TypedDict):
     """Aggregated metrics from multiple sections."""
 
-    ml_term_ratio: float
+    brief_issue_ratio: float
     necessary_issues_precision: float
     necessary_issues_recall: float
     no_case_profile_detail: Literal["1", "0"]
@@ -90,10 +89,11 @@ class AggregatedMetrics(TypedDict):
 class SectionIssuesData(TypedDict):
     """Structure for raw issues data extracted from LLM evaluation per section."""
 
+    long_issues_found: list[str]
     false_positives_issues: list[str]
     false_negatives_issues: list[str]
+    profile_detail_mentioned: list[str]
     non_consequence_language_issues: list[str]
-    ml_terms_not_found: list[str]
     feedback_text: str
 
 
