@@ -32,9 +32,10 @@ def fit_beta_mle(
     """
     x = np.clip(np.asarray(x, float), eps, 1 - eps)
     m, v = x.mean(), x.var(ddof=0)
-    starts = [(m * (m * (1 - m) / v - 1), (1 - m) * (m * (1 - m) / v - 1))] + list(
-        starts
-    )
+    if v != 0 and v < m * (1 - m):
+        starts = [(m * (m * (1 - m) / v - 1), (1 - m) * (m * (1 - m) / v - 1))] + list(
+            starts
+        )
     # Try to fit the beta distribution with the given starts via MLE
     for a0, b0 in starts:
         res = minimize(
@@ -46,7 +47,6 @@ def fit_beta_mle(
         if res.success:
     ***REMOVED*** res.x
     # fallback to MoM if applicable and 1;1 otherwise
-    logging.warning("Failed to fit beta distribution with MLE, falling back to MoM")
     if v == 0 or v >= m * (1 - m):
 ***REMOVED*** (1, 1)
     else:
@@ -215,14 +215,14 @@ def calculate_statistics_for_criterion(
 
 
 def process_stage(
-    stage: str, data: dict[str, Any], input_directory: str, output_directory: str
+    stage: str, data: dict[str, Any], input_file: str, output_directory: str
 ) -> str:
     """Process a single pipeline stage and generate markdown report.
 
     Args:
         stage: Name of the pipeline stage to process.
         data: Dictionary containing loaded JSON data.
-        input_directory: Directory containing input JSON files.
+        input_file: Path to the input JSON file.
         output_directory: Directory to save generated reports.
 
     Returns:
@@ -235,7 +235,7 @@ def process_stage(
         f.write("### Pipeline Stage Report Structure\n\n")
         f.write(f'Pipeline **"{stage}"** stage test report\n')
         f.write(f"Start Time: {start_time}\n")
-        f.write(f"Processed samples: {input_directory}\n\n")
+        f.write(f"Processed samples: {input_file}\n\n")
         # Build a flat list of samples: (sample_id, sample_data) where sample_data contains stage info
         samples = []
         for file_name, file_data in data.items():
@@ -274,7 +274,9 @@ def process_stage(
                     value = "N/A"
                     if stage in sample_data and criteria_type in sample_data[stage]:
                         value = sample_data[stage][criteria_type].get(criterion, "N/A")
-                    row_values.append(value)
+                    row_values.append(
+                        f"{value:.2%}" if isinstance(value, float) else value
+                    )
                     criterion_values[criterion].append(value)
                 table_data.append(row_values)
             print(f"    ⋯ Analyzing {len(all_criteria)} criteria")
@@ -325,33 +327,30 @@ def process_stage(
     return stage_file
 
 
-def generate_report(input_directory: str, output_directory: str | None = None) -> None:
-    """Generate comprehensive reports from JSON metrics files.
+def generate_report(input_file: str, output_directory: str | None = None) -> None:
+    """Generate comprehensive reports from a JSON metrics file.
 
     Args:
-        input_directory: Directory containing JSON files with metrics.
-        output_directory: Directory to save generated reports. If None, uses input_directory.
+        input_file: Path to a JSON file with metrics.
+        output_directory: Directory to save generated reports. If None, uses the directory of input_file.
     """
     print("\n📊 Report Generation")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     if output_directory is None:
-        output_directory = input_directory
+        output_directory = os.path.dirname(os.path.abspath(input_file)) or "."
 
     data = {}
-    json_files = [f for f in os.listdir(input_directory) if f.endswith(".json")]
-    print(f"⋯ Loading {len(json_files)} JSON files")
-    for file in tqdm(
-        json_files,
-        desc="⋯ Loading JSON files",
-        bar_format="{l_bar}{bar:20}| {n_fmt}/{total_fmt}",
-    ):
-        try:
-            file_path = os.path.join(input_directory, file)
-            with open(file_path, "r", encoding="utf-8") as f:
-                data[file] = json.load(f)
-        except Exception as e:
-            print(f"⚠ Error: {file} - {e}")
-    print(f"✓ Loaded {len(data)} files")
+    # Accept a single JSON file as input
+    if not input_file.endswith(".json"):
+        print(f"⚠ Error: input_file must be a .json file, got {input_file}")
+***REMOVED***
+    try:
+        with open(input_file, "r", encoding="utf-8") as f:
+            data[os.path.basename(input_file)] = json.load(f)
+    except Exception as e:
+        print(f"⚠ Error: {input_file} - {e}")
+***REMOVED***
+    print(f"✓ Loaded 1 file")
     pipeline_stages = ["semantic_feedback"]
     os.makedirs(output_directory, exist_ok=True)
     print(f"\n⋯ Processing {len(pipeline_stages)} pipeline stages")
@@ -361,7 +360,7 @@ def generate_report(input_directory: str, output_directory: str | None = None) -
         bar_format="{l_bar}{bar:20}| {n_fmt}/{total_fmt}",
     ):
         try:
-            process_stage(stage, data, input_directory, output_directory)
+            process_stage(stage, data, input_file, output_directory)
         except Exception as e:
             print(f"⚠ Error: stage {stage} - {e}")
     print(f"\n✅ Reports generated in: {output_directory}")
@@ -374,21 +373,21 @@ if __name__ == "__main__":
         description="Generate markdown (and optional PDF) reports from JSON metrics produced by evaluate_feedback.py."
     )
     parser.add_argument(
-        "--input_dir",
+        "--input_file",
         "-i",
-        default="results",
-        help="Directory containing *.json files with metrics (default: ./results)",
+        default="evaluation_results.json",
+        help="File containing a .json file with metrics (default: ./evaluation_results.json)",
     )
     parser.add_argument(
         "--output_dir",
         "-o",
         default=None,
-        help="Directory where the generated reports will be saved (default: same as input dir)",
+        help="Directory where the generated reports will be saved (default: same as input file's directory)",
     )
 
     args = parser.parse_args()
 
     generate_report(
-        input_directory=args.input_dir,
+        input_file=args.input_file,
         output_directory=args.output_dir,
     )
