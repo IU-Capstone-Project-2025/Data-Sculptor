@@ -47,6 +47,7 @@ class FeedbackResponse(BaseModel):
 class TestCaseData(TypedDict):
     """Structure for parsed test case information."""
 
+    case_name: str
     profile_path: str
     solution_path: str
 
@@ -100,12 +101,13 @@ class SectionIssuesData(TypedDict):
 class CaseIssuesData(TypedDict):
     """Structure for issues data per test case containing all sections."""
 
-    sections: list[SectionIssuesData]
+    sections: dict[int, SectionIssuesData]
 
 
 class ParsedCaseData(TypedDict):
     """Structure for parsed case data."""
 
+    case_id: uuid.UUID
     task_desc: str
     profile_sections: list[ProfileSectionData]
     solution_sections: list[SolutionSectionData]
