@@ -27,9 +27,7 @@ ParsedCaseData = _local_schemas.ParsedCaseData
 ProfileSectionData = _local_schemas.ProfileSectionData
 SolutionSectionData = _local_schemas.SolutionSectionData
 EvaluationMetrics = _local_schemas.EvaluationMetrics
-AggregatedMetrics = _local_schemas.AggregatedMetrics
 SectionIssuesData = _local_schemas.SectionIssuesData
-CaseIssuesData = _local_schemas.CaseIssuesData
 
 
 class NotebookParseError(RuntimeError):
@@ -426,8 +424,6 @@ class SemanticEvaluator:
         ):
             try:
                 # Evaluate each section pair
-                section_results = []
-                section_issues = []
                 min_sections = min(
                     len(case_data["profile_sections"]),
                     len(case_data["solution_sections"]),
@@ -441,33 +437,24 @@ class SemanticEvaluator:
                         case_data["case_id"],
                         i,
                     )
-                    section_results.append(section_result)
-                    section_issues.append(issues_data)
-
-                # Aggregate results for this case
-                if section_results:
-                    aggregated = self._aggregate_section_results(section_results)
-                    results[case_name] = {
+                    
+                    # Store results for this section with section index in key
+                    section_key = f"{case_name}_section_{i}"
+                    results[section_key] = {
                         "semantic_feedback": {
                             "acceptance_criteria": {
-                                "sections_evaluated": "Yes"
-                                if section_results
-                                else "No",
+                                "sections_evaluated": "Yes",
                             },
-                            "quality_attributes": aggregated,
+                            "quality_attributes": section_result,
                         }
                     }
 
-                    # Store issues data for this case
-                    issues_results[case_name] = CaseIssuesData(
-                        sections={
-                            i: section_issue
-                            for i, section_issue in enumerate(section_issues)
-                        }
-                    )
+                    # Store issues data for this section
+                    issues_results[section_key] = issues_data
 
             except Exception as exc:
                 print(f"Error evaluating {case_name}: {exc}")
+                # Store error for the case (without section index since we don't know which section failed)
                 results[case_name] = {
                     "semantic_feedback": {
                         "acceptance_criteria": {"sections_evaluated": "No"},
@@ -489,51 +476,3 @@ class SemanticEvaluator:
         print(f"Evaluation complete. Results saved to: {output_path}")
         print(f"Issues data saved to: {issues_output_path}")
 
-    def _aggregate_section_results(
-        self, section_results: list[EvaluationMetrics]
-    ) -> AggregatedMetrics:
-        """Aggregate results from multiple sections.
-
-        Args:
-            section_results: List of calculated metrics dictionaries.
-
-        Returns:
-            Aggregated metrics dictionary in required format.
-        """
-
-        # Parse percentage values and calculate averages
-        brief_issue_ratios = []
-        precisions = []
-        recalls = []
-        profile_details = []
-        consequence_ratios = []
-
-        for result in section_results:
-            brief_issue_ratios.append(result["brief_issue_ratio"])
-            precisions.append(result["necessary_issues_precision"])
-            recalls.append(result["necessary_issues_recall"])
-            profile_details.append(result["no_case_profile_detail"])
-            consequence_ratios.append(result["consequence_language_ratio"])
-
-        # Calculate aggregated metrics
-        avg_brief_issue_ratio = (
-            sum(brief_issue_ratios) / len(brief_issue_ratios)
-            if brief_issue_ratios
-            else 0.0
-        )
-        avg_precision = sum(precisions) / len(precisions) if precisions else 0.0
-        avg_recall = sum(recalls) / len(recalls) if recalls else 0.0
-        min_profile_detail = min(profile_details)
-        avg_consequence_ratio = (
-            sum(consequence_ratios) / len(consequence_ratios)
-            if consequence_ratios
-            else 0.0
-        )
-
-***REMOVED*** AggregatedMetrics(
-            brief_issue_ratio=avg_brief_issue_ratio,
-            necessary_issues_precision=avg_precision,
-            necessary_issues_recall=avg_recall,
-            no_case_profile_detail=min_profile_detail,
-            consequence_language_ratio=avg_consequence_ratio,
-        )
