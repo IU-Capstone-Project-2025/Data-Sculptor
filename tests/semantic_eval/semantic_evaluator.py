@@ -70,28 +70,23 @@ class SemanticEvaluator:
 
         # Calculate brief issue ratio
         brief_issue_ratio = (
-            raw_result.brief_issues_count / total_issues_mentioned
+            min(raw_result.brief_issues_count, total_issues_mentioned)
+            / total_issues_mentioned
             if total_issues_mentioned > 0
             else 0
         )
 
         # Calculate precision and recall for issues
         precision = (
-            raw_result.true_positives_issue_count
-            / (
-                raw_result.true_positives_issue_count
-                + raw_result.false_positives_issues_count
-            )
-            if (
-                raw_result.true_positives_issue_count
-                + raw_result.false_positives_issues_count
-            )
-            > 0
+            min(raw_result.true_positives_issue_count, total_issues_mentioned)
+            / total_issues_mentioned
+            if total_issues_mentioned > 0
             else 0
         )
 
         recall = (
-            raw_result.true_positives_issue_count / total_required_issues
+            min(raw_result.true_positives_issue_count, total_required_issues)
+            / total_required_issues
             if total_required_issues > 0
             else 0
         )
@@ -101,7 +96,8 @@ class SemanticEvaluator:
 
         # Consequence language ratio
         consequence_language_ratio = (
-            raw_result.consequence_language_issues_count / total_issues_mentioned
+            min(raw_result.consequence_language_issues_count, total_issues_mentioned)
+            / total_issues_mentioned
             if total_issues_mentioned > 0
             else 0
         )
