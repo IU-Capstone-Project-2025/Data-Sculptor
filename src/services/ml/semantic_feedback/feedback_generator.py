@@ -41,7 +41,7 @@ class FeedbackGenerator:
     async def generate_feedback(
         self,
         user_code: str,
-        profile_id: uuid.UUID,
+        case_id: uuid.UUID,
         section_index: int,
         global_line_offset: int = 0,
     ) -> tuple[str, list[LocalizedWarning]]:
@@ -53,7 +53,7 @@ class FeedbackGenerator:
 
         Args:
             user_code: Source code provided by the user (single cell).
-            profile_id: UUID of the reference *profile* (ethalon notebook).
+            case_id: UUID of the reference *case* (ethalon notebook).
             section_index: Zero-based index of the section inside the profile.
             global_line_offset: Line offset applied to all diagnostics so they
                 align with the full notebook (default 0).
@@ -68,7 +68,7 @@ class FeedbackGenerator:
             profile_desc,
             section_desc,
             reference_code,
-        ) = await self._profiles.get_section(profile_id, section_index)
+        ) = await self._profiles.get_section(case_id, section_index)
 
         non_localized, localized = await self._generate_combined(
             user_code=user_code,

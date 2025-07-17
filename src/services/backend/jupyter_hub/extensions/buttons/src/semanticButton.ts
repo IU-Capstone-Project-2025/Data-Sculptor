@@ -60,7 +60,7 @@ const buttonOnClick = async(panel: NotebookPanel): Promise<void> => {
         current_code: cleanCodeString,
         cell_code_offset: cellCodeOffset,
         section_index: sectionIdx,
-        profile_index: profileIdx,
+        case_id: profileIdx,
         use_deep_analysis: true,
     };
 
@@ -107,7 +107,11 @@ const buttonOnClick = async(panel: NotebookPanel): Promise<void> => {
     }
 
     // 6. SAVE TO JUPYTERHUB FILE SYSTEM
-    const savedFilePath = await saveFeedbackFile(panel.context.path, resultText);
+    // Save feedback to a single file per notebook
+    const notebookPath = panel.context.path;
+    const notebookBaseName = notebookPath.replace(/\.[^/.]+$/, ""); // Remove extension
+    const feedbackFileName = `${notebookBaseName}_feedback.md`;
+    const savedFilePath = await saveFeedbackFile(notebookPath, resultText, feedbackFileName);
 
 
     console.log(`Feedback saved to: ${savedFilePath}`);

@@ -9,7 +9,7 @@
 
 
       "aziz": {
-        "argv": ["python3", "/lsp/lsp.py", "-vv"],
+        "argv": ["python3", "/home/developer/lsp.py", "-vv"],
         "languages": ["python"],
 "mime_types": ["text/x-python", "application/x-ipynb+json"],
         "version": 2

@@ -1,0 +1,97 @@
+from __future__ import annotations
+
+import uuid
+from typing import Any, TypedDict
+from pydantic import BaseModel, Field
+
+
+class FeedbackRequest(BaseModel):
+    """Request model for the semantic feedback API.
+
+    Args:
+        current_code: The code currently being analyzed.
+        section_index: The index of the section in the notebook.
+        case_id: The UUID of the case.
+        cell_code_offset: The code offset within the cell (default 0).
+        use_deep_analysis: Whether to use deep analysis (default True).
+    """
+
+    current_code: str
+    section_index: int
+    case_id: uuid.UUID
+    cell_code_offset: int = 0
+    use_deep_analysis: bool = True
+
+
+class FeedbackResponse(BaseModel):
+    """Complete semantic feedback response structure with validation."""
+
+    non_localized_feedback: str = Field(
+        default="", description="List of non-localized feedback messages"
+    )
+    localized_feedback: list[dict] = Field(
+        default_factory=list,
+        description="List of localized feedback items with range and message data",
+    )
+
+    def get_description_for_llm(self) -> str:
+        """Get description for LLM."""
+        return self.non_localized_feedback + "-\n".join(
+            [warning["message"] for warning in self.localized_feedback]
+        )
+
+
+# TypedDict definitions for heterogeneous data structures
+
+
+class TestCaseData(TypedDict):
+    """Structure for parsed test case information."""
+
+    case_name: str
+    profile_path: str
+    solution_path: str
+
+
+class ProfileSectionData(TypedDict):
+    """Structure for profile notebook sections."""
+
+    description: str
+    code: str
+
+
+class SolutionSectionData(TypedDict):
+    """Structure for solution notebook sections with evaluation data."""
+
+    json_data: dict[str, Any]
+    code: str
+    problems_to_detect: list[str]
+
+
+class EvaluationMetrics(TypedDict):
+    """Calculated metrics from raw LLM observations."""
+
+    brief_issue_ratio: float
+    necessary_issues_precision: float
+    necessary_issues_recall: float
+    no_case_profile_detail: int  # 0 if profile details mentioned, 1 if not mentioned
+    consequence_language_ratio: float
+
+
+class SectionIssuesData(TypedDict):
+    """Structure for raw issues data extracted from LLM evaluation per section."""
+
+    long_issues_found: list[str]
+    false_positives_issues: list[str]
+    false_negatives_issues: list[str]
+    profile_detail_mentioned: list[str]
+    non_consequence_language_issues: list[str]
+    feedback_text: str
+
+
+class ParsedCaseData(TypedDict):
+    """Structure for parsed case data."""
+
+    case_id: uuid.UUID
+    task_desc: str
+    profile_sections: list[ProfileSectionData]
+    solution_sections: list[SolutionSectionData]
