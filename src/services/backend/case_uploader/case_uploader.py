@@ -9,8 +9,8 @@ from fastapi import UploadFile
 from minio import Minio
 from minio.error import S3Error
 
-from profile_uploader import ProfileUploader
-from validation import FileValidator
+from .profile_uploader import ProfileUploader
+from .validation import FileValidator
 
 logger = logging.getLogger(__name__)
 

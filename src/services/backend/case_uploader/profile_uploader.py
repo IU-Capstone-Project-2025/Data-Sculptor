@@ -26,7 +26,7 @@ import logging
 import asyncpg
 import nbformat
 
-from schemas import Section
+from .schemas import Section
 
 logger = logging.getLogger(__name__)
 

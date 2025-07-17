@@ -5,11 +5,12 @@ import os
 import subprocess
 import json
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi import FastAPI, File, Form, Request, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 from lsprotocol.types import Diagnostic, Range, Position, DiagnosticSeverity
 import logging
 from pathlib import Path
+from pydantic import BaseModel, Field
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s %(levelname)s %(message)s",
@@ -216,7 +217,43 @@ class RealTimeAnalysis:
 
 
 
-app = FastAPI()
+app = FastAPI(
+    title="Real-Time Static Analysis Service",
+    version="1.0.0",
+    description=(
+        "Сервис выполняет статический анализ Python-кода в реальном времени при помощи Pylsp. "
+        "Получает файл с исходным кодом, запускает несколько экземпляров Pylsp в пуле и возвращает "
+        "список диагностических сообщений (severity, позиция, сообщение и т.д.)."
+    ),
+)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Pydantic схемы для Swagger-документации
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class AnalysisResponse(BaseModel):
+    """Ответ эндпоинта `/analyze`."""
+
+    diagnostics: list[dict] = Field(
+        ..., description="Список диагностик LSP (каждый элемент соответствует Diagnostic)",
+        examples=[
+            [
+                {
+                    "range": {
+                        "start": {"line": 0, "character": 10},
+                        "end": {"line": 0, "character": 11},
+                    },
+                    "severity": 1,
+                    "message": "SyntaxError: invalid syntax",
+                    "source": "pylsp",
+                }
+            ]
+        ],
+    )
+
+
 rt = RealTimeAnalysis()
 app.add_middleware(
     CORSMiddleware,
@@ -225,12 +262,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-@app.post("/analyze")
-def analyze(file: UploadFile = File(...)):
-    content = file.file.read().decode('utf-8')
+@app.post(
+    "/analyze",
+    response_model=AnalysisResponse,
+    summary="Запустить статический анализ кода",
+    description=(
+        "Принимает файл с Python-кодом, выполняет статический анализ с помощью Pylsp и возвращает список диагностик."
+    ),
+    tags=["Analysis"],
+)
+def analyze(
+    file: UploadFile = File(..., description="Файл с Python-кодом для анализа (.py)"),
+):
     temp_filepath = None
     try:
         with tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8', suffix='.py') as temp:
+            try:
+                content = file.file.read().decode("utf-8")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail="Unable to read uploaded file") from e
             temp.write(content)
             temp_filepath = temp.name
         uri = f"file://{temp_filepath}"
@@ -238,9 +288,7 @@ def analyze(file: UploadFile = File(...)):
     finally:
         if temp_filepath and os.path.exists(temp_filepath):
             os.remove(temp_filepath)
-    return {
-        "diagnostics": raw_diagnostics
-    }
+    return {"diagnostics": raw_diagnostics}
 
 # if __name__ == "__main__":
 #     with open ("/home/aziz/test/test.txt",'r', encoding='utf-8')as f:

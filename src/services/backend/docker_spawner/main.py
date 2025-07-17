@@ -4,14 +4,14 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Path as FastAPIPath
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from docker_service import DockerSpawnerService
-from auth_service import AuthService
+from .docker_service import DockerSpawnerService
+from .auth_service import AuthService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -27,24 +27,48 @@ S3_REGION = os.getenv("S3_REGION", "us-east-1")
 AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://localhost:8080")
 
 class SpawnRequest(BaseModel):
-    case_id: str
-    oauth_token: str
-    container_name: Optional[str] = None
-    port_mapping: Optional[dict] = None
+    """Request body for `/spawn` endpoint."""
+
+    case_id: str = Field(
+        ..., description="UUID кейса (Docker-образ хранится в S3 под этим идентификатором)",
+        examples=["5ca16dbe-4abe-4f75-956f-2e2d9cb04e24"],
+    )
+    oauth_token: str = Field(
+        ..., description="OAuth-токен пользователя, проверяется Auth-сервисом",
+        examples=["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…"],
+    )
+    container_name: Optional[str] = Field(
+        None,
+        description="Опциональное имя контейнера (если не задано, генерируется автоматически)",
+        examples=["workshop-alice"],
+    )
+    port_mapping: Optional[dict] = Field(
+        None,
+        description="Словарь перенаправлений портов вида {'8888/tcp': 12345}. Если None, порт берётся из образа.",
+        examples=[{"8888/tcp": 30123}],
+    )
 
 class SpawnResponse(BaseModel):
-    container_id: str
-    status: str
-    message: str
+    """Успешный ответ от `/spawn`."""
+
+    container_id: str = Field(..., description="ID запущенного контейнера")
+    status: str = Field(..., description="Статус операции", examples=["success"])
+    message: str = Field(..., description="Человекочитаемое сообщение")
 
 class ContainerStatusResponse(BaseModel):
-    container_id: str
-    status: str
-    running: bool
-    ports: dict
-    logs: Optional[str] = None
+    """Ответ со статусом контейнера."""
 
-app = FastAPI(title="Docker Spawner Service", version="1.0.0")
+    container_id: str = Field(..., description="ID контейнера")
+    status: str = Field(..., description="Raw-статус Docker (e.g. 'running', 'exited')", examples=["running"])
+    running: bool = Field(..., description="True если контейнер запущен")
+    ports: dict = Field(..., description="Сопоставление внутренних ↔ хостовых портов")
+    logs: Optional[str] = Field(None, description="Последние логи, если запрошено")
+
+app = FastAPI(
+    title="Docker Spawner Service",
+    version="1.0.0",
+    description="API для запуска Docker-контейнеров из образов, сохранённых в S3, с проверкой аутентификации.",
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -58,7 +82,16 @@ app.add_middleware(
 auth_service = AuthService(AUTH_SERVICE_URL)
 docker_service = DockerSpawnerService(S3_BUCKET_NAME, S3_REGION)
 
-@app.post("/spawn", response_model=SpawnResponse)
+@app.post(
+    "/spawn",
+    response_model=SpawnResponse,
+    summary="Запустить контейнер по case_id",
+    description=(
+        "Создаёт Docker-контейнер из образа, связанного с указанным *case_id*. Перед запуском проверяет "
+        "OAuth-токен через Auth-сервис. При успехе возвращает ID контейнера и информацию о портах."
+    ),
+    tags=["Containers"],
+)
 async def spawn_container(request: SpawnRequest):
     """
     Spawn a Docker container from an S3 image.
@@ -91,8 +124,14 @@ async def spawn_container(request: SpawnRequest):
         logger.error(f"Error spawning container: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/container/{container_id}/status", response_model=ContainerStatusResponse)
-async def get_container_status(container_id: str):
+@app.get(
+    "/container/{container_id}/status",
+    response_model=ContainerStatusResponse,
+    summary="Получить статус контейнера",
+    description="Возвращает текущий статус Docker-контейнера, его порты и (опционально) конец логов.",
+    tags=["Containers"],
+)
+async def get_container_status(container_id: str = FastAPIPath(..., description="ID Docker-контейнера")):
     """
     Get the status of a running container.
     
@@ -110,8 +149,13 @@ async def get_container_status(container_id: str):
         logger.error(f"Error getting container status: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/container/{container_id}")
-async def stop_container(container_id: str):
+@app.delete(
+    "/container/{container_id}",
+    summary="Остановить и удалить контейнер",
+    description="Останавливает работающий Docker-контейнер и удаляет его вместе с ресурсами.",
+    tags=["Containers"],
+)
+async def stop_container(container_id: str = FastAPIPath(..., description="ID Docker-контейнера")):
     """
     Stop and remove a container.
     
@@ -126,7 +170,7 @@ async def stop_container(container_id: str):
         logger.error(f"Error stopping container: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/health")
+@app.get("/health", summary="Health-check", tags=["Health"])
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "service": "docker-spawner"}

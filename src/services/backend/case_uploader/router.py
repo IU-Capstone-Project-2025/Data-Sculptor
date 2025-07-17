@@ -9,10 +9,10 @@ import yaml
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
 from fastapi import Path as FastAPIPath  # name conflict with pathlib
 
-from schemas import HealthCheckResponse
-from dependencies import get_case_uploader
-from profile_uploader import NotebookParseError
-from case_uploader import CaseUploader
+from .schemas import HealthCheckResponse, UploadResponse
+from .dependencies import get_case_uploader
+from .profile_uploader import NotebookParseError
+from .case_uploader import CaseUploader
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -34,19 +34,48 @@ async def health_check() -> HealthCheckResponse:
     return HealthCheckResponse(status="ok")
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Variant 1 documentation: rely on inline descriptions & Pydantic models
+# ──────────────────────────────────────────────────────────────────────────────
+
 @router.post(
     "/upload_case/{name}",
     status_code=status.HTTP_201_CREATED,
-    summary="Upload a case with requirements, dataset, profile, and template",
+    summary="Upload a case",
+    description=(
+        "Upload a full educational/analytics case consisting of: 1) requirements.txt "
+        "with Python dependencies, 2) a dataset file, 3) a profile notebook that "
+        "describes and demonstrates the solution, 4) a template notebook for "
+        "students.  The service validates inputs, builds a Docker image with "
+        "repo2docker, stores artefacts in MinIO and records metadata in PostgreSQL.\n\n"
+        "Returns JSON with the generated case_id on success."
+    ),
+    response_model=UploadResponse,
     tags=["Cases"],
-    openapi_extra=OPENAPI_SPEC_UPLOAD,
 )
 async def upload_case(
-    name: str = FastAPIPath(..., description="Case name"),
-    requirements: UploadFile = File(..., description="requirements.txt file"),
-    dataset: UploadFile = File(..., description="Dataset file"),
-    profile: UploadFile = File(..., description="Profile notebook file (.ipynb)"),
-    template: UploadFile = File(..., description="Solution template file"),
+    name: str = FastAPIPath(
+        ..., description="Human-readable case name", examples={"example": {"value": "Titanic"}}
+    ),
+    requirements: UploadFile = File(
+        ...,
+        description="requirements.txt (only .txt is accepted)",
+    ),
+    dataset: UploadFile = File(
+        ...,
+        description="Dataset file (any format: CSV, JSON, Parquet, ZIP, etc.)",
+    ),
+    profile: UploadFile = File(
+        ...,
+        description=(
+            "Profile notebook (.ipynb). First markdown cell → overall task; subsequent "
+            "pairs of markdown (with ```json) + code cells describe sections. Must "
+            "contain at least one complete pair."
+        ),
+    ),
+    template: UploadFile = File(
+        ..., description="Solution template notebook (.ipynb) shown to students",
+    ),
     case_uploader: CaseUploader = Depends(get_case_uploader),
 ) -> dict[str, str]:
     """Upload a case and process it: build Docker image, store in MinIO, record in DB."""

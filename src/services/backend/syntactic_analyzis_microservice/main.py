@@ -4,17 +4,41 @@ from pathlib import Path
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from analysis_runner import run_all_linters
+from .analysis_runner import run_all_linters
 
 from fastapi.middleware.cors import CORSMiddleware
 
 class DiagnosticsResponse(BaseModel):
-    diagnostics: list[dict]
+    """Ответ с диагностическими сообщениями от линтеров."""
 
-app = FastAPI()
+    diagnostics: list[dict] = Field(
+        ..., description="Список LSP-совместимых диагностик, собранных всеми линтерами",
+        examples=[
+            [
+                {
+                    "range": {
+                        "start": {"line": 0, "character": 0},
+                        "end": {"line": 0, "character": 5},
+                    },
+                    "severity": 2,
+                    "message": "Unused import os",
+                    "source": "pylsp_vulture",
+                }
+            ]
+        ],
+    )
+
+app = FastAPI(
+    title="Syntactic Analysis Service",
+    version="1.0.0",
+    description=(
+        "Микросервис запускает набор статических линтеров (ruff, bandit, vulture и др.) "
+        "для uploaded Python-файла и возвращает объединённый список диагностик в формате LSP."
+    ),
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,9 +48,16 @@ app.add_middleware(
     allow_headers=["*"],     # Allow all headers
 )
 
-@app.post("/analyze", response_model=DiagnosticsResponse)
-async def analyze_code(code_file: UploadFile = File(...)):
-    """Принимает .py-файл, прогоняет линтеры, возвращает LSP-diagnostics."""
+@app.post(
+    "/analyze",
+    response_model=DiagnosticsResponse,
+    summary="Запустить синтаксический анализ кода",
+    description="Принимает Python-файл, прогоняет несколько линтеров и возвращает список диагностик.",
+    tags=["Analysis"],
+)
+async def analyze_code(
+    code_file: UploadFile = File(..., description="Файл с Python-кодом (.py) для проверки"),
+):
     # if not code_file.filename.endswith(".py"):
     #     raise HTTPException(status_code=400, detail="Only .py files are supported")
 

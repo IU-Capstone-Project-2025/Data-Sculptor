@@ -7,10 +7,10 @@ from typing import Annotated
 import asyncpg
 from minio import Minio
 
-from profile_uploader import ProfileUploader
-from case_uploader import CaseUploader
-from validation import FileValidator
-from settings import settings
+from .profile_uploader import ProfileUploader
+from .case_uploader import CaseUploader
+from .validation import FileValidator
+from .settings import settings
 
 
 async def get_pg_connection(request: Request):

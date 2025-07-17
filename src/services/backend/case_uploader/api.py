@@ -9,8 +9,8 @@ import asyncpg
 import uvicorn
 from fastapi import FastAPI
 
-from router import router as upload_router
-from settings import settings
+from .router import router as upload_router
+from .settings import settings
 
 
 @asynccontextmanager
