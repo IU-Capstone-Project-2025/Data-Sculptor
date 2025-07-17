@@ -13,7 +13,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock # This is used to create User containers
       - /tmp/:/tmp/
-      - ../resources/config/jupyterhub/jupyter_ai_confi.py:/etc/jupyter/jupyter_server_config.d/jupyter_ai_config.py:ro
       - ../resources/config/jupyterhub:/srv/jupyterhub:rw
       - ../src/services/backend/jupyter_hub_adapter_microservice/sendCode.py:/home/developer/sendCode.py:rw
       - ../src/services/backend/lsp_server/lsp.py:/home/developer/lsp.py:rw
