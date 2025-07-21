@@ -45,7 +45,7 @@ docker compose -p uat --env-file uat.env up --build -d
 
 3. Enter the JupyterHub container
 ```bash
-docker exec -it uat-jupyterhub bash
+docker exec -it local_uat-jupyterhub bash
 ```
 
 Then:
