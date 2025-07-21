@@ -52,18 +52,6 @@ async def chat(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="current_code must not be empty.",
         )
-
-    if not body.current_non_localized_feedback.strip():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="current_non_localized_feedback must not be empty.",
-        )
-    if len(body.current_localized_feedback) == 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="current_localized_feedback must not be empty.",
-        )
-
     try:
         reply: str = await service.generate_response(
             llm_client=llm_client,
