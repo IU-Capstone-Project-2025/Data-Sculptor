@@ -43,7 +43,7 @@ cd Data-Sculptor/deployment/uat
 docker compose -p uat --env-file uat.env up --build -d
 ```
 
-3. Enter the JupyterHub container
+3. Enter the JupyterHub container (docker version ~28.0.4)
 ```bash
 docker exec -it local_uat-jupyterhub bash
 ```
