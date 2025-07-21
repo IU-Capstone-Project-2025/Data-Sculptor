@@ -1,0 +1,148 @@
+services:
+  jupyterhub:
+    build:
+      context: ../..
+      dockerfile: src/services/backend/jupyter_hub/Dockerfile
+      args:
+        FEEDBACK_SERVICE_URL: http://localhost:11004
+    container_name: "${COMPOSE_PROJECT_NAME}-jupyterhub"
+    ports:
+      - "${JUPYTER_PORT_EXTERNAL}:8000"
+    volumes:
+      - ../../resources/config/jupyterhub/jupyter_ai_config.py:/etc/jupyter/jupyter_server_config.d/jupyter_ai_config.py:ro
+      - ../../resources/config/jupyterhub:/srv/jupyterhub:rw
+      - ../../src/services/backend/jupyter_hub/jupyter-lsp-jupyter-server.json:/etc/jupyter/jupyter_server_config.d/jupyter-lsp-jupyter-server.json:rw
+      - ../../resources/data/jupyterhub:/home/developer:rw
+    environment:
+      - ADVISER_API_URL=http://${HOST_IP}:${ADVISER_PORT_EXTERNAL}/api/v1/chat
+      - URL_STATIC_ANALYZER=http://deep-syntatic-service:8085
+      - URL_LSP_SERVER=http://real-time-analysis-service:8095
+      - URL_FEEDBACK_SERVICE=http://feedback-service:9352
+      - LLM_BASE_URL=${LLM_BASE_URL}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MODEL=${LLM_MODEL}
+    command: >
+      bash -c "chown -R developer:developer /home/developer && exec jupyterhub"
+
+  deep-syntatic-service:
+    build:
+      context: ../../src/services/backend/syntactic_analyzis_microservice
+      dockerfile: Dockerfile
+    container_name: "${COMPOSE_PROJECT_NAME}-deep-static-analyzer-service"
+    ports:
+      - "${ANALYZER_PORT_EXTERNAL}:8085"
+
+  real-time-analysis-service:
+    build:
+      context: ../../src/services/backend/real_time_analysis_microservice
+      dockerfile: Dockerfile
+    container_name: "${COMPOSE_PROJECT_NAME}-real-time-static-analysis"
+    ports:
+      - "${LSP_PORT_EXTERNAL}:8095"
+
+
+  feedback-service:
+    build:
+      context: ../../src/services/ml
+      dockerfile: semantic_feedback/Dockerfile
+    container_name: "${COMPOSE_PROJECT_NAME}-feedback"
+    ports:
+      - "${FEEDBACK_PORT_EXTERNAL}:9352"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LLM_BASE_URL=${LLM_BASE_URL}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MODEL=${LLM_MODEL}
+      - FEEDBACK_SERVICE_HOST=${FEEDBACK_SERVICE_HOST}
+      - FEEDBACK_SERVICE_PORT=${FEEDBACK_SERVICE_PORT}
+      - PROFILE_POSTGRES_DSN=postgresql://app:app@postgres:5432/datasculptor
+      - FEEDBACK_SERVICE_N_WORKERS=${FEEDBACK_SERVICE_N_WORKERS}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ../../src/services/ml/semantic_feedback:/app/semantic_feedback:rw
+    extra_hosts:
+      - "llm-server:10.100.30.239"
+
+  adviser-service:
+    build:
+      context: ../../src/services/ml
+      dockerfile: adviser/Dockerfile
+    container_name: "${COMPOSE_PROJECT_NAME}-adviser"
+    ports:
+      - "${ADVISER_PORT_EXTERNAL}:9353"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ADVISER_REDIS_URL=redis://redis:6379/0
+      - ADVISER_POSTGRES_DSN=postgresql://app:app@postgres:5432/datasculptor
+      - LLM_BASE_URL=${LLM_BASE_URL}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MODEL=${LLM_MODEL}
+      - TOKENIZER_MODEL=${TOKENIZER_MODEL}
+      - CHAT_SERVICE_HOST=${CHAT_SERVICE_HOST}
+      - CHAT_SERVICE_PORT=${CHAT_SERVICE_PORT}
+      - CHAT_SERVICE_N_WORKERS=${CHAT_SERVICE_N_WORKERS}
+    volumes:
+      - ../../src/services/ml/adviser:/app/adviser:ro
+    extra_hosts:
+      - "llm-server:10.100.30.239"
+    hostname: adviser
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  profile-uploader-service:
+    build:
+      context: ../../src/services/backend/profile_uploader
+      dockerfile: Dockerfile
+    container_name: "${COMPOSE_PROJECT_NAME}-profile-uploader"
+    ports:
+      - "${PROFILE_UPLOAD_PORT_EXTERNAL}:9354"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PROFILE_POSTGRES_DSN=postgresql://app:app@postgres:5432/datasculptor
+      - PROFILE_UPLOAD_SERVICE_HOST=${PROFILE_UPLOAD_SERVICE_HOST}
+      - PROFILE_UPLOAD_SERVICE_PORT=${PROFILE_UPLOAD_SERVICE_PORT}
+      - PROFILE_UPLOAD_SERVICE_N_WORKERS=${PROFILE_UPLOAD_SERVICE_N_WORKERS}
+    volumes:
+      - ../../src/services/backend/profile_uploader:/app/profile_uploader:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:15
+    container_name: "${COMPOSE_PROJECT_NAME}-postgres"
+    ports:
+      - "${POSTGRES_PORT_EXTERNAL}:5432"
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: datasculptor
+    volumes:
+      - ../../resources/data/postgres:/var/lib/postgresql/data:rw
+      - ../../resources/config/postgres/init_scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "app", "-d", "datasculptor"]
+      interval: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: "${COMPOSE_PROJECT_NAME}-redis"
+    ports:
+      - "${REDIS_PORT_EXTERNAL}:6379"
+    volumes:
+      - ../../resources/data/redis:/data:rw
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+
+volumes:
+  uat_postgres_data:
+  uat_redis_data: 
