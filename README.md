@@ -45,7 +45,7 @@ docker compose -p uat --env-file uat.env up --build -d
 
 3. Enter the JupyterHub container
 ```bash
-docker exec -it local_uat-jupyterhub bash
+docker exec -it uat-jupyterhub bash
 ```
 
 Then:
@@ -57,9 +57,13 @@ chown -R developer:developer /home/developer
 ❗️Exit the container before authorization in browser
 
 
-4. Login at:
-   http://localhost:11000
+4. Login using [authorization data](https://strategic-control.kaiten.ru/documents/d/c3e7daa4-1678-4e99-839b-6caee4383234): 
+   - http://localhost:11000
 
 
 ## ⚙️ Requirements
 - docker version ~28.0.4, can be installed from the official Docker website
+- if the user from which you are trying to run containers is not in Docker group - you should use \
+```
+sudo docker compose -p uat --env-file uat.env up --build -d
+```
