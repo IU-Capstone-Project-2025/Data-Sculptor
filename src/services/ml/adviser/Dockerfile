@@ -7,7 +7,7 @@ COPY adviser/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # copy shared utilities
-COPY shared_ml /app/shared_ml
+COPY shared_ml/shared_ml /app/shared_ml
 
 # copy the service source code
 COPY adviser /app

@@ -171,10 +171,122 @@ def run_all_linters(py_path: str) -> list[dict[str, Any]]:
         issues = json.loads(proc.stdout)
     except json.JSONDecodeError:
         issues = []
+    
+    # Read file content for better range calculation
+    try:
+        with open(py_path, "r", encoding="utf-8") as f:
+            file_lines = f.readlines()
+    except Exception:
+        file_lines = []
+    
     for issue in issues:
         sev = pylint_sev.get(issue.get("type", ""), 3)
         line0 = max(0, issue.get("line", 1) - 1)
         col0 = issue.get("column", 0)
+        
+        # Calculate better end position based on the actual content
+        end_line = line0
+        end_col = col0 + 1  # Default fallback
+        
+        if line0 < len(file_lines):
+            line_content = file_lines[line0].rstrip('\n\r')
+            message = issue.get("message", "").lower()
+            symbol = issue.get("symbol", "").lower()
+            
+            # Try to find a better end position
+            if col0 < len(line_content):
+                end_pos = col0
+                
+                # Method 1: Context-specific improvements first (more accurate)
+                if "import" in message or "unused-import" in symbol:
+                    # For import issues, try to find the module name in the message
+                    import_name_match = re.search(r"'([^']+)'", message)
+                    if import_name_match:
+                        import_name = import_name_match.group(1)
+                        # Find the import name in the line
+                        name_pos = line_content.find(import_name)
+                        if name_pos >= 0:
+                            end_pos = name_pos + len(import_name)
+                        else:
+                            # Fallback: mark from "import" keyword
+                            import_pos = line_content.find('import')
+                            if import_pos >= 0:
+                                end_pos = import_pos
+                                while end_pos < len(line_content) and line_content[end_pos] not in ' \t\n':
+                                    end_pos += 1
+                                # Skip whitespace
+                                while end_pos < len(line_content) and line_content[end_pos] in ' \t':
+                                    end_pos += 1
+                                # Mark the module name
+                                while end_pos < len(line_content) and (line_content[end_pos].isalnum() or line_content[end_pos] in '_.'):
+                                    end_pos += 1
+                
+                elif "undefined" in message or "name" in message:
+                    # For undefined variable/name issues, extract the variable name from the message
+                    var_name_match = re.search(r"'([^']+)'", message)
+                    if var_name_match:
+                        var_name = var_name_match.group(1)
+                        # Find the variable name in the line
+                        var_pos = line_content.find(var_name, col0)
+                        if var_pos >= 0:
+                            end_pos = var_pos + len(var_name)
+                        else:
+                            # Fallback: mark identifier at col0
+                            end_pos = col0
+                            while end_pos < len(line_content) and (line_content[end_pos].isalnum() or line_content[end_pos] in '_'):
+                                end_pos += 1
+                    else:
+                        # Fallback: mark identifier at col0
+                        end_pos = col0
+                        while end_pos < len(line_content) and (line_content[end_pos].isalnum() or line_content[end_pos] in '_'):
+                            end_pos += 1
+                
+                elif "unused variable" in message:
+                    # For unused variable issues, extract the variable name from the message
+                    var_name_match = re.search(r"'([^']+)'", message)
+                    if var_name_match:
+                        var_name = var_name_match.group(1)
+                        # Find the variable name in the line
+                        var_pos = line_content.find(var_name)
+                        if var_pos >= 0:
+                            end_pos = var_pos + len(var_name)
+                        else:
+                            # Fallback: mark whole line for long variable names
+                            end_pos = len(line_content.strip())
+                    else:
+                        # Fallback: mark a larger portion of the line
+                        end_pos = min(col0 + 20, len(line_content.strip()))
+                
+                elif "function" in message or "method" in message:
+                    # For function/method issues, mark until parenthesis or whitespace
+                    end_pos = col0
+                    while end_pos < len(line_content) and line_content[end_pos] not in '( \t':
+                        end_pos += 1
+                
+                else:
+                    # Method 2: Generic identifier/word boundary detection
+                    if col0 < len(line_content):
+                        # If starting with quote, find string boundaries
+                        if line_content[col0] in ['"', "'"]:
+                            quote = line_content[col0]
+                            end_pos = col0 + 1
+                            while end_pos < len(line_content) and line_content[end_pos] != quote:
+                                if line_content[end_pos] == '\\':  # Skip escaped characters
+                                    end_pos += 1
+                                end_pos += 1
+                            if end_pos < len(line_content):  # Include closing quote
+                                end_pos += 1
+                        else:
+                            # Mark identifier/word
+                            while end_pos < len(line_content) and (line_content[end_pos].isalnum() or line_content[end_pos] in '_'):
+                                end_pos += 1
+                            # If we didn't find anything significant, mark at least a few characters
+                            if end_pos <= col0:
+                                end_pos = min(col0 + 5, len(line_content))
+                
+                # Ensure we mark at least one character and don't exceed line length
+                end_col = max(col0 + 1, min(end_pos, len(line_content)))
+        
         diagnostics.append(
             {
                 "tool": "pylint",
@@ -183,13 +295,155 @@ def run_all_linters(py_path: str) -> list[dict[str, Any]]:
                 "obj": issue.get("obj", ""),
                 "line": line0,
                 "column": col0,
-                "endLine": line0,
-                "endColumn": col0 + 1,
+                "endLine": end_line,
+                "endColumn": end_col,
                 "message": issue.get("message", ""),
                 "symbol": issue.get("symbol", ""),
                 "message-id": issue.get("message-id", ""),
                 "severity": sev,
             }
         )
+
+    # -------------------------- mypy --------------------------------
+    proc = subprocess.run(
+        ["mypy", py_path, "--show-column-numbers", "--no-error-summary"],
+        capture_output=True,
+        text=True,
+    )
+    
+    # Parse mypy output (format: filename:line:column: error_type: message)
+    for line in proc.stdout.splitlines():
+        if ":" in line and py_path in line:
+            parts = line.split(":", 4)
+            if len(parts) >= 4:
+                try:
+                    line_num = int(parts[1]) - 1  # Convert to 0-based
+                    col_num = int(parts[2]) if parts[2].isdigit() else 0
+                    error_type = parts[3].strip()
+                    message = parts[4].strip() if len(parts) > 4 else ""
+                    
+                    # Determine severity based on error type
+                    sev = 1 if error_type == "error" else 2  # error or warning
+                    
+                    # Calculate better end position for mypy errors
+                    end_line = line_num
+                    end_col = col_num + 1  # Default fallback
+                    
+                    if line_num < len(file_lines):
+                        line_content = file_lines[line_num].rstrip('\n\r')
+                        
+                        if col_num < len(line_content):
+                            # For mypy, try to find the full identifier or type annotation
+                            end_pos = col_num
+                            
+                            # Type annotation errors - mark the whole type
+                            if "type" in message.lower() or "annotation" in message.lower():
+                                # Look for type annotations like : int, -> str, etc.
+                                if col_num > 0 and line_content[col_num-1:col_num+1] in [':', '-']:
+                                    # Skip whitespace after : or ->
+                                    while end_pos < len(line_content) and line_content[end_pos].isspace():
+                                        end_pos += 1
+                                    # Mark the type name
+                                    while end_pos < len(line_content) and (line_content[end_pos].isalnum() or line_content[end_pos] in '_.[]'):
+                                        end_pos += 1
+                                else:
+                                    # Mark identifier
+                                    while end_pos < len(line_content) and (line_content[end_pos].isalnum() or line_content[end_pos] in '_'):
+                                        end_pos += 1
+                            else:
+                                # Default: mark identifier
+                                while end_pos < len(line_content) and (line_content[end_pos].isalnum() or line_content[end_pos] in '_'):
+                                    end_pos += 1
+                            
+                            end_col = max(col_num + 1, min(end_pos, len(line_content)))
+                    
+                    diagnostics.append(
+                        {
+                            "tool": "mypy",
+                            "type": sev_type.get(sev, "warning"),
+                            "module": module_name,
+                            "obj": "",
+                            "line": line_num,
+                            "column": col_num,
+                            "endLine": end_line,
+                            "endColumn": end_col,
+                            "message": message,
+                            "symbol": "mypy",
+                            "message-id": error_type,
+                            "severity": sev,
+                        }
+                    )
+                except (ValueError, IndexError):
+                    continue
+
+    # -------------------------- flake8 ------------------------------
+    proc = subprocess.run(
+        ["flake8", py_path, "--format=%(path)s:%(row)d:%(col)d:%(code)s:%(text)s"],
+        capture_output=True,
+        text=True,
+    )
+    
+    # Parse flake8 output (format: filename:line:column:code:message)
+    for line in proc.stdout.splitlines():
+        if ":" in line and py_path in line:
+            parts = line.split(":", 4)
+            if len(parts) >= 4:
+                try:
+                    line_num = int(parts[1]) - 1  # Convert to 0-based
+                    col_num = int(parts[2]) - 1 if parts[2].isdigit() else 0  # flake8 uses 1-based columns
+                    code = parts[3].strip()
+                    message = parts[4].strip() if len(parts) > 4 else ""
+                    
+                    # All flake8 issues are warnings
+                    sev = 2
+                    
+                    # Calculate better end position for flake8 errors
+                    end_line = line_num
+                    end_col = col_num + 1  # Default fallback
+                    
+                    if line_num < len(file_lines):
+                        line_content = file_lines[line_num].rstrip('\n\r')
+                        
+                        if col_num < len(line_content):
+                            end_pos = col_num
+                            
+                            # Line length errors - mark the whole excess
+                            if "line too long" in message.lower():
+                                end_col = len(line_content)
+                            # Import errors - mark the import statement
+                            elif code.startswith('F4') or "import" in message.lower():
+                                # Look for import keyword and module name
+                                import_match = re.search(r'import\s+([a-zA-Z0-9_.]+)', line_content[col_num:])
+                                if import_match:
+                                    end_pos = col_num + import_match.end()
+                                else:
+                                    # Mark identifier
+                                    while end_pos < len(line_content) and (line_content[end_pos].isalnum() or line_content[end_pos] in '_.'):
+                                        end_pos += 1
+                            else:
+                                # Default: mark identifier or symbol
+                                while end_pos < len(line_content) and (line_content[end_pos].isalnum() or line_content[end_pos] in '_'):
+                                    end_pos += 1
+                            
+                            end_col = max(col_num + 1, min(end_pos, len(line_content)))
+                    
+                    diagnostics.append(
+                        {
+                            "tool": "flake8",
+                            "type": sev_type.get(sev, "warning"),
+                            "module": module_name,
+                            "obj": "",
+                            "line": line_num,
+                            "column": col_num,
+                            "endLine": end_line,
+                            "endColumn": end_col,
+                            "message": message,
+                            "symbol": code,
+                            "message-id": code,
+                            "severity": sev,
+                        }
+                    )
+                except (ValueError, IndexError):
+                    continue
 
     return diagnostics

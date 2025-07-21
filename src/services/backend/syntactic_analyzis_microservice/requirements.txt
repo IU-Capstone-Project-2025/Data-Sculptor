@@ -5,5 +5,7 @@ python-multipart
 requests
 python-dotenv
 pylint
+mypy
+flake8
 dslinter
 -e git+https://github.com/KarthikShivasankar/ml_smells_detector.git@main#egg=ml_code_smell_detector

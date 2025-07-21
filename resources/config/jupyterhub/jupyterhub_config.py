@@ -20,17 +20,23 @@ c.Spawner.debug = True
 
 # Environment variables passed from docker-compose.yml
 
-LLM_VALIDATOR_URL = os.getenv('LLM_VALIDATOR_URL')
+LLM_BASE_URL = os.getenv('LLM_BASE_URL')
+LLM_API_KEY = os.getenv('LLM_API_KEY')
+LLM_MODEL = os.getenv('LLM_MODEL')
 URL_STATIC_ANALYZER = os.getenv("URL_STATIC_ANALYZER")
 URL_LSP_SERVER = os.getenv("URL_LSP_SERVER")
-if not LLM_VALIDATOR_URL or not URL_LSP_SERVER or not URL_STATIC_ANALYZER:
-    raise RuntimeError("LLM_VALIDATOR_URL env var is not specified")
+URL_FEEDBACK_SERVICE = os.getenv("URL_FEEDBACK_SERVICE")
+
+if not LLM_BASE_URL or not URL_LSP_SERVER or not URL_STATIC_ANALYZER or not URL_FEEDBACK_SERVICE:
+    raise RuntimeError("Required environment variables are not specified")
 
 c.Spawner.environment = {
-    'LLM_VALIDATOR_URL': LLM_VALIDATOR_URL,
-    'URL_STATIC_ANALYZER':URL_STATIC_ANALYZER,
-    'URL_LSP_SERVER':URL_LSP_SERVER
-
+    'LLM_BASE_URL': LLM_BASE_URL,
+    'LLM_API_KEY': LLM_API_KEY,
+    'LLM_MODEL': LLM_MODEL,
+    'URL_STATIC_ANALYZER': URL_STATIC_ANALYZER,
+    'URL_LSP_SERVER': URL_LSP_SERVER,
+    'URL_FEEDBACK_SERVICE': URL_FEEDBACK_SERVICE
 }
 
 

@@ -30,11 +30,14 @@ URL_LSP_SERVER = os.getenv("URL_LSP_SERVER")
 DEBOUNCE_TIME_MS = 400  # TODO: add to .env
 
 
-def _convert_to_lsp_diagnostics_deep(raw_diagnostics: list[dict]) -> list[Diagnostic]:
+def _convert_to_lsp_diagnostics_deep(raw_diagnostics: list[dict], file_content: str = None) -> list[Diagnostic]:
     lsp_diags: list[Diagnostic] = []
+    lines = file_content.split('\n') if file_content else []
+    
     for d in raw_diagnostics:
         start_line = int(d.get("line", 0))
         start_char = int(d.get("column") or 0)
+        
         if "endLine" in d and "endColumn" in d:
             end_line = int(d["endLine"])
             end_char = int(d["endColumn"])
@@ -42,8 +45,48 @@ def _convert_to_lsp_diagnostics_deep(raw_diagnostics: list[dict]) -> list[Diagno
             end_line = int(d["range"]["end"]["line"])
             end_char = int(d["range"]["end"]["character"])
         else:
+            # Better range calculation for syntactic analysis
             end_line = start_line
             end_char = start_char + 1
+            
+            # Try to find a better end position by analyzing the line content
+            if lines and start_line < len(lines):
+                line = lines[start_line]
+                message = d.get("message", "").lower()
+                
+                # Look for identifiers, strings, or other tokens starting at start_char
+                if start_char < len(line):
+                    # Method 1: Find word boundary (for variable names, function names, etc.)
+                    end_pos = start_char
+                    while end_pos < len(line) and (line[end_pos].isalnum() or line[end_pos] in '_'):
+                        end_pos += 1
+                    
+                    # Method 2: For string literals, find closing quote
+                    if line[start_char] in ['"', "'"]:
+                        quote = line[start_char]
+                        end_pos = start_char + 1
+                        while end_pos < len(line) and line[end_pos] != quote:
+                            if line[end_pos] == '\\':  # Skip escaped characters
+                                end_pos += 1
+                            end_pos += 1
+                        if end_pos < len(line):  # Include the closing quote
+                            end_pos += 1
+                    
+                    # Method 3: For specific error types, use contextual hints
+                    elif "import" in message or "undefined" in message:
+                        # For import or undefined variable errors, mark the whole identifier
+                        end_pos = start_char
+                        while end_pos < len(line) and (line[end_pos].isalnum() or line[end_pos] in '_.'):
+                            end_pos += 1
+                    
+                    elif "function" in message or "method" in message:
+                        # For function/method errors, mark until parenthesis or end of identifier
+                        end_pos = start_char
+                        while end_pos < len(line) and line[end_pos] not in '(\s':
+                            end_pos += 1
+                    
+                    # Ensure we mark at least one character and don't go beyond line
+                    end_char = max(start_char + 1, min(end_pos, len(line)))
 
         lsp_diags.append(
             Diagnostic(
@@ -70,12 +113,21 @@ def on_save(ls: LanguageServer, params: types.DidSaveTextDocumentParams):
     filename = os.path.basename(filepath)
 
     logging.info("Static analysis for %s", filepath)
+    
+    # Read file content for better range calculation
+    file_content = ""
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            file_content = f.read()
+    except Exception as e:
+        logging.warning(f"Could not read file content for range calculation: {e}")
+    
     with open(filepath, "rb") as f:
         files = {"code_file": (filename, f, "application/octet-stream")}
         resp = requests.post(f"{URL_STATIC_ANALYZER}/analyze", files=files)
 
     raw_diags = resp.json().get("diagnostics", [])
-    diagnostics = _convert_to_lsp_diagnostics_deep(raw_diags)
+    diagnostics = _convert_to_lsp_diagnostics_deep(raw_diags, file_content)
     deep_syntatic_diagnostic_cache[uri] = diagnostics
 
     combined = diagnostics + realtime_diagnostics_cache.get(uri, [])

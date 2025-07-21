@@ -1,2 +1,2 @@
-// Значение сюда подставляется через Dockerfile на этапе сборки
-export const API_ENDPOINT = "Semantic URL is not provided";
+// API endpoint for the feedback service
+export const API_ENDPOINT = "http://localhost:11004";

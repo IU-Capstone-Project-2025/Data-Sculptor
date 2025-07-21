@@ -20,7 +20,7 @@ const buttonOnClick = async(panel: NotebookPanel): Promise<void> => {
 
     // ── Resolve dynamic configuration by scanning for `%env` magics ─────
     // Default values taken from build-time constants (fallbacks)
-    let profileIdx: string = "Profile index is not provided";
+    let profileIdx: string = "12345678-1234-4000-8000-123456789abc"; // Valid UUID4 for testing
     let sectionIdx: number = 0;
 
     // Accept both "%env VAR=value" and "%env VAR value" syntaxes
@@ -82,14 +82,16 @@ const buttonOnClick = async(panel: NotebookPanel): Promise<void> => {
     console.log("[Notebook Validation] Fetched response");
     // 4. HANDLE RESPONSE ERRORS
     if (!response.ok) {
+      // Read the response body only once
+      const responseText = await response.text();
+      
       try {
-        // Attempt to parse JSON error response
-        const errorData = await response.json();
+        // Try to parse as JSON first
+        const errorData = JSON.parse(responseText);
         throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`);
       } catch {
-        // Fallback to text if JSON parsing fails
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+        // If not JSON, use as plain text
+        throw new Error(`HTTP ${response.status}: ${responseText}`);
       }
     }
     console.log("[Notebook Validation] Response ok");

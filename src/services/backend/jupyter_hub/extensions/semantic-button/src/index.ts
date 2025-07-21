@@ -20,8 +20,8 @@ const SPINNER_SVG = `
   <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
 </svg>`;
 
-// Get environment variable during build time
-const API_ENDPOINT = process.env.LLM_VALIDATOR_URL || 'http://127.0.0.1:9001';
+// Use the external feedback service port (accessible from browser)
+const API_ENDPOINT = 'http://localhost:11004';
 
 const plugin: JupyterFrontEndPlugin<void> = {
   id: 'semantic-button-per-cell:plugin',
@@ -49,27 +49,37 @@ const plugin: JupyterFrontEndPlugin<void> = {
           button.node.title = 'Analyzing semantics...';
           
           try {
-            // Получаем содержимое всего файла ноутбука
+            // Get all cells from the notebook
             const context = panel.context;
-            const notebookContent = await context.model.toJSON();
+            const notebook = context.model;
             
-            // Создаем FormData для отправки файла
-            const formData = new FormData();
+            // Collect all code cells
+            let allCode = '';
+            for (let i = 0; i < notebook.cells.length; i++) {
+              const cell = notebook.cells.get(i);
+              if (cell.type === 'code') {
+                allCode += cell.value.text + '\n\n';
+              }
+            }
             
-            // 1. Создаем Blob из содержимого ноутбука
-            const notebookBlob = new Blob(
-              [JSON.stringify(notebookContent)], 
-              { type: 'application/json' }
-            );
-            
-            // 2. Добавляем файл
-            formData.append('file', notebookBlob, 'notebook.ipynb');
+            if (!allCode.trim()) {
+              throw new Error('No code cells found in notebook');
+            }
 
-            // Отправляем запрос
-            const response = await fetch(API_ENDPOINT + '/getMdFeedback', {
+            // Send request to feedback service
+            const response = await fetch(API_ENDPOINT + '/api/v1/feedback', {
               method: 'POST',
-              body: formData,
-              signal: AbortSignal.timeout(30000) // Таймаут 30s
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                current_code: allCode,
+                cell_code_offset: 0,
+                section_index: 0,
+                profile_index: "00000000-0000-0000-0000-000000000000", // Default UUID
+                use_deep_analysis: true
+              }),
+              signal: AbortSignal.timeout(30000) // 30s timeout
             });
 
             if (!response.ok) {
@@ -77,22 +87,18 @@ const plugin: JupyterFrontEndPlugin<void> = {
               throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
 
-            // Обрабатываем ответ (MD файл)
-            const resultBlob = await response.blob();
-            const resultText = await resultBlob.text();
+            // Parse JSON response
+            const result = await response.json();
             
-            console.debug('[semantic-button] API response received:', {
-              size: resultBlob.size,
-              type: resultBlob.type
-            });
+            console.debug('[semantic-button] API response received:', result);
 
             // Визуальная обратная связь
             button.node.innerHTML = CHECK_SVG;
             button.node.style.color = 'green';
             button.node.title = 'Semantic validation successful!';
             
-            // Здесь можно добавить обработку MD файла
-            console.log('Received Markdown feedback:', resultText.substring(0, 100) + '...');
+            // Display feedback in console
+            console.log('Received feedback:', result.non_localized_feedback || 'No feedback provided');
             
           } catch (error) {
             console.error('[semantic-button] Validation failed:', error);

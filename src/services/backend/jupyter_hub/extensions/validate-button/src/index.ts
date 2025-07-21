@@ -46,14 +46,44 @@ const plugin: JupyterFrontEndPlugin<void> = {
         if (spinner && (spinner as any).style) {
           (spinner as any).style.animationDuration = '5s';
         }
-        panel.context.save()
-          .then(() => {
-            wrap.classList.remove('spinning');
-            wrap.innerHTML = CHECK_SVG;
+        // Get the cell source code
+        const cellCode = cell.model.value.text;
+        
+        // Get the feedback service URL from environment
+        const feedbackUrl = process.env.URL_FEEDBACK_SERVICE || 'http://feedback-service:9352';
+        
+        // Send validation request to feedback service
+        fetch(`${feedbackUrl}/generate_feedback`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            code: cellCode,
+            language: 'python'
           })
-          .catch(() => {
+        })
+          .then(response => response.json())
+          .then(data => {
+            wrap.classList.remove('spinning');
+            if (data.feedback && data.feedback.length > 0) {
+              // Show feedback
+              wrap.innerHTML = '📝';
+              wrap.title = `Feedback: ${data.feedback}`;
+              wrap.style.color = 'orange';
+            } else {
+              // No issues found
+              wrap.innerHTML = CHECK_SVG;
+              wrap.style.color = 'green';
+              wrap.title = 'Code looks good!';
+            }
+          })
+          .catch((error) => {
+            console.error('Validation error:', error);
+            wrap.classList.remove('spinning');
             wrap.innerHTML = '✖';
             wrap.style.color = 'red';
+            wrap.title = 'Validation failed';
           });
       };
 
