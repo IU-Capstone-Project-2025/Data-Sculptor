@@ -37,7 +37,7 @@ git clone https://github.com/IU-Capstone-Project-2025/Data-Sculptor.git
 cd Data-Sculptor/deployment/uat
 ```
 
-2. Start the JupyterHub (docker version ~28.0.4)
+2. Start the JupyterHub
 
 ```bash
 docker compose -p uat --env-file uat.env up --build -d
@@ -56,7 +56,10 @@ chown -R developer:developer /home/developer
 
 ❗️Exit the container before authorization in browser
 
+
 4. Login at:
    http://localhost:11000
 
 
+## ⚙️ Requirements
+- docker version ~28.0.4, can be installed from the official Docker website
