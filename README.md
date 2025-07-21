@@ -37,13 +37,13 @@ git clone https://github.com/IU-Capstone-Project-2025/Data-Sculptor.git
 cd Data-Sculptor/deployment/uat
 ```
 
-2. Start the JupyterHub
+2. Start the JupyterHub (docker version ~28.0.4)
 
 ```bash
 docker compose -p uat --env-file uat.env up --build -d
 ```
 
-3. Enter the JupyterHub container (docker version ~28.0.4)
+3. Enter the JupyterHub container
 ```bash
 docker exec -it local_uat-jupyterhub bash
 ```
