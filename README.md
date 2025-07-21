@@ -20,7 +20,7 @@ An integrated IDE agent that mentors users in Machine Learning and Data Science 
     - Press Syntactic-Analysis button and get the feedback in LSP format
     ![image](https://github.com/user-attachments/assets/a0e800d4-1de5-498c-afec-ca5dff8b8d7c)
 
-    - Press Semantic-Analysis button and get the .md report in same directory with .ipynb
+    - Press Semantic-Analysis button and get non-localized feedback as the .md report in same directory with .ipynb and localized feedback as comments inside the code cell
     ![image](https://github.com/user-attachments/assets/2ec28aba-7777-473e-a5f0-53c94319f9e6)
 
 
@@ -34,13 +34,12 @@ An integrated IDE agent that mentors users in Machine Learning and Data Science 
 
 ```bash
 git clone https://github.com/IU-Capstone-Project-2025/Data-Sculptor.git
-cd Data-Sculptor
+cd Data-Sculptor/deployment/uat
 ```
 
 2. Start the JupyterHub
 
 ```bash
-cd deployment
 docker compose -p uat --env-file uat.env up --build
 ```
 
