@@ -60,4 +60,38 @@ chown -R developer:developer /home/developer
 4. Login at:
    http://localhost:52152
 
+## Environment variables
 
+You should change some variables before using this application:
+
+1. Go to the `.env` file and change all strings marked with `<>` signs. Write your secret values here
+2. Setup Keycloak:
+	- If you dont have any KeyCloak config:
+		- Run the application. Enter admin panel of **KeyCloak** at **\<yourdomain\>:53010** and enter your admin credentials
+		-  Create new realm and setup it
+	- If you do, just import **KeyCloak** settings (*import/export  topic is below*)
+3. Copy your secret **realm's client key** secret key and paste it to *KEYCLOAK_AUTH_CLIENT_SECRET* in `.env` file
+
+
+## Exporting/Importing KeyCloak settings
+For easy setup and fast setup you may export/import settings. All KeyCloak configuration files are stored in the following location:
+```bash
+Data-Sculptor
+	resources
+	│   ├── config
+	│   │   ├── jupyterhub
+	│   │   │   ...
+	│   │   ├── keycloak
+	│   │   │   ├── export_data
+	│   │   │   └── import_data
+```
+
+**To export** existing setting use the command below. It exports realm's settings. If `--realm` arg is not set, KeyCloak exports all existing realms
+```bash
+docker exec dev-keycloak /opt/keycloak/bin/kc.sh export --dir /opt/keycloak/data/export --realm <REALM-NAME> --users realm_file
+```
+
+**To import** an existing config use this command. Specify `.json` file with realm settings you want to create/override:
+```bash
+docker exec dev-keycloak /opt/keycloak/bin/kc.sh import --dir /opt/keycloak/data/import --file <REALM-FILENAME.json> --users realm_file
+```

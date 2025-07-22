@@ -200,10 +200,14 @@ services:
     volumes:
       - keycloak_db_data:/var/lib/postgresql/data:rw
       - keycloak_data:/opt/keycloak/data:rw
+      - ../resources/config/keycloak/import_data:/opt/keycloak/data/import
+      - ../resources/config/keycloak/export_data:/opt/keycloak/data/export
     environment:
       KEYCLOAK_DB_NAME:     "${KEYCLOAK_DB_NAME}"
       KEYCLOAK_DB_USER:     "${KEYCLOAK_DB_USER}"
       KEYCLOAK_DB_PASSWORD: "${KEYCLOAK_DB_PASSWORD}"
+      KC_DB_USERNAME: "${KEYCLOAK_DB_USER}"
+      KC_DB_PASSWORD: "${KEYCLOAK_DB_PASSWORD}"
       KEYCLOAK_ADMIN_USER:  "${KEYCLOAK_ADMIN_USER}"
       KEYCLOAK_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}"
       KEYCLOAK_DB_PORT: "5432"
