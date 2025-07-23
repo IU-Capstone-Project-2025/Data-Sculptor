@@ -1,0 +1,40 @@
+.description-cell {
+  display: block;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  text-align: left;
+  background-color: #1b1e20;
+  color: inherit;
+  width: 100%;
+  border-radius: 10px;
+  transition: 100ms;
+}
+
+.description-cell>*+* {
+  margin-top: 2rem;
+}
+
+.description-cell>* {
+  padding-left: 3rem;
+  padding-right: 3rem;
+}
+
+.description-tools-list {
+  padding-left: 3rem;
+}
+
+.description-title {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  user-select: none;
+}
+
+.description-expand-button {
+  transition: 250ms;
+  transform: rotate(180deg);
+}
+
+.description-expand-button.collapsed {
+  transform: rotate(90deg);
+}

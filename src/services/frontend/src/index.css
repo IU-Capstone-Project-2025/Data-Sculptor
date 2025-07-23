@@ -1,0 +1,18 @@
+:root {
+  --text-color: #ffffff;
+  --text-color-alt: #bbb;
+  --bg-color: #222222;
+  --bg-color-alt: #2c2c2c;
+  word-break: normal;
+  word-wrap: break-word;
+}
+
+:root {
+  color: var(--text-color);
+  font-family: Inter;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+}

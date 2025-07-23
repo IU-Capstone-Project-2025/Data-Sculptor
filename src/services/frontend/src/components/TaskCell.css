@@ -1,0 +1,71 @@
+.task-cell {
+  display: block;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  font-family: Inter;
+  text-align: left;
+  background-color: #2c2c2c;
+  color: inherit;
+  width: 100%;
+  border-radius: 10px;
+}
+
+.task-cell>*+* {
+  margin-top: 1rem;
+}
+
+.task-cell>* {
+  margin-left: 3rem;
+  margin-right: 3rem;
+}
+
+.code-editor {
+  margin-bottom: 1rem;
+  background-color: #1a1a1a;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.task-expand-button {
+  transition: 250ms;
+  transform: rotate(180deg);
+}
+
+.task-expand-button.collapsed {
+  transform: rotate(90deg);
+}
+
+.task-title {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  user-select: none;
+}
+
+.task-buttons {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: right;
+}
+
+button.task-button {
+  background-color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 2rem;
+  width: 2rem;
+  height: 2rem;
+  cursor: pointer;
+}
+
+button.task-button-chat:hover {
+  transition: 100ms;
+}
+
+button.task-button-run {
+  cursor: not-allowed;
+}

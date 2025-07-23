@@ -1,0 +1,28 @@
+nav {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  height: 90vh;
+  left: 2vw;
+  top: 5vh;
+  width: 5vw;
+  border-radius: 25px;
+  background-color: var(--bg-color);
+  overflow: hidden;
+  justify-content: start;
+  min-width: 50px;
+}
+
+nav>.nav-item {
+  width: max(2vw, 20px);
+  padding: 1rem;
+}
+
+nav>.nav-item#filler {
+  flex-grow: 1;
+}
+
+nav>img.nav-item {
+  cursor: not-allowed;
+}
