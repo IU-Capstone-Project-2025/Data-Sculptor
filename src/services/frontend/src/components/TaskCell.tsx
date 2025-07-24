@@ -1,4 +1,5 @@
 import { useState } from "react";
+import OutputWindow from "./OutputWindow";
 import { Task } from "../utils/notebook";
 import EditorElement from "./EditorElement";
 import "./TaskCell.css";
@@ -31,6 +32,7 @@ function TaskBody(props: TaskBodyProps) {
     return state.feedback.map[task_id];
   });
   const [cachedPressed, setCachedPressed] = useState<boolean>(false);
+  const [showOutput, setShowOutput] = useState<boolean>(false);
   return (
     <>
       <div className="task-description">
@@ -39,9 +41,9 @@ function TaskBody(props: TaskBodyProps) {
       </div>
       <div className="code-editor">
         <div className="task-buttons">
-          <button 
+          <button
             className="task-button task-button-run"
-            onClick={() => {listKernels();}}
+            onClick={() => setShowOutput(true)}
           >
             <img src={runIcon} />
           </button>
@@ -67,6 +69,7 @@ function TaskBody(props: TaskBodyProps) {
             task_id={props.task?.description.task_id}
           />
         ) : undefined}
+        {showOutput && <OutputWindow />}
       </div>
     </>
   );

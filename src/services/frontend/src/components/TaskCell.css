@@ -67,5 +67,5 @@ button.task-button-chat:hover {
 }
 
 button.task-button-run {
-  cursor: not-allowed;
+  cursor: pointer;
 }

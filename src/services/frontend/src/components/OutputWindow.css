@@ -1,0 +1,14 @@
+.output-window {
+  margin-top: 1rem;
+  background-color: #1a1a1a;
+  padding: 10px;
+  border-radius: 10px;
+  color: #ffffff;
+  font-family: Menlo, monospace;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.output-window .placeholder {
+  color: #888888;
+} 
