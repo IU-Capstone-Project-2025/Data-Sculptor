@@ -33,6 +33,7 @@ function TaskBody(props: TaskBodyProps) {
   });
   const [cachedPressed, setCachedPressed] = useState<boolean>(false);
   const [showOutput, setShowOutput] = useState<boolean>(false);
+  const [outputContent, setOutputContent] = useState<string>("");
   return (
     <>
       <div className="task-description">
@@ -43,7 +44,12 @@ function TaskBody(props: TaskBodyProps) {
         <div className="task-buttons">
           <button
             className="task-button task-button-run"
-            onClick={() => setShowOutput(true)}
+            onClick={ async () => {
+              setShowOutput(false);
+              {/* Some logic... */}
+              setOutputContent(await listKernels());
+              setShowOutput(true);
+            }}
           >
             <img src={runIcon} />
           </button>
@@ -69,7 +75,10 @@ function TaskBody(props: TaskBodyProps) {
             task_id={props.task?.description.task_id}
           />
         ) : undefined}
-        {showOutput && <OutputWindow />}
+
+        {/* Output window is here */}
+        {showOutput && <OutputWindow output={outputContent} />}
+
       </div>
     </>
   );

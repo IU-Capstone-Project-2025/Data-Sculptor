@@ -1,15 +1,20 @@
-import { ServerConnection, Kernel } from "@jupyterlab/services";
+import { ServerConnection } from "@jupyterlab/services";
 
 
-const settings = ServerConnection.makeSettings(
-        {baseUrl: "http://jh.data-sculptor.ru/hub"
+export const listKernels = async () => {
+  const settings = ServerConnection.makeSettings({
+    baseUrl: 'http://jh.data-sculptor.ru',
+  });
 
-});
+  const response = await ServerConnection.makeRequest(
+    `${settings.baseUrl}api/kernelspecs`,
+    {},
+    settings
+  );
 
-export const listKernels = () => {
-        Kernel.listRunning(settings).then(kernels => {
-          console.log('Running kernels:', kernels);
-        }).catch(err => {
-          console.error('Failed to list kernels:', err);
-        });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch kernelspecs: ${response.statusText}`);
+  }
+  const data = await response.json();
+  return data.kernelspecs.toString();
 };
