@@ -8,6 +8,7 @@ import starIcon from "../assets/icons/star.svg";
 import runIcon from "../assets/icons/run.svg";
 import { StaticDiagnostic } from "../utils/api";
 import { useAppSelector } from "../storage/hooks";
+import { listKernels } from "../utils/kernel";
 
 interface TaskCellProps {
   task: Task | null;
@@ -38,7 +39,10 @@ function TaskBody(props: TaskBodyProps) {
       </div>
       <div className="code-editor">
         <div className="task-buttons">
-          <button className="task-button task-button-run">
+          <button 
+            className="task-button task-button-run"
+            onClick={() => {listKernels();}}
+          >
             <img src={runIcon} />
           </button>
           <button

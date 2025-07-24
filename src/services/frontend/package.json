@@ -12,6 +12,7 @@
   "dependencies": {
     "@codemirror/lang-python": "^6.1.6",
     "@codemirror/lint": "^6.8.5",
+    "@jupyterlab/services": "^7.4.5",
     "@reduxjs/toolkit": "^2.3.0",
     "@uiw/codemirror-theme-monokai": "^4.23.6",
     "@uiw/react-codemirror": "^4.23.6",
