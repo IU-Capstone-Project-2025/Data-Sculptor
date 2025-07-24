@@ -1,8 +1,9 @@
-import CodeMirror from "@uiw/react-codemirror";
+import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 import { monokai } from "@uiw/codemirror-theme-monokai";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { setCode } from "../storage/features/code";
+import { setFeedback } from "../storage/features/feedback";
 import { useAppDispatch, useAppSelector } from "../storage/hooks";
 import { linter, lintGutter } from "@codemirror/lint";
 import "./EditorElement.css";
@@ -51,13 +52,33 @@ const realTimeLint = linter(async (view) => {
 });
 
 function EditorElement(props: EditorProps) {
+  const editorRef = useRef<EditorView | null>(null);
+  const originalCodeRef = useRef<string>("");
   const code = useAppSelector((state) => state.code.map[props.task_id]);
+  const feedback: Feedback | undefined = useAppSelector(
+    (state) => state.feedback.map[props.task_id],
+  );
   const dispatch = useAppDispatch();
+  
   const onChange = useCallback(
     (newCode: string) => {
       dispatch(setCode([props.task_id, newCode]));
+      
+      // Clear semantic feedback if code structure changed significantly
+      if (feedback && originalCodeRef.current) {
+        const oldLines = originalCodeRef.current.split('\n').length;
+        const newLines = newCode.split('\n').length;
+        
+        // If line count changed, clear semantic feedback to prevent misaligned warnings
+        if (oldLines !== newLines) {
+          dispatch(setFeedback([props.task_id, {
+            ...feedback,
+            localized_feedback: []
+          }]));
+        }
+      }
     },
-    [props.task_id, dispatch],
+    [props.task_id, dispatch, feedback, setFeedback],
   );
   const staticLint = linter(async (view) => {
     const code: string = view.state.doc.toString();
@@ -73,9 +94,16 @@ function EditorElement(props: EditorProps) {
     });
   });
 
-  const feedback: Feedback | undefined = useAppSelector(
-    (state) => state.feedback.map[props.task_id],
-  );
+  // Store original code when feedback is received and force editor refresh
+  useEffect(() => {
+    if (feedback && feedback.localized_feedback.length > 0) {
+      originalCodeRef.current = code || "";
+    }
+    if (editorRef.current) {
+      // Trigger linter refresh by dispatching an empty transaction
+      editorRef.current.dispatch({});
+    }
+  }, [feedback, code]);
 
   const semanticLint = linter(async (view) => {
     const code: string = view.state.doc.toString();
@@ -101,6 +129,11 @@ function EditorElement(props: EditorProps) {
 
   return (
     <CodeMirror
+      ref={(editor) => {
+        if (editor?.view) {
+          editorRef.current = editor.view;
+        }
+      }}
       extensions={[
         python(),
         lintGutter(),

@@ -15,6 +15,7 @@ export interface TaskDescription {
   state: string;
   issue: string;
   action: string;
+  section_index: number;
 }
 
 export interface Task {
@@ -47,7 +48,7 @@ export function extractTasks(notebook: Notebook): Task[] {
     );
   }
 
-  function parseSeparator(cell: NotebookCell): TaskDescription {
+  function parseSeparator(cell: NotebookCell, index: number): TaskDescription {
     const source = cell.source.join("").trim();
     const lines = source.split("\n");
     const data = lines.slice(1, -1).join("");
@@ -58,6 +59,7 @@ export function extractTasks(notebook: Notebook): Task[] {
       issue: task.issue || `Issue`,
       action: task.action || `Action`,
       task_id: genID(),
+      section_index: index,
     };
   }
 
@@ -74,7 +76,8 @@ export function extractTasks(notebook: Notebook): Task[] {
     if (!separator) {
       return;
     }
-    result.push({ description: parseSeparator(separator), cells: cells });
+    // section_index equals current length of result before push
+    result.push({ description: parseSeparator(separator, result.length), cells: cells });
     cells = [];
     separator = undefined;
   }
