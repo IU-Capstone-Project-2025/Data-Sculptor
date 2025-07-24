@@ -23,12 +23,6 @@ function Chat(props: ChatProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [gettingFeedback, setGettingFeedback] = useState(false);
 
-  useEffect(() => {
-    setMessages([]);
-    setInputValue("");
-    setIsLoading(false);
-  }, [props.task]);
-
   const code: string | undefined = useAppSelector(
     (state) => state.code.map[props.task.description.task_id],
   );
@@ -36,29 +30,47 @@ function Chat(props: ChatProps) {
   const storedFeedback = useAppSelector(
     (state) => state.feedback.map[props.task.description.task_id],
   );
+
+  useEffect(() => {
+    // When the selected task changes, seed chat with any stored AI feedback
+    const initialMsgs: Array<{ sender: string; text: string }> = [];
+    if (storedFeedback && storedFeedback.non_localized_feedback !== "") {
+      initialMsgs.push({ sender: "ai", text: storedFeedback.non_localized_feedback });
+    }
+    setMessages(initialMsgs);
+    setInputValue("");
+    setIsLoading(false);
+  }, [props.task.description.task_id]);
   const dispatch = useAppDispatch();
   const updateFeedback = useCallback(
     (newFeedback: Feedback, task_id: string) => {
       dispatch(setFeedback([task_id, newFeedback]));
     },
-    [dispatch, props.task.description.task_id],
+    [dispatch],
   );
-  async function getFeedback() {
+  const getFeedback = useCallback(async () => {
     if (gettingFeedback) {
       return;
     }
     setGettingFeedback(true);
-    const f = await semanticFeedback(code || "");
-    updateFeedback(f, props.task.description.task_id);
-    setMessages((prev) => [
-      ...prev,
-      { sender: "ai", text: f.non_localized_feedback },
-    ]);
-    setGettingFeedback(false);
-  }
-  if (storedFeedback === undefined) {
-    getFeedback();
-  }
+    try {
+      const f = await semanticFeedback(code || "", props.task.description.section_index);
+      updateFeedback(f, props.task.description.task_id);
+      setMessages((prev) => [
+        ...prev,
+        { sender: "ai", text: f.non_localized_feedback },
+      ]);
+    } catch (error) {
+      console.error("Failed to get semantic feedback:", error);
+      setMessages((prev) => [
+        ...prev,
+        { sender: "ai", text: "Sorry, I couldn't analyze your code right now. Please try again." },
+      ]);
+    } finally {
+      setGettingFeedback(false);
+    }
+  }, [gettingFeedback, code, updateFeedback, props.task.description.task_id]);
+
   const handleSendMessage = () => {
     if (inputValue.trim() === "" || isLoading) return;
     const userMessage = { sender: "user", text: inputValue };

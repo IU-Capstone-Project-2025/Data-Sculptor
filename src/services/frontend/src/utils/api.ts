@@ -64,25 +64,62 @@ interface RealTimeDiagnostics {
   severity: number;
 }
 
+// Track if real-time analysis is working to avoid repeated timeouts
+let realTimeAnalysisDisabled = false;
+let lastFailureTime = 0;
+const RETRY_DELAY = 60000; // 1 minute before retrying
+
 export async function realTimeAnalysis(
   code: string,
 ): Promise<RealTimeDiagnostics[]> {
   if (code === "") {
     return [];
   }
-  const blob = new Blob([code], { type: "text/x-python" });
-  const file = new File([blob], "fib.py", { type: "text/x-python" });
-  const formData = new FormData();
-  formData.append("file", file);
-  const response = await fetch("http://jh.data-sculptor.ru:52767/analyze", {
-    method: "POST",
-    body: formData,
-  });
-  if (!response.ok) {
+  
+  // If analysis was recently disabled due to timeouts, don't retry yet
+  if (realTimeAnalysisDisabled && Date.now() - lastFailureTime < RETRY_DELAY) {
     return [];
   }
-  const body: { diagnostics: RealTimeDiagnostics[] } = await response.json();
-  return body["diagnostics"];
+  
+  try {
+    // console.log("Starting real-time analysis...");
+    const blob = new Blob([code], { type: "text/x-python" });
+    const file = new File([blob], "fib.py", { type: "text/x-python" });
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    // Add timeout to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
+    
+    const response = await fetch("http://jh.data-sculptor.ru:52767/analyze", {
+      method: "POST",
+      body: formData,
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      console.warn("Real-time analysis failed:", response.status);
+      return [];
+    }
+    const body: { diagnostics: RealTimeDiagnostics[] } = await response.json();
+    
+    // Re-enable if it was disabled and now works
+    realTimeAnalysisDisabled = false;
+    
+    return body["diagnostics"];
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      realTimeAnalysisDisabled = true;
+      lastFailureTime = Date.now();
+      console.warn("Real-time analysis disabled due to timeout");
+    } else {
+      console.error("Real-time analysis error:", error);
+    }
+    return [];
+  }
 }
 
 interface ChatRequest {
@@ -151,9 +188,12 @@ export interface Feedback {
   localized_feedback: LocalizedWarning[];
 }
 
-export async function semanticFeedback(code: string): Promise<Feedback> {
+export async function semanticFeedback(
+  code: string,
+  section_index: number,
+): Promise<Feedback> {
   const fillerFeedback = {
-    non_localized_feedback: "",
+    non_localized_feedback: "I've highlighted issues directly in the code; no additional summary was provided.",
     localized_feedback: [],
   };
   if (code === "") {
@@ -162,7 +202,7 @@ export async function semanticFeedback(code: string): Promise<Feedback> {
   const requestBody = {
     current_code: code,
     cell_code_offset: 0,
-    section_index: 0,
+    section_index: section_index,
     case_id: "2e70294e-4491-4301-b2cf-13219676f38e",
     use_deep_analysis: false,
   };
