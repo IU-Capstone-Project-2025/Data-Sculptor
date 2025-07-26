@@ -88,7 +88,7 @@ function EditorElement(props: EditorProps) {
       return {
         from: convert(code, d.line, d.column),
         to: convert(code, d.endLine, d.endColumn),
-        severity: d.type,
+        severity: severityFromNumber(d.severity),
         message: d.message,
       };
     });
