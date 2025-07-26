@@ -79,13 +79,14 @@ export async function realTimeAnalysis(
   
   
   try {
+    // console.log("Starting real-time analysis...");
     const blob = new Blob([code], { type: "text/x-python" });
     const file = new File([blob], "fib.py", { type: "text/x-python" });
     const formData = new FormData();
     formData.append("file", file);
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
     
     const response = await fetch("http://jh.data-sculptor.ru:52767/analyze", {
       method: "POST",
@@ -98,6 +99,13 @@ export async function realTimeAnalysis(
     
     return body["diagnostics"];
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      realTimeAnalysisDisabled = true;
+      lastFailureTime = Date.now();
+      console.warn("Real-time analysis disabled due to timeout");
+    } else {
+      console.error("Real-time analysis error:", error);
+    }
     return [];
   }
 }
