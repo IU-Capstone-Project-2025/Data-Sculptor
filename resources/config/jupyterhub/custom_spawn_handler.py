@@ -13,6 +13,12 @@ logging.basicConfig(
 )
 
 class CustomSpawnHandler(SpawnHandler):
+    
+    """
+    This class should solve the problem with passing case_id from frontend (26.07.25 the feature is not implemented and tested yet).  
+    But handler was not integrated into JupyterHub. Consider to delete it.
+    """
+    
     async def prepare(self):
         await super().prepare()          
         await self._capture_case_id()   

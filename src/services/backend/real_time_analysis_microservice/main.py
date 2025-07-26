@@ -10,10 +10,11 @@ from fastapi.responses import JSONResponse
 from lsprotocol.types import Diagnostic, Range, Position, DiagnosticSeverity
 import logging
 from pathlib import Path
+
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s %(levelname)s %(message)s",
-      handlers=[
+    handlers=[
         RotatingFileHandler("RT.log", maxBytes=3 * 1024 * 1024, backupCount=1),
         logging.StreamHandler(),
     ],
@@ -21,28 +22,62 @@ logging.basicConfig(
 
 
 class RealTimeAnalysis:
+    """
+    A real-time Python code analysis service that uses Python Language Server Protocol (LSP)
+    to provide code diagnostics and analysis. This class manages a pool of pylsp processes
+    to feed code to it and recieve lsp feedback. 
+    WARNING: The mechanism with pylsp processes pool is temporary,
+    since it has problems with perfomance in high load cases (RT just start freezing).
+    TODO: setup CORS (line 308)
+    
+    Attributes:
+        current_lsp_id (int): Current index for round-robin LSP process selection
+        NUMBER_OF_PYLSP_PROCESSES (int): Number of pylsp processes to maintain in the pool
+        message_id (int): Incrementing ID for LSP messages
+        pylsp_pool (list): List of active pylsp subprocess.Popen objects
+    """
 
     current_lsp_id = 0
-
     NUMBER_OF_PYLSP_PROCESSES = 3
-
     message_id = 0
     pylsp_pool = []
 
     def __init__(self):
+        """
+        Initialize the RealTimeAnalysis service by starting the pylsp processes pool.
+        """
         self.start_pylsp()
 
     def _next_pylsp_process(self):
+        """
+        Get the next pylsp process from the pool using round-robin selection.
+        
+        Returns:
+            subprocess.Popen: The next pylsp process to use for analysis
+        """
         temp = self.current_lsp_id
         self.current_lsp_id = (self.current_lsp_id + 1) % self.NUMBER_OF_PYLSP_PROCESSES
         return self.pylsp_pool[temp]
 
     def _next_message_id(self):
+        """
+        Generate the next unique message ID for LSP communication.
+        
+        Returns:
+            int: Unique message ID
+        """
         temp = self.message_id
         self.message_id += 1
         return temp
 
     def _send_message(self, message: dict, process: subprocess.Popen):
+        """
+        Send a JSON-RPC message to a pylsp process using LSP protocol format.
+        
+        Args:
+            message (dict): The JSON-RPC message to send
+            process (subprocess.Popen): The target pylsp process
+        """
         body = json.dumps(message)
         body_encoded = body.encode("utf-8")
         head = f"Content-Length: {len(body_encoded)}\r\n\r\n"
@@ -53,11 +88,15 @@ class RealTimeAnalysis:
             process.stdin.write(body_encoded)
             process.stdin.flush()
         except Exception as e:
-            logging.error(f"Failed to send  message {e}")
+            logging.error(f"Failed to send message {e}")
             # TODO: start lsp?
             self.start_pylsp()
 
     def _send_init_requests(self):
+        """
+        Send initialization requests to all pylsp processes in the pool.
+        This includes both 'initialize' and 'initialized' messages required by LSP.
+        """
         first_init_message = {
             "jsonrpc": "2.0",
             "id": self._next_message_id(),
@@ -66,11 +105,14 @@ class RealTimeAnalysis:
         }
         second_init_message = {"jsonrpc": "2.0", "method": "initialized", "params": {}}
         for proc in self.pylsp_pool:
-
             self._send_message(first_init_message, proc)
             self._send_message(second_init_message, proc)
 
     def _create_pylsp_processes(self):
+        """
+        Create the configured number of pylsp subprocess instances and add them to the pool.
+        Each process is started with stdin/stdout pipes for LSP communication.
+        """
         for i in range(0, self.NUMBER_OF_PYLSP_PROCESSES):
             proc = subprocess.Popen(
                 ["pylsp"], stdin=subprocess.PIPE, stdout=subprocess.PIPE
@@ -79,25 +121,35 @@ class RealTimeAnalysis:
             self.pylsp_pool.append(proc)
 
     def start_pylsp(self):
+        """
+        Initialize the pylsp process pool by clearing existing state,
+        creating new processes, and sending initialization requests.
+        """
         self._clear_variables()
         self._create_pylsp_processes()
         self._send_init_requests()
         # TODO: read_loop
 
     def _clear_variables(self):
+        """
+        Reset all instance variables to their initial state.
+        Used when restarting the pylsp pool.
+        """
         self.pylsp_pool.clear()
         self.message_id = 0
         self.current_lsp_id = 0
 
-    # def on_shutdown():
-    #     # TODO: kill all pyl processes
-    #     global pylsp_proc, executor
-    #     if pylsp_proc:
-    #         pylsp_proc.terminate()
-    #         pylsp_proc.wait()
-    #     executor.shutdown(wait=True)
-
     def _send_analyse_request(self, code: str, uri: str):
+        """
+        Send code analysis request to a pylsp process and return diagnostics.
+        
+        Args:
+            code (str): Python code to analyze
+            uri (str): File URI for the code (used by LSP for context)
+            
+        Returns:
+            list: List of diagnostic messages from pylsp
+        """
         did_open_request = {
             "jsonrpc": "2.0",
             "method": "textDocument/didOpen",
@@ -124,27 +176,28 @@ class RealTimeAnalysis:
         }
         process = self._next_pylsp_process()
         
-        #WARNING: onSave and DidOpen return same diagnostics
+        # WARNING: onSave and DidOpen return same diagnostics
         # but alone works only didOpen
         logging.info(f"Sending request on open")
         self._send_message(did_open_request, process)
         did_open_response = self._read_pylsp_response(process)
 
-        # logging.info(f"Sending request on save")
-        # self._send_message(did_save_request, process)
-        # did_save_response = self._read_pylsp_response(process)
-        
-        # unique_raw_diagnostics = {json.dumps(d, sort_keys=True): d for d in did_open_response}
         return did_open_response
 
     def _read_pylsp_response(self, process: subprocess.Popen):
         """
-        Читает сообщения из stdout pylsp, пока не получит diagnostics.
+        Read and parse responses from pylsp process until diagnostics are received.
+        
+        Args:
+            process (subprocess.Popen): The pylsp process to read from
+            
+        Returns:
+            list: List of diagnostic objects from the LSP response
         """
         while True:
             content_length = self._read_content_length(process)
             if content_length == 0:
-                continue  # Пропускаем пустые строки
+                continue  # Skip empty lines
             body = process.stdout.read(content_length).decode("utf-8")
             logging.info(f"Read body:\n{body}")
             try:
@@ -153,16 +206,25 @@ class RealTimeAnalysis:
                 logging.info(f"Error during reading lsp response: \n {e}")
                 continue
 
-            # Если это уведомление о диагностике — возвращаем
+            # If this is a diagnostic notification - return it
             if msg.get("method") == "textDocument/publishDiagnostics":
                 diagnostics = msg["params"].get("diagnostics", [])
                 return diagnostics
-            # Если это просто ответ на запрос — пропускаем
-            # Можно добавить обработку других сообщений, если нужно
+            # If this is just a response to a request - skip it
+            # Can add handling for other messages if needed
 
     def _read_content_length(self, process: subprocess.Popen):
         """
-        Читает заголовок Content-Length и возвращает длину следующего сообщения.
+        Read the Content-Length header from pylsp output and return the message length.
+        
+        Args:
+            process (subprocess.Popen): The pylsp process to read from
+            
+        Returns:
+            int: Length of the next message body in bytes
+            
+        Raises:
+            RuntimeError: If the pylsp process closes stdout unexpectedly
         """
         while True:
             line = process.stdout.readline()
@@ -171,12 +233,12 @@ class RealTimeAnalysis:
                 raise RuntimeError("pylsp process closed stdout")
             line = line.decode("utf-8").strip()
             if not line:
-                # Пустая строка — конец заголовков
+                # Empty line - end of headers
                 continue
             if line.lower().startswith("content-length:"):
                 try:
                     content_length = int(line.split(":", 1)[1].strip())
-                    # Пропускаем все заголовки, ищем пустую строку-разделитель
+                    # Skip all headers, look for empty line separator
                     while True:
                         next_line = process.stdout.readline()
                         if not next_line or next_line == b"\r\n" or next_line == b"\n":
@@ -187,6 +249,19 @@ class RealTimeAnalysis:
                     continue
 
     def _read_body(self, content_length: int, process: subprocess.Popen):
+        """
+        Read and parse the message body from pylsp output.
+        
+        Args:
+            content_length (int): Length of the message body to read
+            process (subprocess.Popen): The pylsp process to read from
+            
+        Returns:
+            list: List of diagnostic objects
+            
+        Raises:
+            RuntimeError: If there's an error fetching diagnostics from LSP
+        """
         if content_length > 0:
             body = process.stdout.read(content_length).decode("utf-8")
             logging.info(f"Read \n{body}")
@@ -204,6 +279,19 @@ class RealTimeAnalysis:
             raise RuntimeError(f"Error during fetching diagnostics from lsp: {e}")
 
     def analyze(self, code_to_analyze: str, uri: str):
+        """
+        Analyze Python code and return diagnostics (errors, warnings, etc.).
+        
+        Args:
+            code_to_analyze (str): The Python code to analyze
+            uri (str): File URI for the code being analyzed
+            
+        Returns:
+            list: List of diagnostic objects containing analysis results
+            
+        Raises:
+            RuntimeError: If there's an error during code analysis
+        """
         if not code_to_analyze:
             return []
         try:
@@ -215,7 +303,6 @@ class RealTimeAnalysis:
             raise RuntimeError(f"Error during sending code for analyzing: {e}")
 
 
-
 app = FastAPI()
 rt = RealTimeAnalysis()
 app.add_middleware(
@@ -225,8 +312,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 @app.post("/analyze")
 async def analyze(file: UploadFile = File(...)):
+    """
+    FastAPI endpoint for analyzing uploaded Python files.
+    
+    Args:
+        file (UploadFile): The Python file to analyze
+        
+    Returns:
+        dict: JSON response containing diagnostics from code analysis
+    """
     content = file.file.read().decode('utf-8')
     temp_filepath = None
     try:
@@ -241,14 +338,5 @@ async def analyze(file: UploadFile = File(...)):
     return {
         "diagnostics": raw_diagnostics
     }
-
-# if __name__ == "__main__":
-#     with open ("/home/aziz/test/test.txt",'r', encoding='utf-8')as f:
-#
-#         code = f.read()
-#
-#         rt = RealTimeAnalysis()
-#         fp = Path("/home/aziz/test/test.txt").resolve()
-#         logging.info(rt.analyze(code, fp.as_uri()))
 
 

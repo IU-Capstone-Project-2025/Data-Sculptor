@@ -21,6 +21,12 @@ logging.basicConfig(
     ],
 )
 
+
+"""
+Deprecated
+The class was used as LSP server for JupyterHub
+"""
+
 realtime_diagnostics_cache: dict[str, list[Diagnostic]] = {}
 deep_syntatic_diagnostic_cache: dict[str, list[Diagnostic]] = {}
 
