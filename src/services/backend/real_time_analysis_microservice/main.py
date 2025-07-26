@@ -226,7 +226,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 @app.post("/analyze")
-def analyze(file: UploadFile = File(...)):
+async def analyze(file: UploadFile = File(...)):
     content = file.file.read().decode('utf-8')
     temp_filepath = None
     try:

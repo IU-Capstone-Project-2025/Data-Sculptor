@@ -39,6 +39,9 @@ c.GenericOAuthenticator.userdata_token_method = "Bearer"
 c.GenericOAuthenticator.username_claim = 'preferred_username'
 c.GenericOAuthenticator.scope = ['openid', 'profile', 'email']
 
+# Devmode pls remove it later
+c.OIDCAuthenticator.tls_verify = False
+
 async def get_auth_state(auth_state):
     auth_state_data = auth_state.get("auth_state")
     if not auth_state_data:
@@ -103,12 +106,14 @@ c.JupyterHub.spawner_class = CustomDockerSpawner
 # c.DockerSpawner.image = 'jupyter/base-notebook'
 c.DockerSpawner.remove = True
 c.DockerSpawner.network_name = 'jupyter-network'
+c.DockerSpawner.cmd = ['jupyterhub-singleuser']
 c.DockerSpawner.use_internal_ip = True
 c.DockerSpawner.name_template = 'jupyter-{username}'
 c.DockerSpawner.debug = True
 c.DockerSpawner.docker_host = 'unix:///var/run/docker.sock'
 c.DockerSpawner.subdomain = '{username}'
-c.Spawner.start_timeout = 300
+c.Spawner.start_timeout = 600
+c.DockerSpawner.http_timeout = 600
 # Subdomain proxy
 c.JupyterHub.bind_url = f'{PROTO}://0.0.0.0:{JH_PORT_INT}'
 c.JupyterHub.hub_connect_ip = JH_DOMAIN
@@ -141,7 +146,7 @@ c.JupyterHub.trusted_downstream_ips = ['0.0.0.0/0']
 
 c.JupyterHub.tornado_settings = {
     'headers': {
-        'Access-Control-Allow-Origin': f'{PROTO}://{DOMAIN}:{JH_PORT_INT}',
+        'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': 'true',
     }
 }

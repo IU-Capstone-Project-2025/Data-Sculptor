@@ -94,7 +94,7 @@ class CustomDockerSpawner(DockerSpawner):
             logging.info("Noting to save - feedback_path is empty")
             return
         bucket = f"progress-{self.user.id}-{self.case_id}"
-        key = "feedback"
+        key = "feedback.md"
         try:
             if not client.bucket_exists(bucket):
                 client.make_bucket(bucket)
@@ -111,7 +111,7 @@ class CustomDockerSpawner(DockerSpawner):
             logging.info("Nothing to save — template_path is None")
             return
         bucket = f"progress-{self.user.id}-{self.case_id}"
-        key = "template"
+        key = "template.ipynb"
         try:
             if not client.bucket_exists(bucket):
                 client.make_bucket(bucket)
@@ -188,7 +188,7 @@ class CustomDockerSpawner(DockerSpawner):
 
     def _get_image(self, case_id: str):
         img_path = f"/tmp/img_{self.user.id}_{case_id}.tar"
-        img_path = self._get_data_from_db(f"case-{case_id}", "image", img_path)
+        img_path = self._get_data_from_db(f"case-{case_id}", "image.tar", img_path)
         return img_path
 
 
@@ -198,7 +198,7 @@ class CustomDockerSpawner(DockerSpawner):
         if client.bucket_exists(f"progress-{self.user.id}-{case_id}"):
             try:
                 feedback_path = self._get_data_from_db(
-                    f"progress-{self.user.id}-{case_id}", "feedback", feedback_path
+                    f"progress-{self.user.id}-{case_id}", "feedback.md", feedback_path
                 )
                 logging.info("Fetched saved feedback!")
             except Exception as e:
@@ -224,18 +224,18 @@ class CustomDockerSpawner(DockerSpawner):
             try:
 
                 template_path = self._get_data_from_db(
-                    f"progress-{self.user.id}-{case_id}", "template", template_path
+                    f"progress-{self.user.id}-{case_id}", "template.ipynb", template_path
                 )
                 logging.info("Fetched saved template progress!")
             except Exception as e:
                 logging.info("No saved progess in BD!")
                 return self._get_data_from_db(
-                    f"case-{case_id}", "template", template_path
+                    f"case-{case_id}", "template.ipynb", template_path
                 )
 
         else:
             template_path = self._get_data_from_db(
-                f"case-{case_id}", "template", template_path
+                f"case-{case_id}", "template.ipynb", template_path
             )
         return template_path
 
